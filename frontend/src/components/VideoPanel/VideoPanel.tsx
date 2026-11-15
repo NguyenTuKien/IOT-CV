@@ -21,11 +21,13 @@ import { IconVision } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 
+import { Chip } from "@/components/kit";
 import { Panel } from "@/components/Panel";
 import { cn } from "@/lib/utils";
 import { useTelemetryStore } from "@/store/telemetry";
 
 import { DetectionOverlay } from "./DetectionOverlay";
+import { RecordingBadge } from "./RecordingBadge";
 
 const VIDEO_STREAM_PATH = "/api/video/stream";
 /** Hỏng rồi thì chừng này ms sau thử mở lại. */
@@ -106,8 +108,9 @@ export function VideoPanel({
   return (
     <Panel
       title={title}
-      subtitle="MJPEG từ camera · khung nhận diện qua WebSocket"
+      subtitle="MJPEG · khung AI vẽ chồng"
       icon={IconVision}
+      accent="violet"
       variant="instrument"
       style={style}
       className={className}
@@ -116,11 +119,12 @@ export function VideoPanel({
       actions={
         <>
           {fake ? (
-            <span className="rounded-md border border-hud-amber/40 bg-hud-amber/10 px-1.5 py-0.5 font-mono text-[10px] text-hud-amber" title="Nguồn MJPEG giả của Phase 07 — box không cần khớp nội dung video">
+            <Chip tone="warn" size="xs" mono title="Nguồn MJPEG giả (CAMERA_FAKE=1) — box không cần khớp nội dung video">
               NGUỒN GIẢ
-            </span>
+            </Chip>
           ) : null}
-          <span className="font-mono text-[10px] text-muted-foreground" data-testid="video-meta">
+          <RecordingBadge />
+          <span className="font-mono text-[10.5px] whitespace-nowrap text-muted-foreground" data-testid="video-meta">
             {frame ?? "—"} · {boxes ?? "—"} box
           </span>
           {tools ? (
