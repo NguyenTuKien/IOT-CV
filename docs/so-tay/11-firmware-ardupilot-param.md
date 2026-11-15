@@ -165,7 +165,7 @@ Vì bit 0 bật nên `FENCE_ENABLE,1` là **bắt buộc** đi kèm, như file `
 ```text
   TFmini Plus                 Bo bay (UART3 = SERIAL3)
   TXD (dây xanh)  ─────────▶  RX3
-  RXD (dây trắng)     ✗       TX3   (để trống: ArduPilot chỉ đọc, không ra lệnh cho cảm biến)
+  RXD (dây trắng) ◀─────────  TX3   (ArduPilot chỉ đọc, nhưng có dây này mới chỉnh lại cảm biến qua FC được)
   GND (dây đen)   ─────────── GND
   +5V (dây đỏ)    ─────────── 5V
 ```

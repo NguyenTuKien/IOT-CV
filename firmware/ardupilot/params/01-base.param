@@ -22,8 +22,20 @@
 # speedybeef4v5 cua ArduPilot dat mac dinh 12 vi dung ly do do.
 # Chieu quay theo VI TRI giong het X chuan: truoc-phai + sau-trai CCW,
 # truoc-trai + sau-phai CW. VAN PHAI kiem chung bang Motor Test o Phase 16.
+#
+# Sua 01/11/2026 cho KHOP FC THAT: tren bo dang chay FRAME_TYPE 1 (X chuan) + doi
+# thu tu dau ra SERVO1..4_FUNCTION = 36/33/34/35 (Motor4/1/2/3). Hai cach TUONG
+# DUONG: dau ra 1..4 van la sau-phai / truoc-phai / sau-trai / truoc-trai, dung
+# chieu quay - Motor Test 27/10/2026: A->SERVO2 truoc-phai, B->SERVO1 sau-phai,
+# C->SERVO3 sau-trai, D->SERVO4 truoc-trai. TRUOC DAY file ghi FRAME_TYPE 12 ma
+# khong co 4 dong SERVO: nap file do len FC dang co 36/33/34/35 la SAI THU TU MOTOR.
+# SITL van dung mo hinh "-f bfx" (cung vi tri dau ra).
 FRAME_CLASS,1
-FRAME_TYPE,12
+FRAME_TYPE,1
+SERVO1_FUNCTION,36
+SERVO2_FUNCTION,33
+SERVO3_FUNCTION,34
+SERVO4_FUNCTION,35
 
 # ---------- cong serial ----------
 # SERIAL1 = module Bluetooth noi bo, ArduPilot KHONG dung duoc -> de None
@@ -93,6 +105,16 @@ SERVO_BLH_TRATE,10
 # Da thu 0.15 cung ngay (logs/fc-dataflash-20261025-spin-arm-015/007): 6/32 lan hut,
 # M1 TB 0.40 s (max 0.69) -> KHONG tot hon 0.13, nen giu 0.13.
 MOT_SPIN_ARM,0.13
+# Them 02/11/2026: chan cat canh khi co motor chua quay. Log bay ngoai troi 01/11
+# (logs/fc-dataflash-20261101-bay-ngoai-troi/001): M1 (sau-phai) loi o 4/5 lan khoi
+# dong - hut o chuyen 1, 3, 4; chuyen 5 (20:28) M1 dung 0 vong suot 2,6 s trong khi 3
+# motor kia da quay ~1900 vong (tieng "khac khac"). 25/10 trong nha chi 2/28 lan. Keo
+# ga luc M1 chua quay la drone lat ve phia M1 ngay khi roi dat.
+# FC giu motor o vong cho (MOT_SPIN_ARM) toi khi CA 4 ESC bao 1000..4000 vong, web
+# bao "Takeoff blocked: ESC RPM out of range" moi 2 s. Vong cho do duoc 1850-1960 o
+# 15,5 V; 4000 chan so rac telemetry (01/11 co mau 44162). Can ESC telemetry SERIAL5.
+TKOFF_RPM_MIN,1000
+TKOFF_RPM_MAX,4000
 
 # ---------- pin 4S ----------
 # 4 = Analog Voltage and Current (mac dinh cua board)
@@ -120,6 +142,11 @@ BATT_LOW_VOLT,14.0
 BATT_CRT_VOLT,13.2
 # 20% cua 5300 - chua 20% cho tuoi tho pin
 BATT_LOW_MAH,1060
+# Them 02/11/2026: bu dien ap pin cho bo dieu khien (4S: 4,2 V va 3,3 V moi cell).
+# Tat (0) thi pin tut 15,5 -> 14,8 V (do 01/11) la cung muc ga cho luc day khac,
+# do nhay dieu khien doi theo pin.
+MOT_BAT_VOLT_MAX,16.8
+MOT_BAT_VOLT_MIN,13.2
 BATT_FS_LOW_ACT,2
 BATT_FS_CRT_ACT,1
 # Bo qua kiem tra dien ap pin luc khoi dong o lan dau tien de tranh
@@ -127,6 +154,8 @@ BATT_FS_CRT_ACT,1
 BATT_ARM_VOLT,0
 
 # ---------- failsafe co ban ----------
+# 1 = mat song tay cam -> RTL. 25-27/10/2026 bay trong nha da TAM doi 3 (Land) va
+# BATT_FS_LOW_ACT 1 (Land); 01/11/2026 tra ve 1 / 2 de bay ngoai troi (doc lai PASS).
 FS_THR_ENABLE,1
 FS_EKF_ACTION,1
 # Wi-Fi 2.4GHz SE rot lat vat. De 1 (RTL) thi drone tu bay ve chi vi laptop
@@ -134,8 +163,32 @@ FS_EKF_ACTION,1
 # duong day cuu sinh, khong phai Wi-Fi.
 FS_GCS_ENABLE,0
 
+# ---------- toc do + RTL (bay ngoai troi, nguoi dung chon 01/11/2026) ----------
+# Don vi m va m/s (ban 4.7 doi ten: WPNAV_SPEED cm/s -> WP_SPD m/s, RTL_ALT cm ->
+# RTL_ALT_M m). Mac dinh 12.5 m/s (Loiter) / 10 m/s (mission) qua nhanh voi nguoi
+# moi; nguoi dung chon 3 m/s cho ca hai. RTL bay ve cung toc do WP_SPD.
+# RTL_ALT_M 15: thap hon tran fence 20 m - margin 2 (02-avoid-tfmini.param); FC
+# tu ha RTL xuong duoi tran fence neu dat cao hon.
+LOIT_SPEED_MS,3
+WP_SPD,3
+RTL_ALT_M,15
+
 # ---------- log ----------
-# Board co 16MB dataflash. Ghi log ngay tu khi cam dien (khong doi arm)
-# de bat duoc loi luc khoi dong.
+# Board co 16MB dataflash.
+# Sua 25/10/2026, truoc la 1 (ghi ca luc chua arm): 1 lam day 16MB trong mot buoi
+# va FC tu xoa log cu (mat mot log 7,8MB). 0 = chi ghi luc dang ARM. Moi lan FC khoi
+# dong la MOT log, cac lan ARM sau ghi noi vao log do (log ngay 01/11/2026 chua 5 chuyen).
+# Do 01/11/2026: ~17 KB/s khi ARM -> 16MB chua ~15 phut bay; log cu nhat bi xoa dan tu
+# dau (mat bang FMT, doc bang scripts/fc/phan_tich_log.py --fmt-tu). Tai log ve sau
+# moi buoi bay, va ngay sau moi lan roi / mat lai: scripts/fc/tai_log.py.
 LOG_BITMASK,176126
-LOG_DISARMED,1
+LOG_DISARMED,0
+# Them 02/11/2026: moi lan DISARM dong log, lan ARM sau mo log moi -> moi chuyen mot
+# file co bang FMT rieng; chip day thi chi chuyen cu nhat bi xoa, khong con mat dau
+# ca mot log 5 chuyen.
+LOG_FILE_DSRMROT,1
+# Them 02/11/2026: 1 = chi ghi XKF4 (ty so innovation, co loi FS) cua EKF3, bo XKF1-3,
+# XKF5, XKY0/1, XKQ, XKV: bot ~3,7 trong ~17 KB/s -> 16MB chua ~20 phut bay thay
+# vi ~15. Vi tri / tu the van co o POS, ATT, CTUN, PSCN/E/D. Can soi EKF ky thi tam
+# dat lai 0.
+EK3_LOG_LEVEL,1

@@ -710,12 +710,15 @@ class SitlInstance:
                     lan_cuoi_co_goi = time.monotonic()
             if tong is not None and len(da_co) >= tong:
                 return params
-            if time.monotonic() - lan_cuoi_co_goi <= 2.0:
+            if time.monotonic() - lan_cuoi_co_goi <= 1.0:
                 continue
             if not da_co:
                 m.mav.param_request_list_send(m.target_system, m.target_component)
             else:
-                for i in sorted(set(range(tong)) - da_co)[:50]:
+                # ArduPilot chỉ xếp hàng 20 PARAM_REQUEST_READ (GCS_Param.cpp, param_requests(20)),
+                # thừa là bỏ im lặng. FC thật qua Wi-Fi mất ~30 % gói (01/11/2026): xin 50/lượt,
+                # chờ 2 s → 743/889 sau 120 s; xin 20/lượt, chờ 1 s → đủ 889 trong 120 s.
+                for i in sorted(set(range(tong)) - da_co)[:20]:
                     m.mav.param_request_read_send(m.target_system, m.target_component, b"", i)
             lan_cuoi_co_goi = time.monotonic()
         raise SitlError(f"fetch_all_params: hết {timeout}s mới có {len(da_co)}/{tong} tham số.")

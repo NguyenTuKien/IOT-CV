@@ -69,7 +69,9 @@ SITL_DI_DAY = ["-A", "--serial3=sim:benewake_tfmini --serial4=GPS1"]
 #    sim_vehicle.py dùng khung "quad" = mô hình "+", trong khi file đặt X: drone
 #    ảo vẫn cất cánh được nhưng mixer lệch 45°. Từ 12/10/2026 file đặt
 #    FRAME_TYPE 12 (X Betaflight, đúng thứ tự motor in trên ESC OX32) -> mô hình
-#    "bfx" (libraries/SITL/SIM_Frame.cpp, quad_bf_x_motors). Mô hình "+" với
+#    "bfx" (libraries/SITL/SIM_Frame.cpp, quad_bf_x_motors). Từ 01/11/2026 file
+#    đặt FRAME_TYPE 1 + SERVO1..4_FUNCTION 36/33/34/35 cho khớp FC thật — đầu ra
+#    1..4 vẫn đúng vị trí BF X nên mô hình vẫn là "bfx". Mô hình "+" với
 #    mixer BF X thì sai cả vị trí lẫn chiều quay motor, drone ảo lật. Truyền ở
 #    MỌI lượt (kể cả lượt -w) vì cả bốn lượt dùng chung một EEPROM.
 SITL_KHUNG = ["-f", "bfx"]
@@ -88,6 +90,12 @@ BIT_RC_SITL_UDP = 1 << 18
 #    nên SITL đọc dòng to gấp ~22 lần: đo thật, sau 20 s bay ảo "used 4244 mAh"
 #    -> failsafe dung lượng -> RTL. Bù cùng lúc với bit RC, chỉ trong lượt bay.
 SITL_BU_DONG = {"BATT_AMP_PERVLT": 17.0, "BATT_AMP_OFFSET": 0.0}
+# 5. ESC ảo của SITL (khung bfx) báo 0 vòng: ESC_TELEMETRY_1_TO_4 toàn 0 kể cả khi motor
+#    đang quay ở MOT_SPIN_ARM (SIM_ESC_ARM_RPM có khai báo nhưng 4.7.1 không dùng tới). Từ
+#    02/11/2026 base đặt TKOFF_RPM_MIN 1000 / MAX 4000 cho FC thật (chặn cất cánh khi một
+#    motor chưa quay) -> SITL báo "Takeoff blocked: ESC RPM out of range" mãi rồi tự tắt ARM.
+#    Đo A/B 02/11/2026: 1000 -> không rời đất; 0 -> lên 3,66 m. Bù cùng lúc với dòng ảo.
+SITL_BU_RPM = {"TKOFF_RPM_MIN": 0.0, "TKOFF_RPM_MAX": 0.0}
 
 NHAN = "nhận"
 NHAN_SAU_REBOOT = "nhận, nhưng chỉ sau reboot"
@@ -261,15 +269,15 @@ def luot_2(d: Path, kq_base: dict, avoid: list[tuple[str, float]], file_base: Pa
 
 
 def thu_bay_co_bu_rc(sitl: SitlInstance, sau: dict[str, float]) -> dict:
-    """Thử bay nguyên bản; không cất cánh được thì bù bit RC ảo + hệ số dòng ảo
-    rồi thử lại."""
+    """Thử bay nguyên bản; không cất cánh được thì bù bit RC ảo + hệ số dòng ảo + chặn
+    vòng quay (ESC ảo báo 0 vòng) rồi thử lại."""
     bay = {"nguyen_ban": thu_bay(sitl)}
     if bay["nguyen_ban"].get("cat_canh") != "OK":
         rc = int(sau.get("RC_PROTOCOLS", 1)) | BIT_RC_SITL_UDP
         sitl.set_param("RC_PROTOCOLS", rc)
-        for ten, gia_tri in SITL_BU_DONG.items():
+        for ten, gia_tri in {**SITL_BU_DONG, **SITL_BU_RPM}.items():
             sitl.set_param(ten, gia_tri)
-        bay[f"sau_khi_bu_RC_PROTOCOLS={rc}_va_dong_ao_17A/V"] = thu_bay(sitl)
+        bay[f"sau_khi_bu_RC_PROTOCOLS={rc}_dong_ao_17A/V_va_TKOFF_RPM_0"] = thu_bay(sitl)
     return bay
 
 
