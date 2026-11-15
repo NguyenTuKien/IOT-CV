@@ -133,8 +133,12 @@ Yêu cầu hiện thực, từng điểm một:
    | 3 | `UNSUPPORTED` | Lệnh này Copter không hỗ trợ |
    | 4 | `NO_SPACE` | Vượt số waypoint FC chứa được |
    | 5 | `INVALID` | Tham số item sai |
-   | 10 | `INVALID_SEQUENCE` | Gửi sai thứ tự — xem điểm 1 |
-   | 13 | `OPERATION_CANCELLED` | Bị GCS khác cắt ngang |
+   | 13 | `INVALID_SEQUENCE` | Item tới lạc thứ tự (trễ/lặp) — FC vẫn giữ phiên, backend chờ tiếp |
+   | 14 | `DENIED` | FC không nhận lúc này (GCS khác đang nạp?) |
+   | 15 | `OPERATION_CANCELLED` | FC tự huỷ phiên sau 8 s không nhận item — backend nạp lại |
+
+   Bảng này từng ghi 10/13 cho hai mã cuối (sai enum MAVLink, sửa 01/11/2026 sau khi drone thật
+   trả ACK 13 giữa lần nạp FC đã nhận đủ); `backend/mavlink/mission.py` có test so với pymavlink.
 
 4. **Mission cũ chỉ bị thay sau khi nhận ACK thành công.** Trước đó `MissionManager.current` không đổi. Upload hỏng giữa chừng không được để lại trạng thái nửa vời trong backend.
 5. Suốt phiên upload, phát `event` `mission.progress` với `detail = {"sent": i, "total": n}` — Phase 09 vẽ thanh tiến độ từ đó.
@@ -179,6 +183,18 @@ So khớp với những gì vừa gửi: toạ độ lệch ≤ `1e-7` độ, al
   - *Mission Planner hiện lệch một dòng* — đúng điều đã cảnh báo ở 7.2. Bỏ item seq 0.
   - *Alt trong MP gấp nhiều lần mong đợi* — nhầm `frame`, đang dùng `0` (AMSL) thay vì `6` (so với home).
   - *Upload xong nhưng AUTO không chạy* — chưa armed, hoặc mission thiếu `NAV_TAKEOFF` (luật 7 ở 7.1 sinh ra chính để chặn việc này).
+
+**Nạp mission mới khi drone đang bay (thêm 02/11/2026).** Người dùng muốn đứng dưới đất sửa lộ trình rồi nạp lên drone đang bay. Hai hành vi của ArduPilot 4.7.1 làm việc đó nguy hiểm nếu nạp thẳng:
+
+- Đang AUTO mà mission đổi thì `ModeAuto::run()` gọi `restart_current_nav_cmd()`: drone bay NGAY tới item **cùng số thứ tự** của mission mới ("Auto mission changed, restarted command"), tức một điểm tuỳ ý; và trong lúc nạp thì mission trên FC còn dở dang.
+- `MIS_RESTART 0`: vào AUTO thì FC chạy tiếp từ số thứ tự nó đang nhớ (`AP_Mission::resume()`), mà số đó là của mission cũ. Mission cũ đã bay tới item 3 thì mission mới mất takeoff và hai điểm đầu. Lỗi này có cả khi nạp lúc drone đang LOITER, không riêng AUTO.
+
+Nên `MissionManager.upload()` làm thêm hai bước (người dùng chọn cách này 02/11/2026):
+
+1. Đang armed + AUTO thì `set_mode("GUIDED")` TRƯỚC `MISSION_COUNT`: drone đứng giữ chỗ, không theo cần ga. Không chuyển được thì báo lỗi, không gửi gói mission nào. Hub phát `mission.hold_for_upload` (mức `warn`); `mission.uploaded` có `detail.held`.
+2. Đọc lại khớp xong: `MAV_CMD_DO_SET_MISSION_CURRENT` (224), param1 = 1, param2 = 0 (param2 = 1 làm FC `resume()` luôn), chờ ACK, gửi lại khi mất gói. Hỏng thì `source` giữ `local` và `start()` bị chặn.
+
+Bay mission mới vẫn là nút BẮT ĐẦU AUTO do người bấm (`cmd.mode AUTO`). Item 1 là TAKEOFF; drone đang cao hơn độ cao đó thì item xong ngay (`takeoff_start`: đích = max(độ cao item, độ cao hiện tại)). Test: `test_mission_upload.py`, phần "Nạp mission khi drone đang bay". SITL: `scripts/sitl/run_nap_khi_bay.py` (backend thật, `POST /api/mission`), PASS ngày 02/11/2026. Drone đang bay mission A ở item 3, độ cao 6 m. Nạp mission B: FC về GUIDED chưa tới 0,1 s sau khi gọi nạp (ArduCopter gửi HEARTBEAT ngay lúc đổi mode). Lúc đứng giữ chỗ drone lệch 0,42 m ngang, 0,01 m độ cao. Không có dòng "Auto mission changed", và nạp xong FC báo item 1. Bấm AUTO thì TAKEOFF xong ngay, drone bay thẳng tới B1 (tới cách 1,3 m), không nhảy sang item 3.
 
 ---
 
@@ -267,6 +283,8 @@ Gom toàn bộ phản ứng của backend vào **một** bảng. Hiện thực t
 3. **Rớt Wi-Fi 2.4 GHz vặt vãnh là chuyện bình thường.** Báo cáo tổng thể §6 đã ghi, và các chuyến bay đầu đặt `FS_GCS_ENABLE=0` chính vì vậy. Một backend tự kích RTL mỗi lần rớt gói sẽ **tự tạo ra tai nạn từ một sự cố vô hại**.
 4. **Zero-velocity KHÔNG phải là đổi mode.** Nó là việc backend *rút lại lệnh do chính nó phát ra*. Rút xong, GUIDED tự giữ vị trí bằng vòng điều khiển của FC. Đây chính là lý do zero-velocity được phép mà RTL thì không: một bên là **ngừng can thiệp**, bên kia là **can thiệp thêm**.
 5. **RC là dây cứu sinh** (`SAFETY.md` mục 4). Mọi thiết kế phải giữ được: khi mọi thứ hỏng, người cầm RC vẫn giành lại được máy bay. Backend tự đổi mode làm giả định đó yếu đi.
+
+Chuyển GUIDED lúc nạp mission khi đang bay AUTO (7.5, thêm 02/11/2026) **không** phải tự đổi mode: nó là một phần của lệnh NẠP MISSION do người bấm, web báo trước bằng một dòng vàng cạnh nút, và gạt công tắc mode trên RC vẫn giành lại được ngay. Gặp sự cố thì backend vẫn không đổi mode.
 
 Viết test cho bảng trên trong `test_safety_state_machine.py` — mỗi dòng một test, **đặc biệt là cột "KHÔNG LÀM"**: khẳng định `FakeMAVLink.sent` **không** chứa lệnh đổi mode sau khi bơm sự kiện mất link / pin thấp / EKF hỏng. Cột "không làm" chính là phần dễ bị vi phạm nhất bởi một lập trình viên có thiện chí.
 

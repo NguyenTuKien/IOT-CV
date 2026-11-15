@@ -341,19 +341,28 @@ MISSION_CMD_RTL = 20
 MISSION_CMD_LAND = 21
 MISSION_CMD_TAKEOFF = 22
 MISSION_COMMANDS = (MISSION_CMD_WAYPOINT, MISSION_CMD_RTL, MISSION_CMD_LAND, MISSION_CMD_TAKEOFF)
+# ArduCopter cất "dừng tại waypoint" (param1 của NAV_WAYPOINT) vào `p1` kiểu uint16, đơn vị
+# GIÂY NGUYÊN: 2.5 thành 2, quá 65535 thì tràn — đọc lại lệch cái đã gửi. Đây là giới hạn của
+# giao thức, không phải ngưỡng an toàn (01/11/2026).
+MISSION_MAX_HOLD_S = 65535
 
 
 class MissionWaypoint(BaseModel):
     """`command` thêm ở Phase 07, mặc định NAV_WAYPOINT để client Phase 05
     (chưa biết trường này) vẫn gửi được. Lệnh ngoài `MISSION_COMMANDS` thì
     `validate_mission` từ chối, không phải pydantic — để lỗi về đúng mã
-    `validation_failed` kèm số thứ tự item, thay vì `bad_payload` chung chung."""
+    `validation_failed` kèm số thứ tự item, thay vì `bad_payload` chung chung.
+
+    `hold_s` (01/11/2026): số giây dừng tại điểm, chỉ NAV_WAYPOINT. 0 = bay lướt
+    qua — ArduCopter vào cua trước khi tới điểm, chặng đi–về 8 m quay đầu sớm ~1,5 m.
+    Kiểu `float` cùng lý do với `command`: số lẻ về `validation_failed` có số item."""
 
     seq: int
     lat: float
     lon: float
     alt: float
     command: int = MISSION_CMD_WAYPOINT
+    hold_s: float = 0.0
 
 
 class CmdMissionUpload(BaseModel):

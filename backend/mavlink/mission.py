@@ -43,6 +43,7 @@ from backend.schemas import (
     MISSION_CMD_TAKEOFF,
     MISSION_CMD_WAYPOINT,
     MISSION_COMMANDS,
+    MISSION_MAX_HOLD_S,
 )
 
 log = logging.getLogger(__name__)
@@ -57,17 +58,41 @@ MAV_FRAME_GLOBAL = 0
 MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6
 MAV_MISSION_ACCEPTED = 0
 MAV_CMD_MISSION_START = 300
+MAV_CMD_DO_SET_MISSION_CURRENT = 224
+# Item đầu của người dùng (seq 0 là HOME, xem build_mission_items). Nạp xong luôn đặt FC bắt
+# đầu từ đây — lý do ở `MissionManager._dat_item_bat_dau`.
+SEQ_ITEM_DAU = 1
 
-# MAV_MISSION_RESULT -> (tên, nghĩa dễ hiểu). Phase 07 §7.3 điểm 3.
+# MAV_MISSION_RESULT -> (tên, nghĩa dễ hiểu). Phase 07 §7.3 điểm 3. Số phải khớp enum của
+# MAVLink — test_bang_ma_mission_ack_khop_pymavlink so từng dòng. Bảng cũ ghi INVALID_SEQUENCE
+# = 10 và OPERATION_CANCELLED = 13 (sai, 01/11/2026): FC báo "item lạc thứ tự" (13) thì
+# backend tưởng bị huỷ, bỏ một lần nạp FC đã nhận đủ.
 MISSION_ACK_NAMES: dict[int, tuple[str, str]] = {
     1: ("MAV_MISSION_ERROR", "FC từ chối, không nói rõ lý do"),
     2: ("MAV_MISSION_UNSUPPORTED_FRAME", "sai `frame` của item"),
     3: ("MAV_MISSION_UNSUPPORTED", "lệnh này Copter không hỗ trợ"),
     4: ("MAV_MISSION_NO_SPACE", "vượt số waypoint FC chứa được"),
     5: ("MAV_MISSION_INVALID", "tham số item sai"),
-    10: ("MAV_MISSION_INVALID_SEQUENCE", "gửi sai thứ tự — phải trả lời theo seq FC hỏi"),
-    13: ("MAV_MISSION_OPERATION_CANCELLED", "bị một GCS khác cắt ngang"),
+    6: ("MAV_MISSION_INVALID_PARAM1", "param1 của item sai (NAV_WAYPOINT: số giây dừng)"),
+    7: ("MAV_MISSION_INVALID_PARAM2", "param2 của item sai"),
+    8: ("MAV_MISSION_INVALID_PARAM3", "param3 của item sai"),
+    9: ("MAV_MISSION_INVALID_PARAM4", "param4 của item sai"),
+    10: ("MAV_MISSION_INVALID_PARAM5_X", "vĩ độ của item sai"),
+    11: ("MAV_MISSION_INVALID_PARAM6_Y", "kinh độ của item sai"),
+    12: ("MAV_MISSION_INVALID_PARAM7", "độ cao của item sai"),
+    13: ("MAV_MISSION_INVALID_SEQUENCE", "item tới lạc thứ tự (trễ hoặc lặp) — FC vẫn giữ phiên"),
+    14: ("MAV_MISSION_DENIED", "FC không nhận lúc này (GCS khác đang nạp?)"),
+    15: (
+        "MAV_MISSION_OPERATION_CANCELLED",
+        "FC huỷ phiên nạp vì 8 s không nhận được item (link mất gói)",
+    ),
 }
+# Hai mã MISSION_ACK giữa chừng KHÔNG có nghĩa là FC từ chối mission (xem `_upload_items`).
+MAV_MISSION_INVALID_SEQUENCE = 13
+MAV_MISSION_OPERATION_CANCELLED = 15
+# ArduPilot tự huỷ phiên nạp khi 8 s không nhận được item nào (MissionItemProtocol,
+# upload_timeout_ms). Giữa phiên mà im lặng quá mốc này thì FC chắc chắn đã bỏ phiên.
+FC_UPLOAD_TIMEOUT_S = 8.0
 
 _COMMAND_NAMES = {
     MISSION_CMD_WAYPOINT: "NAV_WAYPOINT",
@@ -86,13 +111,18 @@ _LENH_CHI_ALT = frozenset({MISSION_CMD_TAKEOFF})
 
 @dataclass(frozen=True)
 class Waypoint:
-    """Một item của người dùng. `command` mặc định NAV_WAYPOINT (16)."""
+    """Một item của người dùng. `command` mặc định NAV_WAYPOINT (16).
+
+    `hold_s` > 0: dừng đúng tại điểm chừng ấy giây rồi mới đi tiếp (param1). Có nó
+    ArduCopter không nối chặng sau vào chặng này (`ModeAuto::set_next_wp`), nên tới
+    ĐỦ điểm thay vì vào cua sớm — điều mẫu đi–về ngắn cần (01/11/2026)."""
 
     seq: int
     lat: float
     lon: float
     alt: float
     command: int = MISSION_CMD_WAYPOINT
+    hold_s: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -126,6 +156,22 @@ def _is_valid_coordinate(lat: float, lon: float) -> bool:
     return not (lat == 0.0 and lon == 0.0)
 
 
+def _loi_hold(wp: Waypoint) -> str | None:
+    """Lỗi của `hold_s`, hoặc None. Chỉ NAV_WAYPOINT dừng được; số giây phải nguyên và
+    vừa uint16 vì FC cất đúng như vậy — gửi 2.5 thì FC giữ 2 và đọc lại lệch."""
+    if wp.hold_s == 0:
+        return None
+    if wp.command != MISSION_CMD_WAYPOINT:
+        ten = _COMMAND_NAMES[wp.command]
+        return f"WP{wp.seq}: chỉ NAV_WAYPOINT mới dừng được, {ten} không nhận hold_s"
+    if not 0 <= wp.hold_s <= MISSION_MAX_HOLD_S or wp.hold_s != int(wp.hold_s):
+        return (
+            f"WP{wp.seq}: dừng {wp.hold_s:g} s không hợp lệ — FC chỉ nhận số giây nguyên "
+            f"0–{MISSION_MAX_HOLD_S}"
+        )
+    return None
+
+
 def _ra_day_la_0(lat: float, lon: float) -> bool:
     """(lat, lon) có thành (0, 0) trên dây không — MISSION_ITEM_INT chở toạ độ
     dạng số nguyên nhân 1e7, nên mọi giá trị dưới nửa đơn vị 1e-7 độ đều ra 0.
@@ -150,7 +196,8 @@ def validate_mission(
     vượt giới hạn demo, waypoint quá xa home, toạ độ invalid, quá số waypoint
     cho phép. Phase 07 thêm: `command` phải nằm trong danh sách trắng, và lệnh
     không mang toạ độ (RTL; lat/lon của TAKEOFF, LAND tại chỗ) không bị kiểm
-    toạ độ/độ cao vô nghĩa.
+    toạ độ/độ cao vô nghĩa. 01/11/2026 thêm: `hold_s` chỉ NAV_WAYPOINT mới có,
+    và phải là giây nguyên FC cất được (`_loi_hold`).
 
     Luật CẤU TRÚC (item đầu TAKEOFF, item cuối RTL/LAND) nằm riêng ở
     `validate_mission_structure()`: hàm này kiểm TỪNG ĐIỂM, hàm kia kiểm cả
@@ -182,6 +229,9 @@ def validate_mission(
                 + ", ".join(f"{c} {_COMMAND_NAMES[c]}" for c in MISSION_COMMANDS)
             )
             continue
+        loi_dung = _loi_hold(wp)
+        if loi_dung is not None:
+            errors.append(loi_dung)
         if wp.command in _LENH_KHONG_TOA_DO:
             continue
 
@@ -281,6 +331,7 @@ def build_mission_items(waypoints: list[Waypoint], home: tuple[float, float]) ->
                 x=x,
                 y=y,
                 z=0.0 if wp.command in (MISSION_CMD_RTL, MISSION_CMD_LAND) else float(wp.alt),
+                param1=float(wp.hold_s),
             )
         )
     return items
@@ -291,7 +342,8 @@ def compare_readback(sent: list[MissionItem], got: list[MissionItem]) -> list[st
 
     Ô home (seq 0) không so — FC ghi đè nó bằng home thật. Toạ độ lệch tối đa
     1 đơn vị 1e-7 độ (sai số làm tròn), alt lệch tối đa
-    `MISSION_READBACK_ALT_TOL_M`, `command` phải trùng tuyệt đối.
+    `MISSION_READBACK_ALT_TOL_M`, `command` phải trùng tuyệt đối, và số giây
+    dừng (param1) của NAV_WAYPOINT cũng vậy — FC giữ giây nguyên, không làm tròn.
     """
     lech: list[str] = []
     if len(got) != len(sent):
@@ -304,6 +356,8 @@ def compare_readback(sent: list[MissionItem], got: list[MissionItem]) -> list[st
             continue
         if s.command in _LENH_KHONG_TOA_DO:
             continue
+        if s.command == MISSION_CMD_WAYPOINT and g.param1 != s.param1:
+            lech.append(f"item {s.seq}: dừng {g.param1:g} s != {s.param1:g} s")
         if s.command not in _LENH_CHI_ALT and (abs(s.x - g.x) > 1 or abs(s.y - g.y) > 1):
             lech.append(f"item {s.seq}: toạ độ ({g.x}, {g.y}) != ({s.x}, {s.y})")
         if abs(s.z - g.z) > tol_alt:
@@ -438,10 +492,18 @@ class MissionManager:
         home: tuple[float, float] | None = None,
         *,
         progress: ProgressFn | None = None,
+        on_hold: Callable[[], None] | None = None,
     ) -> UploadResult:
-        """Validate -> upload -> readback. Ném `ValueError` khi mission sai
-        (TRƯỚC khi có bất kỳ gói nào được gửi), `ControlError` khi FC từ chối,
+        """Validate -> (giữ chỗ) -> upload -> readback -> đặt item bắt đầu. Ném `ValueError`
+        khi mission sai (TRƯỚC khi có bất kỳ gói nào được gửi), `ControlError` khi FC từ chối,
         hết giờ, hoặc đọc lại không khớp.
+
+        Drone đang bay AUTO thì chuyển GUIDED (đứng giữ chỗ, không theo cần ga) TRƯỚC khi gửi
+        MISSION_COUNT, rồi gọi `on_hold()`. Vì: đang AUTO mà mission đổi thì ArduPilot bay ngay
+        tới item CÙNG SỐ THỨ TỰ của mission mới ("Auto mission changed, restarted command",
+        mode_auto.cpp) — một điểm tuỳ ý, và giữa phiên nạp thì mission còn dở dang. Không chuyển
+        được thì dừng, không gửi gói mission nào. Nạp xong drone vẫn GUIDED giữ chỗ: bay mission
+        mới là `start()`, do người bấm.
         """
         errors = validate_for_upload(waypoints, home)
         if errors:
@@ -457,6 +519,10 @@ class MissionManager:
         try:
             self._require_link()
             items = build_mission_items(waypoints, home)
+            if self._dang_bay_auto():
+                self._giu_cho_de_nap()
+                if on_hold is not None:
+                    on_hold()
             self._open_session()
             try:
                 self._upload_items(items, progress)
@@ -478,10 +544,83 @@ class MissionManager:
                     "mission này. Đối chiếu bằng Mission Planner (Read WPs).",
                     {"mismatches": lech[:10]},
                 )
+            self._dat_item_bat_dau(SEQ_ITEM_DAU)
             self.source = "readback"
             return UploadResult(count=len(waypoints), readback_ok=True)
         finally:
             self._busy.release()
+
+    def _dang_bay_auto(self) -> bool:
+        st = self.state
+        return (
+            st is not None
+            and bool(getattr(st, "armed", False))
+            and getattr(st, "mode", None) == "AUTO"
+        )
+
+    def _giu_cho_de_nap(self) -> None:
+        if self.control is None:
+            raise ControlError("internal", "MissionManager chưa được nối với FlightControl")
+        try:
+            self.control.set_mode("GUIDED")
+        except ControlError as exc:
+            raise ControlError(
+                exc.code,
+                "Drone đang bay AUTO nhưng không chuyển được sang GUIDED để đứng giữ chỗ "
+                f"({exc.message}) — chưa gửi gói mission nào. Chuyển LOITER bằng tay cầm "
+                "rồi nạp lại.",
+                exc.detail,
+            ) from exc
+
+    def _dat_item_bat_dau(self, seq: int) -> None:
+        """MAV_CMD_DO_SET_MISSION_CURRENT(seq) với param2 = 0, chờ ACK, gửi lại khi mất gói.
+
+        `MIS_RESTART 0` (01-base.param): vào AUTO thì ArduPilot CHẠY TIẾP từ số thứ tự nó đang
+        nhớ, và số đó là của mission CŨ — `AP_Mission::resume()` đọc lại `_nav_cmd.index` trong
+        mission mới. Mission cũ đã bay tới item 3 thì mission mới bị bỏ qua takeoff và hai điểm
+        đầu. Lệnh này chỉ đặt chỗ bắt đầu, không cho bay: mission đang dừng (không AUTO) thì FC
+        giữ nguyên trạng thái dừng. param2 = 1 thì FC `resume()` luôn — không dùng. Gửi lại
+        vô hại: đặt cùng một số nhiều lần vẫn là một kết quả.
+        """
+        lan_thu = max(1, config.MISSION_RETRIES)
+        waiter = self.connection.expect_ack(MAV_CMD_DO_SET_MISSION_CURRENT)
+        try:
+            ts, tc = self._target()
+            result = None
+            for lan in range(lan_thu):
+                self._send(
+                    "command_long_send",
+                    ts,
+                    tc,
+                    MAV_CMD_DO_SET_MISSION_CURRENT,
+                    min(lan, 255),  # confirmation: lần gửi lại thứ mấy
+                    float(seq),
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                )
+                result = self._cho_ack(waiter, time.monotonic() + config.MISSION_ITEM_TIMEOUT_S)
+                if result is not None:
+                    break
+        finally:
+            self.connection.stop_expecting(MAV_CMD_DO_SET_MISSION_CURRENT, waiter)
+        if result is None:
+            raise ControlError(
+                "timeout",
+                f"FC đã nhận mission nhưng không xác nhận bắt đầu từ item {seq} sau {lan_thu} "
+                "lần gửi. Nút AUTO khoá tới khi nạp lại.",
+            )
+        if result != MAV_RESULT_ACCEPTED:
+            ten = MAV_RESULT_NAMES.get(result, str(result))
+            raise ControlError(
+                "command_denied",
+                f"FC đã nhận mission nhưng từ chối bắt đầu từ item {seq}: {ten}. Nút AUTO khoá "
+                "tới khi nạp lại.",
+                {"result": result, "result_name": ten},
+            )
 
     def _upload_items(self, items: list[MissionItem], progress: ProgressFn | None) -> None:
         total = len(items)
@@ -490,19 +629,52 @@ class MissionManager:
         for lan in range(1, max(1, config.MISSION_RETRIES) + 1):
             self._send("mission_count_send", ts, tc, total, MAV_MISSION_TYPE_MISSION)
             da_gui: set[int] = set()
+            seq_cuoi: int | None = None  # seq FC hỏi gần nhất trong phiên này
+            nghe_luc = time.monotonic()
             self.progress = (0, total)
             while True:
                 msg = self._wait(("MISSION_REQUEST_INT", "MISSION_REQUEST", "MISSION_ACK"), timeout)
                 if msg is None:
+                    im_lang = time.monotonic() - nghe_luc
+                    if seq_cuoi is None or im_lang >= FC_UPLOAD_TIMEOUT_S:
+                        log.warning(
+                            "Upload mission: FC im lặng %.1fs (lần %d/%d), gửi lại MISSION_COUNT",
+                            im_lang,
+                            lan,
+                            config.MISSION_RETRIES,
+                        )
+                        break
+                    # Giữa phiên: item của ta hoặc câu FC hỏi lại đã rơi trên Wi-Fi. Gửi lại
+                    # item gần nhất — FC đang chờ nó thì nhận rồi hỏi tiếp, FC có rồi thì chỉ
+                    # trả ACK 10 (vô hại). Gửi lại MISSION_COUNT là FC làm lại từ seq 0: drone
+                    # thật 01/11/2026 mỗi phiên chỉ kịp 1–2 item rồi về 0, không bao giờ xong.
                     log.warning(
-                        "Upload mission: FC im lặng %.1fs (lần %d/%d), gửi lại MISSION_COUNT",
-                        timeout,
-                        lan,
-                        config.MISSION_RETRIES,
+                        "Upload mission: FC im lặng %.1fs giữa phiên, gửi lại item %d",
+                        im_lang,
+                        seq_cuoi,
                     )
-                    break
+                    self._send_item(items[seq_cuoi])
+                    continue
+                nghe_luc = time.monotonic()
                 if msg.get_type() == "MISSION_ACK":
                     result = int(getattr(msg, "type", -1))
+                    if result == MAV_MISSION_INVALID_SEQUENCE:
+                        # Một item tới trễ hoặc lặp lại (ta gửi lại item khi im lặng, FC hỏi
+                        # lại mỗi ~1 s). FC vẫn giữ phiên và hỏi đúng seq nó đang chờ — chờ
+                        # tiếp (tlog drone thật 01/11/2026: ACK 13 rồi hỏi seq kế ngay).
+                        # Readback vẫn là chốt chặn cuối.
+                        log.warning("Upload mission: FC báo item lạc thứ tự, chờ FC hỏi lại")
+                        continue
+                    if result == MAV_MISSION_OPERATION_CANCELLED:
+                        # FC tự huỷ phiên khi 8 s không nhận được item nào
+                        # (MissionItemProtocol::update, kèm STATUSTEXT "Mission upload
+                        # timeout"). Wi-Fi rớt 5–7 s là gặp (01/11/2026) — làm lại từ đầu.
+                        log.warning(
+                            "Upload mission: FC huỷ phiên (lần %d/%d), gửi lại MISSION_COUNT",
+                            lan,
+                            config.MISSION_RETRIES,
+                        )
+                        break
                     if result != MAV_MISSION_ACCEPTED:
                         ten = MISSION_ACK_NAMES.get(result, (str(result), ""))[0]
                         raise ControlError(
@@ -526,6 +698,7 @@ class MissionManager:
                         {"seq": seq, "total": total},
                     )
                 self._send_item(items[seq])
+                seq_cuoi = seq
                 da_gui.add(seq)
                 self.progress = (len(da_gui), total)
                 if progress is not None:
@@ -533,7 +706,7 @@ class MissionManager:
         raise ControlError(
             "timeout",
             f"FC không trả lời upload mission sau {config.MISSION_RETRIES} lần thử "
-            f"({timeout:g}s mỗi lần). Kiểm target_system/component và link.",
+            f"({timeout:g}s mỗi lần). Kiểm link (Wi-Fi yếu, mất gói?) và target_system/component.",
             {"retries": config.MISSION_RETRIES},
         )
 
@@ -627,7 +800,8 @@ class MissionManager:
         if self.source != "readback" or not self.current:
             raise ControlError(
                 "validation_failed",
-                "Chưa có mission đã đọc lại được từ FC — upload (và readback khớp) trước",
+                "Chưa có mission được FC xác nhận đủ (đọc lại khớp, bắt đầu từ item 1) — "
+                "nạp lại trước",
                 {"source": self.source},
             )
         if self.state is not None and not getattr(self.state, "armed", False):

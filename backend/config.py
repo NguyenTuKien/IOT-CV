@@ -152,9 +152,12 @@ RANGEFINDER_MAX_M = _env_float("RANGEFINDER_MAX_M", 6.0)
 PROXIMITY_STALE_S = _env_float("PROXIMITY_STALE_S", 2.0)
 
 # Mission protocol (Phase 07 §7.3). Chờ mỗi MISSION_REQUEST tối đa bao lâu, và
-# gửi lại MISSION_COUNT bao nhiêu lần trước khi bỏ cuộc.
-MISSION_ITEM_TIMEOUT_S = _env_float("MISSION_ITEM_TIMEOUT_S", 2.0)
-MISSION_RETRIES = _env_int("MISSION_RETRIES", 3)
+# gửi lại MISSION_COUNT bao nhiêu lần trước khi bỏ cuộc. Tính cho Wi-Fi của drone
+# thật (01/11/2026): link rớt 5–7 s, cứ ~15 s một lần, nên phải kiên nhẫn quá một
+# chu kỳ (3 s × 8 lần ≈ 24 s). FC tự hỏi lại mỗi ~1 s và huỷ phiên sau 8 s im lặng.
+# Mức cũ 2 s × 3 lần bỏ cuộc trước khi sóng về.
+MISSION_ITEM_TIMEOUT_S = _env_float("MISSION_ITEM_TIMEOUT_S", 3.0)
+MISSION_RETRIES = _env_int("MISSION_RETRIES", 8)
 # Readback: sai số cho phép khi so mission đọc lại với mission vừa gửi.
 MISSION_READBACK_ALT_TOL_M = _env_float("MISSION_READBACK_ALT_TOL_M", 0.1)
 # Pin dưới ngưỡng này thì phát cảnh báo (Phase 07 §7.7) — CHỈ cảnh báo, không

@@ -93,7 +93,9 @@ def build_router(hub) -> APIRouter:
             count=len(mission.current),
             uploaded_at=mission.uploaded_at,
             waypoints=[
-                MissionWaypoint(seq=w.seq, lat=w.lat, lon=w.lon, alt=w.alt, command=w.command)
+                MissionWaypoint(
+                    seq=w.seq, lat=w.lat, lon=w.lon, alt=w.alt, command=w.command, hold_s=w.hold_s
+                )
                 for w in mission.current
             ],
         )

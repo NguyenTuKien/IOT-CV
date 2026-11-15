@@ -181,10 +181,22 @@ class FakeMissionFC:
       `order`        thứ tự seq FC HỎI (mặc định 0..n-1). Lặp một seq = FC hỏi lại.
       `request_type` "MISSION_REQUEST_INT" hoặc bản cũ "MISSION_REQUEST".
       `ack`          mã MISSION_ACK cuối upload (0 = accepted).
+      `chen_ack`     {seq: mã} — nhận item seq đó lần đầu thì FC đẩy MISSION_ACK mã đó
+                     giữa chừng. 13 (INVALID_SEQUENCE): FC vẫn giữ phiên, hỏi tiếp.
+                     15 (OPERATION_CANCELLED): FC huỷ phiên, thôi hỏi, chờ MISSION_COUNT mới.
+      `mat_hoi`      các seq mà câu FC hỏi LẦN ĐẦU bị rơi trên đường (FC vẫn chờ seq đó).
+    Item tới khác seq FC đang chờ (trễ, gửi lại) thì FC trả ACK 13 rồi hỏi lại seq đang
+    chờ, vẫn giữ phiên — đúng như tlog drone thật 01/11/2026.
+      `cam_sau`      nhận item seq này thì FC câm hẳn tới MISSION_COUNT kế tiếp.
       `silent`       FC im lặng hoàn toàn (thử timeout).
       `mangle`       hàm (item dict) -> item dict, áp khi FC trả item lúc đọc lại
                      — dựng cảnh "FC giữ khác cái ta gửi".
       `mission_start_result` COMMAND_ACK.result cho MAV_CMD_MISSION_START.
+      `set_current_result`   COMMAND_ACK.result cho MAV_CMD_DO_SET_MISSION_CURRENT (224);
+                             None = FC không trả lời. (param1, param2) từng lần gửi nằm ở
+                             `set_current_goi`.
+      `set_mode_result`      COMMAND_ACK.result cho MAV_CMD_DO_SET_MODE (176); None = không
+                             trả lời.
     """
 
     def __init__(
@@ -196,9 +208,14 @@ class FakeMissionFC:
         order: list[int] | None = None,
         request_type: str = "MISSION_REQUEST_INT",
         ack: int = 0,
+        chen_ack: dict[int, int] | None = None,
+        mat_hoi: set[int] | None = None,
+        cam_sau: int | None = None,
         silent: bool = False,
         mangle=None,
         mission_start_result: int = 0,
+        set_current_result: int | None = 0,
+        set_mode_result: int | None = 0,
     ) -> None:
         self.conn = conn
         self.fake = fake
@@ -206,9 +223,17 @@ class FakeMissionFC:
         self.order = order
         self.request_type = request_type
         self.ack = ack
+        self.chen_ack = dict(chen_ack or {})
+        self.mat_hoi = set(mat_hoi or ())
+        self.cam_sau = cam_sau
+        self._cam = False
+        self._dang_hoi: int | None = None  # seq FC đang chờ trong phiên nạp
         self.silent = silent
         self.mangle = mangle
         self.mission_start_result = mission_start_result
+        self.set_current_result = set_current_result
+        self.set_current_goi: list[tuple[float, float]] = []
+        self.set_mode_result = set_mode_result
         self.stored: dict[int, dict] = {}
         self._pending: list[int] = []
         self._count = 0
@@ -228,19 +253,33 @@ class FakeMissionFC:
         self.manager.on_message(FakeMessage(msg_type, **fields))
 
     def _next_request(self) -> None:
-        if self._pending:
-            self._push(self.request_type, seq=self._pending.pop(0))
-        else:
+        if self._cam:
+            return
+        if not self._pending:
+            self._dang_hoi = None
             self._push("MISSION_ACK", type=self.ack)
+            return
+        self._dang_hoi = self._pending.pop(0)
+        if self._dang_hoi in self.mat_hoi:
+            self.mat_hoi.discard(self._dang_hoi)
+            return
+        self._push(self.request_type, seq=self._dang_hoi)
 
     def _react(self, ten: str, a: tuple) -> None:
         if self.silent:
             return
         if ten == "mission_count_send":
+            self._cam = False
             self._count = a[2]
             self._pending = list(self.order) if self.order is not None else list(range(a[2]))
             self._next_request()
         elif ten == "mission_item_int_send":
+            if self._cam:
+                return
+            if self._dang_hoi is not None and a[2] != self._dang_hoi:
+                self._push("MISSION_ACK", type=13)
+                self._push(self.request_type, seq=self._dang_hoi)
+                return
             self.stored[a[2]] = {
                 "seq": a[2],
                 "frame": a[3],
@@ -250,6 +289,17 @@ class FakeMissionFC:
                 "y": a[12],
                 "z": a[13],
             }
+            if self.cam_sau == a[2]:
+                self.cam_sau = None
+                self._cam = True
+                return
+            ma = self.chen_ack.pop(a[2], None)
+            if ma is not None:
+                self._push("MISSION_ACK", type=ma)
+                if ma == 15:
+                    self._pending = []
+                    self._dang_hoi = None
+                    return
             self._next_request()
         elif ten == "mission_request_list_send":
             self._push("MISSION_COUNT", count=len(self.stored))
@@ -265,8 +315,23 @@ class FakeMissionFC:
             self.conn.route_ack(
                 FakeMessage("COMMAND_ACK", command=300, result=self.mission_start_result)
             )
+        elif ten == "command_long_send" and a[2] == 224:
+            self.set_current_goi.append((a[4], a[5]))
+            if self.set_current_result is not None:
+                self.conn.route_ack(
+                    FakeMessage("COMMAND_ACK", command=224, result=self.set_current_result)
+                )
+        elif ten == "command_long_send" and a[2] == 176:
+            if self.set_mode_result is not None:
+                self.conn.route_ack(
+                    FakeMessage("COMMAND_ACK", command=176, result=self.set_mode_result)
+                )
 
     # -- tiện ích cho assert --------------------------------------------------
     def seq_da_tra_loi(self) -> list[int]:
         """Các seq ta đã gửi MISSION_ITEM_INT, theo thứ tự gửi."""
         return [p["args"][2] for n, p in self.fake.sent if n == "mission_item_int_send"]
+
+    def lenh_da_gui(self) -> list[int]:
+        """MAV_CMD của mọi COMMAND_LONG ta đã gửi, theo thứ tự gửi."""
+        return [p["args"][2] for n, p in self.fake.sent if n == "command_long_send"]
