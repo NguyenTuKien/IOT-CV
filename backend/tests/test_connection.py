@@ -55,6 +55,43 @@ def test_bo_qua_heartbeat_gcs_va_dronebridge_chot_sysid_cua_fc(monkeypatch):
     assert (fake.target_system, fake.target_component) == (1, 1)
 
 
+class _ResetGiua(FakeMAVLink):
+    """Phần tử là exception trong hàng đợi thì `recv_match` ném nó ra — như `recvfrom` ném
+    WSAECONNRESET một lần rồi socket nhận tiếp bình thường."""
+
+    def recv_match(self, *args, **kwargs):
+        msg = super().recv_match(*args, **kwargs)
+        if isinstance(msg, BaseException):
+            raise msg
+        return msg
+
+
+def _reset() -> ConnectionResetError:
+    return ConnectionResetError(10054, "An existing connection was forcibly closed")
+
+
+def test_udp_bi_reset_gia_cua_windows_khong_lam_mat_link(monkeypatch):
+    fake = _ResetGiua([GCS, _reset(), FC, _reset(), FC])
+    fake.target_system = fake.target_component = 0
+    monkeypatch.setattr(mavutil, "mavlink_connection", lambda *a, **k: fake)
+    conn = MavlinkConnection("udpin:0.0.0.0:14550")
+
+    assert conn.connect(timeout=1) == (1, 1)  # reset giữa lúc chờ heartbeat: chờ tiếp
+    assert conn.recv_match(timeout=0.1) is None  # reset lúc đang đọc = im lặng một nhịp
+    assert conn.recv_match(timeout=0.1) is FC  # socket vẫn nhận tiếp
+
+
+def test_tcp_bi_reset_la_dut_that_van_nem_len_de_noi_lai(monkeypatch):
+    fake = _ResetGiua([FC, _reset()])
+    fake.target_system = fake.target_component = 0
+    monkeypatch.setattr(mavutil, "mavlink_connection", lambda *a, **k: fake)
+    conn = MavlinkConnection("tcp:127.0.0.1:5760")
+
+    assert conn.connect(timeout=1) == (1, 1)
+    with pytest.raises(ConnectionResetError):
+        conn.recv_match(timeout=0.1)
+
+
 def test_chi_co_heartbeat_khong_phai_may_bay_thi_het_gio_va_dong_cong(monkeypatch):
     fake = _master(monkeypatch, [GCS, DRONEBRIDGE])
     conn = MavlinkConnection("udpin:0.0.0.0:14550")

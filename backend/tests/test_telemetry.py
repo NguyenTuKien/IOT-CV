@@ -522,6 +522,25 @@ def test_heartbeat_cua_gcs_khac_khong_doi_mode_va_armed():
     assert (state.mode, state.armed) == ("GUIDED", True)
 
 
+def test_heartbeat_cua_dronebridge_khong_doi_mode_armed_va_khong_giu_link():
+    """Gói thật trong tlog 02/11/2026: DroneBridge (1, 68) cùng sysid với FC (1, 1)."""
+    state = TelemetryState()
+    update_state(
+        state,
+        FakeMessage("HEARTBEAT", type=2, autopilot=3, base_mode=0b1000_0000 | 1, custom_mode=3),
+        now=100.0,
+    )
+    assert (state.mode, state.armed) == ("AUTO", True)
+
+    update_state(
+        state,
+        FakeMessage("HEARTBEAT", type=18, autopilot=8, base_mode=1, custom_mode=0),
+        now=105.0,
+    )
+    assert (state.mode, state.armed) == ("AUTO", True)
+    assert state.last_update == 100.0  # không giữ link "còn sống" thay FC
+
+
 def test_reader_bo_goi_khong_den_tu_flight_controller():
     from backend.mavlink.telemetry import TelemetryReader
 

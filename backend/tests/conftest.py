@@ -15,6 +15,12 @@ import os
 # TELEMETRY_AUTOSTART=1 thì setdefault là lệnh rỗng, và cả bộ test lặng lẽ mở
 # link MAVLink thật — đúng việc duy nhất file này sinh ra để chặn.
 os.environ["TELEMETRY_AUTOSTART"] = "0"
+# Cùng lý do: test không được rải file .tlog hay video vào logs/ của repo. Test nào
+# cần hai bộ ghi thì tự bật bằng monkeypatch và trỏ vào tmp_path.
+os.environ["TLOG_ENABLE"] = "0"
+os.environ["RECORD_VIDEO"] = "0"
+# Không tra DNS tên bo DroneBridge thật, không gửi gói chào ra mạng. Test chào thì tự bật.
+os.environ["MAVLINK_UDP_HELLO"] = ""
 
 import pytest  # noqa: E402
 

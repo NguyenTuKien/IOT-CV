@@ -86,6 +86,15 @@ LINK_TIMEOUT_S = _env_float("LINK_TIMEOUT_S", 3.0)
 MAVLINK_SOURCE_SYSTEM = _env_int("MAVLINK_SOURCE_SYSTEM", 254)
 MAVLINK_SOURCE_COMPONENT = _env_int("MAVLINK_SOURCE_COMPONENT", 190)  # MISSIONPLANNER
 
+# Nghe UDP (`udpin:`) thì backend tự CHÀO bo DroneBridge trong lúc chờ heartbeat của FC: gửi
+# HEARTBEAT kiểu GCS mỗi MAVLINK_UDP_HELLO_PERIOD_S giây. Bo chỉ đẩy gói cho các client UDP nó
+# đang giữ. 02/11/2026, sau một lần hotspot đổi kênh, `udp_clients` của bo rỗng: bo vẫn đọc FC
+# nhưng không gửi gì về laptop, backend chờ mãi tới khi rút cắm pin drone. Một gói gửi tới là
+# bo thêm lại client ngay (đo: 0,27 s). Sysid ở trên là 254, không phải `MAV_GCS_SYSID` 255,
+# nên heartbeat này không bật được failsafe GCS của FC. Để trống thì tắt; tcp/USB bỏ qua.
+MAVLINK_UDP_HELLO = _env_str("MAVLINK_UDP_HELLO", "DroneBridgeESP32.mshome.net:14550")
+MAVLINK_UDP_HELLO_PERIOD_S = _env_float("MAVLINK_UDP_HELLO_PERIOD_S", 2.0)
+
 # ---------------------------------------------------------------------------
 # Web backend (GIAI ĐOẠN 7)
 # ---------------------------------------------------------------------------
@@ -186,6 +195,12 @@ CAMERA_FAKE_JPEG_QUALITY = _env_int("CAMERA_FAKE_JPEG_QUALITY", 10)
 FAKE_DETECTION_INTERVAL_MS = _env_int("FAKE_DETECTION_INTERVAL_MS", 300)
 # Khung mới nhất cũ hơn chừng này thì camera coi như MẤT (`camera.available`).
 CAMERA_STALE_S = _env_float("CAMERA_STALE_S", 2.0)
+
+# Telemetry MAVLink: ghi MỌI gói nhận được ra file .tlog (Mission Planner, MAVExplorer
+# mở được) — mỗi lần nối link một file. Đây là bản sao phía laptop; log dataflash trên
+# FC (scripts/fc/tai_log.py) vẫn là bản đầy đủ nhất.
+TLOG_ENABLE = _env_bool("TLOG_ENABLE", True)
+TLOG_DIR = str((PROJECT_ROOT / _env_str("TLOG_DIR", "logs/tlog")).resolve())
 
 
 def camera_source_url() -> str:

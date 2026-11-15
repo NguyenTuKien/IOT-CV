@@ -24,7 +24,11 @@ import time
 from backend import config
 from backend.events import BUS
 from backend.mavlink import proximity
-from backend.mavlink.connection import MSG_ID_HOME_POSITION, MavlinkConnection
+from backend.mavlink.connection import (
+    MAV_AUTOPILOT_INVALID,
+    MSG_ID_HOME_POSITION,
+    MavlinkConnection,
+)
 from backend.schemas import EventPayload, Telemetry, TelemetryState
 
 log = logging.getLogger(__name__)
@@ -106,6 +110,9 @@ _SEVERITY_WARN = 4
 _BACKOFF_START_S = 1.0
 _BACKOFF_MAX_S = 10.0
 
+# Chưa có home thì xin lại HOME_POSITION mỗi chừng này giây (xem `_read_until_link_dies`).
+_HOME_RETRY_S = 2.0
+
 # Cờ trong EKF_STATUS_REPORT.flags (EKF_STATUS_FLAGS của MAVLink).
 EKF_ATTITUDE = 1
 EKF_VELOCITY_HORIZ = 2
@@ -171,7 +178,21 @@ def update_state(state: TelemetryState, msg, now: float | None = None) -> Teleme
         # │ Lớp chặn chính là lọc theo sysid ở TelemetryReader; dòng dưới là  │
         # │ lớp thứ hai cho hàm thuần này.                                    │
         # └───────────────────────────────────────────────────────────────────┘
-        if getattr(msg, "type", None) == _MAV_TYPE_GCS:
+        # ┌─ ĐÃ ĐO TRÊN DRONE THẬT (tlog 02/11/2026, sửa 15/11) ─────────────┐
+        # │ Bo DroneBridge (ESP32) mượn sysid của FC: (1, 68), phát HEARTBEAT │
+        # │ type ONBOARD_CONTROLLER, autopilot INVALID, custom_mode 0,        │
+        # │ base_mode 1 mỗi giây — lọc sysid ở TelemetryReader không chặn được │
+        # │ nó. Coi nó là FC thì nửa thời gian state là "STABILIZE, disarmed": │
+        # │ chuyến 10:30:39 backend tưởng drone không bay AUTO nên nạp mission  │
+        # │ thẳng, KHÔNG chuyển GUIDED giữ chỗ — FC nhảy tới item 6 của mission│
+        # │ đang nạp dở. Nó còn giữ link "sống" (last_update) khi FC im. Cùng  │
+        # │ luật với `_wait_vehicle_heartbeat` (connection.py): heartbeat có   │
+        # │ autopilot INVALID không phải của flight controller.                │
+        # └───────────────────────────────────────────────────────────────────┘
+        if (
+            getattr(msg, "type", None) == _MAV_TYPE_GCS
+            or getattr(msg, "autopilot", None) == MAV_AUTOPILOT_INVALID
+        ):
             return state
         state.connected = True
         state.mode = mode_name(getattr(msg, "custom_mode", 0))
@@ -481,6 +502,7 @@ class TelemetryReader:
     def _read_until_link_dies(self) -> None:
         log.info("Bắt đầu đọc telemetry từ %s", self.connection.endpoint)
         was_armed = self.state.armed
+        xin_home_luc = time.monotonic()  # `_request_streams` vừa xin một lần
 
         while not self._stop.is_set():
             try:
@@ -534,3 +556,13 @@ class TelemetryReader:
                 except Exception as exc:  # noqa: BLE001
                     log.warning("Không xin lại được HOME_POSITION: %s", exc)
             was_armed = self.state.armed
+
+            # Lần xin lúc nối có thể rơi mất trên Wi-Fi mất gói: 01/11/2026 backend khởi
+            # động lại, home không bao giờ tới, mẫu Đi–về ra 0 điểm. Chưa có home thì xin
+            # lại tới khi có (FC chưa có home thì nó không trả lời — xin tiếp cũng vô hại).
+            if self.state.home_lat is None and time.monotonic() - xin_home_luc >= _HOME_RETRY_S:
+                xin_home_luc = time.monotonic()
+                try:
+                    self.connection.request_message(MSG_ID_HOME_POSITION)
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("Không xin lại được HOME_POSITION: %s", exc)
