@@ -55,20 +55,9 @@ runs/
 # Flight log / telemetry / ảnh detection
 # Giữ lại cấu trúc thư mục nhưng không commit dữ liệu bay.
 # ---------------------------------------------------------------------------
-logs/*
-!logs/.gitkeep
-# Phase 03: giu thu muc logs/sitl/ trong git nhung KHONG commit du lieu bay.
-# Can ca 3 dong: logs/* da loai tru thu muc cha nen phai mo lai no truoc.
-!logs/sitl/
-logs/sitl/*
-!logs/sitl/.gitkeep
+logs/.cache/
 detections/
 snapshots/
-*.BIN
-*.bin
-*.tlog
-*.tlog.raw
-*.log
 
 # ---------------------------------------------------------------------------
 # Frontend
@@ -89,7 +78,26 @@ esp32/**/build/
 *.swp
 .DS_Store
 Thumbs.db
-.claude
+# .claude: chỉ phần dự án IOT-CV dùng; kit TheOneKit (hooks/skills/modules...) KHÔNG đẩy.
+.claude/*
+!.claude/rules/
+.claude/rules/*
+!.claude/rules/code-conventions-web.md
+!.claude/rules/computer-use-cua-driver-first.md
+!.claude/rules/orchestration-protocol.md
+!.claude/rules/skill-domain-routing-web.md
+!.claude/rules/skill-domain-routing.md
+!.claude/iot-cv-hooks.json
+!.claude/hooks/
+.claude/hooks/*
+!.claude/hooks/iot-cv-*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/iot-cv-*
+# Mật khẩu Wi-Fi của hotspot (camera-secrets.ps1 sinh ra) và .env: KHÔNG BAO GIỜ commit
+firmware/camera/include/secrets.h
+# frontend/dist do backend phục vụ, build ra từ frontend/ nhưng giữ lại theo yêu cầu
+!frontend/dist/
 .codex
 .agents
 .playwright-mcp
@@ -100,19 +108,13 @@ tmp
 # Tai lai bat cu luc nao tu custom.ardupilot.org bang dung file
 # firmware/ardupilot/custombuild/*.yaml
 # ---------------------------------------------------------------------------
-firmware/ardupilot/**/*.hex
-firmware/ardupilot/**/*.apj
-firmware/ardupilot/**/*.elf
-firmware/ardupilot/**/arducopter
 copter-speedybeef4v5-d450a747.tar.gz
 # .bin cua build-*/ da bi dong "*.bin" chung o muc Flight log chan san.
 # Phase 11.1: firmware DroneBridge tai ve cho ESP32 (Phase 17) cung la nhi phan.
-firmware/dronebridge/bin/
 
 # build.log cua custom build PHAI duoc commit: no la bang chung feature da build
 # dung y (PRX_*, OAPATHPLANNER, TFMINIPLUS...). Dong "!" nay PHAI nam SAU dong
 # "*.log" o phia tren, neu khong git van bo qua file.
-!firmware/ardupilot/**/build.log
 
 # Bài tập môn học, không thuộc dự án
 assignment/
