@@ -481,6 +481,120 @@ class RecordingStatus(BaseModel):
     started_at: float | None = None  # Unix epoch giây, lúc bật ghi
     last_frame_at: float | None = None  # Unix epoch giây, khung camera mới nhất đã ghi
     reason: str | None = None  # vì sao KHÔNG ghi (tiếng Việt), None khi đang ghi
+
+
+# ---------------------------------------------------------------------------
+# Lịch sử bay (15/11/2026) — `backend/flights/`. Một chuyến = một lần ARM → DISARM,
+# ghép từ log FC (dataflash), tlog của backend và video đã ghi. Chỉ ĐỌC log.
+# ---------------------------------------------------------------------------
+FlightSource = Literal["dataflash", "tlog", "video"]
+
+
+class FlightSummary(BaseModel):
+    """Một dòng của danh sách chuyến. Số liệu tính trong khoảng ARM → DISARM."""
+
+    id: str  # giờ VN lúc ARM, YYYYMMDD-HHMMSS
+    start: float  # Unix epoch giây, ARM
+    end: float  # Unix epoch giây, DISARM
+    duration_s: float
+    took_off: bool  # có lên quá 1 m
+    sources: list[FlightSource]
+    modes: list[str]
+    max_alt_m: float | None = None  # so với home
+    max_dist_m: float | None = None  # ngang, so với home
+    path_m: float | None = None  # quãng đường ngang lúc cao trên 0,5 m
+    battery_start_v: float | None = None
+    battery_min_v: float | None = None
+    used_mah: float | None = None
+    link_loss_pct: float | None = None  # % gói FC mất (tlog); None = laptop không ghi
+    video_fps: float | None = None  # khung/s trung bình đã ghi về laptop
+    video_coverage_pct: float | None = None  # % số giây có ít nhất 1 khung
+    warnings: int = 0  # số sự kiện mức warning/error trong cửa sổ chuyến
+
+
+class FlightSkippedFile(BaseModel):
+    file: str
+    reason: str
+
+
+class FlightListPayload(BaseModel):
+    """`GET /api/flights` — mọi chuyến, cũ trước mới sau."""
+
+    flights: list[FlightSummary]
+    skipped: list[FlightSkippedFile]
+
+
+class FlightPoint(BaseModel):
+    lat: float
+    lon: float
+
+
+class FlightSeries(BaseModel):
+    """Chuỗi số liệu trên một lưới thời gian chung. `t` tính bằng giây từ `window_start`;
+    mọi cột dài bằng `t`, `None` = không có dữ liệu lúc đó (khác 0)."""
+
+    t: list[float]
+    lat: list[float | None]
+    lon: list[float | None]
+    alt: list[float | None]  # m, so với home
+    speed: list[float | None]  # m/s, tốc độ ngang
+    heading: list[float | None]  # độ
+    roll: list[float | None]
+    pitch: list[float | None]
+    volt: list[float | None]
+    curr: list[float | None]  # A
+    mah: list[float | None]  # mAh đã dùng (cộng dồn từ lúc cắm pin)
+    sats: list[float | None]
+    hdop: list[float | None]
+    rangefinder: list[float | None]  # m, TFmini nhìn ngang
+    vibe: list[float | None]  # m/s², lớn nhất 3 trục
+    rssi: list[float | None]  # dBm, sóng Wi-Fi DroneBridge ↔ hotspot
+    dist_home: list[float | None]  # m
+    link_loss: list[float | None]  # % gói FC mất trong 3 s gần nhất
+    cam_fps: list[float | None]  # khung/s về laptop trong 2 s gần nhất
+
+
+class FlightModeSpan(BaseModel):
+    t0: float
+    t1: float
+    mode: str
+
+
+class FlightEvent(BaseModel):
+    t: float
+    level: Literal["info", "warning", "error"]
+    source: Literal["fc", "link", "camera", "arm"]
+    text: str
+
+
+class FlightVideoClip(BaseModel):
+    """Khung video thuộc chuyến. Khung thứ i: `GET /api/flights/frame?rec=…&n=row0+i`."""
+
+    rec: str  # tên thư mục ghi hình
+    row0: int
+    width: int
+    height: int
+    times: list[float]  # giây từ `window_start` của từng khung thật
+
+
+class FlightDetail(BaseModel):
+    """`GET /api/flight?id=…` — đủ để phát lại một chuyến."""
+
+    summary: FlightSummary
+    window_start: float  # Unix epoch giây; cửa sổ = ARM − 10 s … DISARM + 10 s
+    window_end: float
+    home: FlightPoint | None = None
+    series: FlightSeries
+    column_sources: dict[str, Literal["dataflash", "tlog"]]
+    modes: list[FlightModeSpan]
+    events: list[FlightEvent]
+    video: list[FlightVideoClip]
+    files: list[str]
+    # Giờ GPS của FC − giờ laptop, đã cộng vào tlog và video (đồng hồ laptop trôi ~7 s/ngày).
+    clock_offset_s: float | None = None
+    clock_note: str | None = None  # đo bằng gì: SYSTEM_TIME / khớp lần ARM / tlog gần nhất
+
+
 REST_MODELS: dict[str, type[BaseModel]] = {
     "GET /api/status": StatusPayload,
     "GET /api/config": ConfigPayload,
@@ -492,6 +606,8 @@ REST_MODELS: dict[str, type[BaseModel]] = {
     "GET /api/recording": RecordingStatus,
     "POST /api/recording/start": RecordingStatus,
     "POST /api/recording/stop": RecordingStatus,
+    "GET /api/flights": FlightListPayload,
+    "GET /api/flight": FlightDetail,
 }
 
 
