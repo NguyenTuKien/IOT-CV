@@ -5,8 +5,9 @@ là một ràng buộc cứng: **một card Wi-Fi laptop chỉ nối được m�
 mà dự án cần telemetry và video cùng lúc. Nếu mỗi ESP32 tự làm AP thì phải chọn một trong hai.
 
 Nên laptop phát **Mobile Hotspot** (laptop là AP), hai ESP32 là STA nối vào. Card MediaTek RZ616 của
-máy dự án vẫn giữ được mạng có internet ở 5 GHz trong lúc phát hotspot 2,4 GHz, nên không phải rời
-internet.
+máy dự án nối được thêm một mạng có internet ở 5 GHz trong lúc phát hotspot 2,4 GHz, nhưng khi đó nó
+phải chia sóng và hai ESP32 mất gói nặng (đo 02/11/2026). Ngoài bãi bay, laptop lấy internet từ iPhone
+qua cáp USB, card Wi-Fi chỉ phát hotspot (mục 7).
 
 ## 1. Bật hotspot — một lệnh
 
@@ -20,7 +21,9 @@ Script không cần quyền Administrator. Nó:
   băng của mạng đang nối (thường là 5 GHz) và ESP32 không bao giờ thấy hotspot;
 - bật hotspot nếu đang tắt;
 - tắt chế độ "tự tắt hotspot khi không có thiết bị nào nối vào" (bẫy 1 bên dưới);
-- in IP của laptop trên mạng hotspot và danh sách thiết bị đang nối (MAC, tên, IP).
+- in IP của laptop trên mạng hotspot và danh sách thiết bị đang nối (MAC, tên, IP);
+- với `-Restart`: đang bật thì tắt rồi bật lại, để hotspot chia sẻ đúng mạng internet đang có (bẫy 4).
+  `chay-drone-that.bat` luôn chạy kiểu này.
 
 Lần đầu dùng `-Ssid IOTCV-HOTSPOT` để đặt tên cố định (đã làm ngày 13/10/2026). Mật khẩu giữ nguyên
 cái Windows đã sinh; script không in nó ra.
@@ -84,7 +87,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\esp32\firewall-m
 Camera **không** cần rule: laptop chủ động mở kết nối tới camera (chiều ra), tường lửa không chặn
 chiều đó.
 
-## 4. Ba cái bẫy
+## 4. Bốn cái bẫy
 
 ```text
 1. Windows TU TAT Mobile hotspot sau vai phut neu khong co thiet bi nao noi vao.
@@ -98,6 +101,12 @@ chiều đó.
 3. Tuong lua Windows nuot goi UDP IM LANG - khong bao loi gi ca. Kiem rule tuong lua TRUOC
    khi nghi board hong. (Python nghe 14550 van nhan duoc goi khi chua co rule; Mission
    Planner thi khong chac - nen van tao rule.)
+
+4. Hotspot bam vao mang co internet LUC NO DUOC BAT. Mang do mat (vd. bat hotspot luc con
+   Wi-Fi nha, roi cam cap iPhone nen Windows tu ngat Wi-Fi) thi DUNG 20 PHUT sau Windows tu
+   tat hotspot, ca hai ESP32 rot (02/11/2026: 04:51:13 ngat Wi-Fi -> 05:11:13 tat hotspot).
+   Windows khong cho biet hotspot dang chia se card nao, nen cach chua la bat lai sau khi da
+   co dung mang: hotspot-on.ps1 -Restart (chay-drone-that.bat luon lam).
 ```
 
 ## 5. Kiểm nhanh cả hệ (không cần FC)
@@ -144,6 +153,13 @@ sys 1 comp 68, 1 Hz — gói của chính DroneBridge. Gói của FC chỉ có k
   để phát hotspot (radio không phải chia); (3) điện thoại phát hotspot 2,4 GHz (cách ở mục trên);
   (4) `netsh wlan set autoconfig enabled=no interface="Wi-Fi"` (cần admin) chặn quét nền — nhưng
   laptop cũng thôi tự nối lại mạng; chưa biết Mobile Hotspot có còn chạy không.
+
+  02/11/2026: đã bỏ hẳn việc card vừa nối vừa phát, internet lấy qua cáp iPhone (mục 7). Card vẫn
+  tự quét ~60 s một lần khi không nối mạng nào, mỗi lần hai bo mất 0–3 s. **Đã thử (4) lúc 09:29 và
+  giữ**: Mobile Hotspot vẫn chạy, bật lại hotspot vẫn được; 150 s không lần quét nào, hai bo mất
+  0/150, camera 9,2 khung/s. Giờ `scripts\laptop\che_do_bay.ps1 -Bat` làm việc này (một hộp UAC),
+  `-Tat` bật lại để laptop tự nối Wi-Fi nhà như cũ, `-GiuQuetWifi` để bỏ qua. Chế độ xem của script
+  có dòng "Card Wi-Fi tu quet".
 - **Luồng camera vẫn khựng 1,2–2,2 s vài lần mỗi phút** ngay cả khi ping không mất gói nào
   (20:20, stream 150 s: 10 lần, rải rác, 0 khung hỏng, 0 lần đứt). Đó là TCP phải chờ gửi lại gói
   bị mất: bộ đệm gửi của lwIP trong core Arduino chỉ 4 gói nên hiếm khi gửi lại nhanh được.
@@ -153,3 +169,50 @@ sys 1 comp 68, 1 Hz — gói của chính DroneBridge. Gói của FC chỉ có k
   ~295 KB/s khi bỏ nhiễu XCLK (`firmware/camera/README.md`, bẫy 1).
 - **IP DHCP đổi mỗi lần hotspot khởi động lại** (13/10/2026 đổi ba lần: `.60/.102` → `.67/.97` →
   `.150/.41`). Luôn dùng tên `*.mshome.net`, đừng ghi cứng IP của bo vào đâu.
+
+## 7. Ngoài bãi bay: internet qua cáp iPhone (02/11/2026)
+
+Card RZ616 chỉ có một radio. Nối thêm một mạng ngoài (Wi-Fi nhà, Wi-Fi của iPhone) thì nó phải chia
+thời gian giữa kênh mạng đó và kênh hotspot; router và hai ESP32 mất gói luân phiên từng khối ~5 s.
+Đo sáng 02/11/2026, ping 4 lần/giây trong 60 s, drone chạy pin:
+
+| Laptop lấy internet bằng | DroneBridge mất | Camera mất | Đường ra mất | Camera |
+|---|---|---|---|---|
+| Wi-Fi nhà 5 GHz (card vừa nối vừa phát) | 77/240 | 122/240 | router 50/240 | 1,41 khung/s |
+| iPhone qua cáp USB (card chỉ phát hotspot) | 7/240 | 47/240 | iPhone 0/240 | 4,67 khung/s |
+
+Thêm tắt quét nền của card (mục 6, 09:29 cùng sáng), ping 1 lần/giây trong 150 s: DroneBridge 0/150,
+camera 0/150, card không quét lần nào; camera 9,2 khung/s.
+
+Nên ngoài bãi: **iPhone phát mạng qua cáp, Wi-Fi laptop không nối mạng nào, quét nền tắt
+(`che_do_bay.ps1 -Bat`).**
+
+Đã cài một lần trên máy dự án (02/11/2026):
+
+- Apple Mobile Device Support 20.0.1.47 ở `D:\IOT_Tools\apps\Apple\`, tách từ bộ cài iTunes chính chủ
+  (`D:\IOT_Tools\downloads\apple-itunes-20261102\`). Gói này không còn kèm driver: driver "Apple Mobile
+  Device Ethernet" 1.8.5.1 do Windows Update tự cài khi iPhone được bấm Tin cậy, và nằm trong driver store
+  của Windows ở ổ C (bắt buộc).
+- Hồ sơ Wi-Fi "iPhone nghaiz" chuyển sang nối tay
+  (`netsh wlan set profileparameter name="iPhone nghaiz" connectionmode=manual`), để laptop không tự nối
+  Wi-Fi của iPhone.
+
+Mỗi buổi bay:
+
+1. iPhone: Cài đặt → Điểm truy cập cá nhân → bật "Cho phép người khác kết nối".
+2. Cắm cáp vào laptop; lần đầu bấm Tin cậy trên iPhone. Laptop thấy card `Apple Mobile Device Ethernet`,
+   IP `172.20.10.x`. Có cáp thì Windows tự ngắt Wi-Fi khỏi mạng đang nối (thấy 04:51:13 sáng 02/11).
+3. Chạy `chay-drone-that.bat`. Chưa có cáp iPhone hay Wi-Fi laptop còn nối mạng khác thì nó cảnh báo và
+   dừng chờ sửa, rồi bật lại hotspot cho hotspot chia sẻ đúng mạng iPhone (bẫy 4).
+
+Lưu ý:
+
+- iPhone sạc từ cổng USB của laptop, nên laptop chạy pin hao nhanh hơn (chưa đo bao nhiêu).
+- Giữ cáp cả buổi. Có cáp liên tục thì hotspot giữ được: 02/11 đo 28 phút liền, qua mốc 20 phút.
+  Rút cáp hay iPhone tắt Điểm truy cập quá 20 phút thì hotspot sẽ tắt theo bẫy 4 (chưa thử rút cáp).
+  Cắm lại rồi, lúc drone đã hạ cánh, chạy `hotspot-on.ps1 -Restart`.
+- Card tự quét ~60 s một lần dù không nối mạng nào, mỗi lần mất 0–3 s, trừ khi đã chạy
+  `che_do_bay.ps1 -Bat` (mục 6). Về nhà chạy `-Tat`, không thì laptop không tự nối Wi-Fi nhà.
+- **DroneBridge quên laptop** sau mỗi lần hotspot tắt/bật hay đổi kênh: bo vẫn đọc FC mà không gửi gì về
+  laptop, cho tới khi nhận được một gói từ laptop. Backend tự gửi gói chào tới bo trong lúc chờ FC
+  (`MAVLINK_UDP_HELLO`), chi tiết ở `firmware/dronebridge/README.md`, bẫy 10.
