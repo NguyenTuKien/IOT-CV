@@ -26,6 +26,14 @@ chất lượng giữa luồng chính là việc Phase 24 cần. Cách này gi�
 chất lượng cũ; firmware bỏ 4 khung chuyển tiếp rồi mới gắn nhãn mới (`X-Frame-Id` vẫn tăng, nên bên
 đọc thấy khoảng nhảy). Đã chứng minh bằng phép đo cỡ khung, xem mục Kiểm.
 
+**Backend tự gọi `/set` lúc bay (15/11/2026).** Khung/s dưới 4 (bay xa, Wi-Fi hết băng thông) thì
+backend tăng số chất lượng thêm 7, tối đa 40; trên 6,5 liền 10 s thì giảm lại, tối thiểu 12. Mức hiện
+tại backend đọc từ nhãn `X-Jpeg-Quality`, nên chính nhãn này là thứ giữ cho vòng tự chỉnh đúng.
+Cấu hình và công tắc tắt (`CAMERA_AUTO_QUALITY=0`): `.env.example`; cách chạy: đầu file
+`backend/vision/auto_quality.py`. Cỡ khung VGA đo 15/11/2026 (cảnh trong nhà, KB): mức 12 → 15,2;
+19 → 12,4; 26 → 11,0; 33 → 10,1; 40 → 9,5; 50 → 8,9; **63 → 10,0, to hơn mức 50** — số lớn quá ~50
+không còn làm khung nhỏ đi.
+
 Chỉ một client `/stream` một lúc — backend đứng giữa làm cầu phân phối cho nhiều trình duyệt.
 
 ## Nạp — một lệnh

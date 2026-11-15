@@ -211,6 +211,7 @@ class MjpegLatestFrameReader:
         self._clock = clock
         self._lock = threading.Lock()
         self._latest: MjpegFrame | None = None
+        self._subscribers: tuple[Callable[[MjpegFrame], None], ...] = ()
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._response = None
@@ -219,10 +220,28 @@ class MjpegLatestFrameReader:
 
     # -- khung ---------------------------------------------------------------
     def publish(self, frame: MjpegFrame) -> None:
-        """Ghi đè khung mới nhất. Thread đọc gọi; test gọi thẳng được."""
+        """Ghi đè khung mới nhất rồi đưa khung cho người đăng ký. Thread đọc gọi; test gọi
+        thẳng được."""
         with self._lock:
             self._latest = frame
             self.frames_received += 1
+            subscribers = self._subscribers
+        for fn in subscribers:
+            try:
+                fn(frame)
+            except Exception:  # noqa: BLE001 — người nhận hỏng không được làm mất hình
+                log.exception("Người nhận khung camera bị lỗi, bỏ qua")
+
+    def subscribe(self, fn: Callable[[MjpegFrame], None]) -> None:
+        """Nhận MỌI khung, không chỉ khung mới nhất (bộ ghi video cần đủ khung). `fn` chạy
+        trên thread đọc nên phải trả về ngay — bỏ vào hàng đợi, không ghi đĩa, không chờ."""
+        with self._lock:
+            if fn not in self._subscribers:
+                self._subscribers = (*self._subscribers, fn)
+
+    def unsubscribe(self, fn: Callable[[MjpegFrame], None]) -> None:
+        with self._lock:
+            self._subscribers = tuple(f for f in self._subscribers if f != fn)
 
     def latest(self) -> MjpegFrame | None:
         with self._lock:

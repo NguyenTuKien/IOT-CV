@@ -462,6 +462,25 @@ class SystemPayload(BaseModel):
     events_buffered: int
 
 
+class RecordingStatus(BaseModel):
+    """`GET/POST /api/recording…` — bộ ghi video camera về laptop (01/11/2026).
+
+    Không nằm trong WebSocket: trang web hỏi REST mỗi vài giây là đủ cho đèn REC.
+    """
+
+    auto: bool  # RECORD_VIDEO — tự ghi khi backend bật
+    running: bool  # bộ ghi đang chạy (có thể đang chờ hình)
+    writing: bool  # đang có đoạn video mở, khung đang được ghi
+    session_dir: str | None = None  # thư mục của lần ghi này
+    segment_file: str | None = None  # file .avi đang ghi / ghi gần nhất
+    segments: int = 0
+    frames_written: int = 0  # khung đã ghi; mỗi khung camera đúng một khung video
+    bad_frames: int = 0  # khung camera gửi bị đứt (thiếu đầu/đuôi JPEG), bỏ qua
+    dropped_frames: int = 0  # khung phải bỏ vì đĩa ghi không kịp
+    bytes_written: int = 0
+    started_at: float | None = None  # Unix epoch giây, lúc bật ghi
+    last_frame_at: float | None = None  # Unix epoch giây, khung camera mới nhất đã ghi
+    reason: str | None = None  # vì sao KHÔNG ghi (tiếng Việt), None khi đang ghi
 REST_MODELS: dict[str, type[BaseModel]] = {
     "GET /api/status": StatusPayload,
     "GET /api/config": ConfigPayload,
@@ -470,6 +489,9 @@ REST_MODELS: dict[str, type[BaseModel]] = {
     "GET /api/events": EventsPayload,
     "GET /api/telemetry/history": TelemetryHistoryPayload,
     "GET /api/system": SystemPayload,
+    "GET /api/recording": RecordingStatus,
+    "POST /api/recording/start": RecordingStatus,
+    "POST /api/recording/stop": RecordingStatus,
 }
 
 
