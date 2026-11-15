@@ -1,0 +1,25 @@
+[fc] đã nối udpin:127.0.0.1:14552
+| Mức | Mục | Chi tiết |
+|---|---|---|
+| PASS | Lỗi nội bộ FC | bitmask 0x0 , đếm 0 |
+| PASS | Tải CPU | tối đa 40 % |
+| WARN | Cảm biến FC tự báo hỏng | PREARM_CHECK |
+| INFO | Nguồn 5 V của FC | bo không có chân đo 5 V (Vcc = 0), không kiểm được |
+| INFO | RAM trống | 49096 byte |
+| PASS | Gia tốc kế |a| | 998 mG (cần 1000 ± 40), ồn 2.4 mG |
+| PASS | Con quay | ồn 2.6 mrad/s, lệch 0.3 mrad/s (drone phải đứng yên) |
+| PASS | La bàn |B| | 386 mG (250–650), dao động 0.5 mG |
+| PASS | Baro | 1010.2 hPa, ồn 0.3 Pa, 49.1 °C |
+| WARN | GPS | fix 1, 0 vệ tinh, HDOP 100.0 (trong nhà không fix là bình thường) |
+| PASS | Receiver | 14 kênh, ga 1010 µs, CH1–10 = [1500, 1500, 1010, 1500, 1000, 1000, 1000, 1000, 1000, 1500] |
+| PASS | TFmini Plus | 259 cm (±0.3, 258–259), khoảng đo 10–600 cm, 9.3 gói/s qua MAVLink |
+| PASS | ESC M1 (sau-phải) | 9.5 gói/s, 36 °C, 0 rpm, 0.00 A |
+| PASS | ESC M2 (trước-phải) | 9.5 gói/s, 42 °C, 0 rpm, 0.00 A |
+| PASS | ESC M3 (sau-trái) | 9.5 gói/s, 30 °C, 0 rpm, 0.00 A |
+| PASS | ESC M4 (trước-trái) | 9.5 gói/s, 38 °C, 0 rpm, 0.00 A |
+| PASS | Pin 4S | 15.19 V = 3.80 V/cell |
+| PASS | Cảm biến dòng (motor đứng) | -0.24 A (±0.00) |
+| INFO | EKF flags | 0xa7 |
+| INFO | Rung (đứng yên) | 0.01/0.01/0.01 m/s², clip 0/0/0 |
+| INFO | PreArm FC báo | PreArm: Fence requires position; PreArm: GPS 1: Bad fix |
+KET QUA: PASS

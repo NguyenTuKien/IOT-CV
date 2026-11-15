@@ -1,0 +1,42 @@
+[harness] khởi động: /home/nghaiz/venv-ardupilot/bin/python3 /home/nghaiz/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter --no-mavproxy --no-wsl2-network --no-rebuild --speedup=5 --use-dir=/home/nghaiz/.cache/iot-cv-sitl/ngoai-troi -w -f bfx -A --serial3=sim:benewake_tfmini --serial4=GPS1
+[harness] log sim_vehicle.py: /home/nghaiz/.cache/iot-cv-sitl/ngoai-troi/sim_vehicle_stdout.log
+[Errno 111] Connection refused sleeping
+[harness] khởi động: /home/nghaiz/venv-ardupilot/bin/python3 /home/nghaiz/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter --no-mavproxy --no-wsl2-network --no-rebuild --speedup=5 --use-dir=/home/nghaiz/.cache/iot-cv-sitl/ngoai-troi -f bfx -A --serial3=sim:benewake_tfmini --serial4=GPS1
+[harness] log sim_vehicle.py: /home/nghaiz/.cache/iot-cv-sitl/ngoai-troi/sim_vehicle_stdout.log
+[Errno 111] Connection refused sleeping
+[harness] khởi động: /home/nghaiz/venv-ardupilot/bin/python3 /home/nghaiz/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter --no-mavproxy --no-wsl2-network --no-rebuild --speedup=5 --use-dir=/home/nghaiz/.cache/iot-cv-sitl/ngoai-troi -f bfx -A --serial3=sim:benewake_tfmini --serial4=GPS1
+[harness] log sim_vehicle.py: /home/nghaiz/.cache/iot-cv-sitl/ngoai-troi/sim_vehicle_stdout.log
+[Errno 111] Connection refused sleeping
+Tham số không có trên SITL (đã biết): ['AVOID_ANG_MAX', 'SERVO_BLH_POLES', 'SERVO_BLH_TRATE']
+[harness] khởi động: /home/nghaiz/venv-ardupilot/bin/python3 /home/nghaiz/ardupilot/Tools/autotest/sim_vehicle.py -v ArduCopter --no-mavproxy --no-wsl2-network --no-rebuild --speedup=2 --use-dir=/home/nghaiz/.cache/iot-cv-sitl/ngoai-troi -f bfx -A --serial3=sim:benewake_tfmini --serial4=GPS1
+[harness] log sim_vehicle.py: /home/nghaiz/.cache/iot-cv-sitl/ngoai-troi/sim_vehicle_stdout.log
+[Errno 111] Connection refused sleeping
+== S1 mission đi–về 8 m (AUTO)
+   FAIL: xa nhất 13.5 m, cao nhất 8.5 m, chặng RTL cao nhất 8.0 m, nhanh nhất 2.9 m/s, hạ cách home 0.0 m, mode AUTO
+== S2 LOITER ga hết cỡ
+   PASS: dừng ở 18.1 m (trần 20, lề 2), mode LOITER
+== S3 STABILIZE vượt trần
+   PASS: RTL=có lúc 18.9 m đang leo 7.0 m/s, cao nhất 23.4 m (vọt +3.4 m so với trần), hạ cách home 0.1 m
+== S4 LOITER tiến hết cỡ
+   PASS: nhanh nhất 2.3 m/s (LOIT_SPEED 3), xa nhất 48.1 m, tự dừng trước rào
+== S5 ALT_HOLD bay ra rào
+   PASS: RTL=có lúc cách home 49.3 m đang bay 4.1 m/s, xa nhất 53.5 m (vọt +3.5 m ra ngoài rào), hạ cách home 0.0 m
+== S6 mất sóng tay cầm
+   PASS: RTL=có sau ~1.0 s mô phỏng, hạ cách home 0.0 m, mode LOITER>RTL
+== S7 pin yếu
+   PASS: sụt áp khi bay -1.50 V -> bay ở ~13.75 V; RTL=có sau ~10 s mô phỏng, hạ cách home 0.1 m, mode LOITER>RTL, FC báo ['Battery 1 is low 13.34V used 199 mAh', 'Battery Failsafe']
+
+## KET QUA
+### Cấu hình ngoài trời trên SITL
+| Mục | Giá trị |
+|---|---|
+| S1 mission đi–về 8 m (AUTO) | FAIL: xa nhất 13.5 m, cao nhất 8.5 m, chặng RTL cao nhất 8.0 m, nhanh nhất 2.9 m/s, hạ cách home 0.0 m, mode AUTO |
+| S2 LOITER ga hết cỡ | PASS: dừng ở 18.1 m (trần 20, lề 2), mode LOITER |
+| S3 STABILIZE vượt trần | PASS: RTL=có lúc 18.9 m đang leo 7.0 m/s, cao nhất 23.4 m (vọt +3.4 m so với trần), hạ cách home 0.1 m |
+| S4 LOITER tiến hết cỡ | PASS: nhanh nhất 2.3 m/s (LOIT_SPEED 3), xa nhất 48.1 m, tự dừng trước rào |
+| S5 ALT_HOLD bay ra rào | PASS: RTL=có lúc cách home 49.3 m đang bay 4.1 m/s, xa nhất 53.5 m (vọt +3.5 m ra ngoài rào), hạ cách home 0.0 m |
+| S6 mất sóng tay cầm | PASS: RTL=có sau ~1.0 s mô phỏng, hạ cách home 0.0 m, mode LOITER>RTL |
+| S7 pin yếu | PASS: sụt áp khi bay -1.50 V -> bay ở ~13.75 V; RTL=có sau ~10 s mô phỏng, hạ cách home 0.1 m, mode LOITER>RTL, FC báo ['Battery 1 is low 13.34V used 199 mAh', 'Battery Failsafe'] |
+
+KET QUA: FAIL
+EXIT=1
