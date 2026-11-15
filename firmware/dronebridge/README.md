@@ -172,7 +172,9 @@ Get-CimInstance Win32_PnPEntity | Where-Object Name -match 'COM\d' | Format-Tabl
    (`DroneBridge for ESP32`) không có internet. Laptop chỉ có một card Wi-Fi, nên nối vào đó là
    mất internet, và phiên Claude Code hay agent khác bị cắt giữa chừng. Muốn cấu hình thì làm qua
    USB bằng `scripts\esp32\dronebridge-nvs.ps1`, như mục (b). Mobile Hotspot để băng 2,4 GHz.
-   Laptop vẫn nối mạng 5 GHz cùng lúc được, đã thử trên card RZ616 ngày 12/10/2026.
+   Laptop vẫn nối mạng 5 GHz cùng lúc được (thử trên card RZ616 ngày 12/10/2026), nhưng khi đó card
+   phải chia sóng và hai ESP32 mất gói nặng (đo 02/11/2026). Ngoài bãi lấy internet từ iPhone qua cáp:
+   `docs/so-tay/12-hotspot-laptop.md` mục 7.
 2. **Log khởi động in mật khẩu Wi-Fi dạng chữ thường.** Dòng `Init of WiFi Client-Mode finished
    (SSID: … PASS: …)` lộ mật khẩu hotspot. `scripts\esp32\esp32_log.py` tự che; đọc bằng công cụ
    khác thì che trước khi in, dán hay lưu log, ví dụ `sed -E 's/(PASS: )[^)]*/\1[redacted]/'`.
@@ -188,6 +190,28 @@ Get-CimInstance Win32_PnPEntity | Where-Object Name -match 'COM\d' | Format-Tabl
    bộ đệm cũ kẹt trong driver, không phải bo. Bo vẫn chạy tốt. Một lần `esptool -p COM4 -b 115200
    flash-id` (hoặc `esp32_log.py --reset`) mở cổng lại là hết. `scripts\esp32\esp32_log.py` giờ tự
    xoá bộ đệm khi mở cổng và tự dừng (mã 3) nếu thấy tốc độ vô lý.
+7. **Script pymavlink tự viết phải gửi lệnh tới comp 1 của FC.** Qua Wi-Fi, bo là một thành phần
+   của hệ 1 (không phát HEARTBEAT). pymavlink 2.4.50 để `target_component = 0` (mọi thành phần), nên
+   bo cũng trả `PARAM_REQUEST_LIST` bằng 18 tham số của chính nó (`SERIAL_TX_PIN`, `WIFI_AP_CHANNEL`…,
+   số nguyên nhét trong float nên hiện kiểu 1,6e-40). 01/11/2026 `fetch_all_params` tưởng đủ bảng
+   rồi ghi bản chụp 18 dòng mà không báo lỗi. `noi_fc` trong `scripts/fc/kiem_fc.py` đã chốt sys/comp
+   của FC; script khác thì đặt `m.target_component = 1` và lọc gói theo nguồn `(1, 1)`.
+8. **Đừng nối TCP 5760.** 01/11/2026 nối pymavlink vào `tcp:DroneBridgeESP32.mshome.net:5760`
+   40 s: chỉ ~1 gói/s, rồi bo tự khởi động lại giữa chừng (bộ đếm `read_bytes` về 0), lên lại sau
+   ~1 phút. Dùng UDP 14550 như cũ.
+9. **Đo mất gói bằng byte, đừng chỉ tin số thứ tự.** `GET /api/system/stats` có `read_bytes` (byte
+   đọc từ FC) và `esp_rssi`; đừng in `/api/settings`, có thể chứa mật khẩu Wi-Fi. So độ tăng
+   `read_bytes` với số byte laptop nhận cùng khoảng: 01/11/2026 laptop chỉ nhận 78 % (mất ~22 % trên
+   khúc bo → laptop) dù RSSI −48…−55 dBm và ping 1 gói/s gần như không mất. Số hụt seq của ArduPilot
+   không chỉ do đường truyền: tlog Mission Planner qua USB, thứ không thể rớt gói, cũng hụt 38 %.
+10. **Bo quên laptop sau khi hotspot chập chờn.** 02/11/2026, sau một lần hotspot đổi kênh, hai ESP32
+    nối lại nhưng danh sách `udp_clients` của bo rỗng: bo vẫn đọc FC (6,2 KB mỗi 5 s, `read_bytes`)
+    mà không gửi gì về laptop, dù `udp_client_ip` đã đặt sẵn. Backend chờ mãi tới khi rút pin drone.
+    Gửi một gói bất kỳ tới cổng 14550 của bo là bo thêm lại client, gói đầu về sau 0,27 s. Cổng phía
+    laptop đóng (ICMP unreachable) không làm bo xoá client. Backend giờ gửi HEARTBEAT kiểu GCS (sysid
+    254, khác `MAV_GCS_SYSID` 255 nên không đụng failsafe GCS) tới `MAVLINK_UDP_HELLO` (mặc định
+    `DroneBridgeESP32.mshome.net:14550`) mỗi `MAVLINK_UDP_HELLO_PERIOD_S` (2 s) trong lúc chờ FC; để
+    trống là tắt. Công cụ khác chỉ nghe mà không gửi gì thì cũng chờ mãi như vậy.
 
 ## `legacy-sketch/` là gì
 

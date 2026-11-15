@@ -27,10 +27,14 @@ function Wait-WinRtAction($Action) {
     [void]$script:AsTaskAction.Invoke($null, @($Action)).Wait(-1)
 }
 
-function Get-IotcvTetheringManager {
+function Get-IotcvInternetProfile {
     $connection = [Windows.Networking.Connectivity.NetworkInformation]::GetInternetConnectionProfile()
     if (-not $connection) { throw 'Laptop chua co mang internet nao; Mobile Hotspot can mot ket noi de chia se.' }
-    [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile($connection)
+    $connection
+}
+
+function Get-IotcvTetheringManager {
+    [Windows.Networking.NetworkOperators.NetworkOperatorTetheringManager]::CreateFromConnectionProfile((Get-IotcvInternetProfile))
 }
 
 # Cau hinh hotspot hien tai (Ssid, Passphrase, Band). Dung lai neu bang tan khong phai 2,4 GHz.
@@ -57,8 +61,16 @@ function Set-IotcvHotspotConfig([string] $Ssid) {
 }
 
 # Bat hotspot (neu dang tat) va tat che do "tu tat khi khong co thiet bi nao noi vao".
-function Start-IotcvHotspot {
+# -Restart: dang bat thi tat roi bat lai, de hotspot chia se mang internet DANG CO. Hotspot bam vao
+# mang co internet luc no duoc bat; mang do mat (vd. bat luc con Wi-Fi nha, sau do cam cap iPhone nen
+# Windows tu ngat Wi-Fi) thi Windows tat hotspot dung 20 phut sau (do 02/11/2026). Windows khong cho
+# doc hotspot dang chia se card nao, nen chi co cach bat lai.
+function Start-IotcvHotspot([switch] $Restart) {
     $manager = Get-IotcvTetheringManager
+    if ($Restart -and $manager.TetheringOperationalState -eq 'On') {
+        $result = Wait-WinRtOperation ($manager.StopTetheringAsync()) ([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult])
+        if ($result.Status -ne 'Success') { throw "Khong tat duoc Mobile Hotspot de bat lai: $($result.Status) $($result.AdditionalErrorMessage)" }
+    }
     if ($manager.TetheringOperationalState -ne 'On') {
         $result = Wait-WinRtOperation ($manager.StartTetheringAsync()) ([Windows.Networking.NetworkOperators.NetworkOperatorTetheringOperationResult])
         if ($result.Status -ne 'Success') { throw "Khong bat duoc Mobile Hotspot: $($result.Status) $($result.AdditionalErrorMessage)" }
