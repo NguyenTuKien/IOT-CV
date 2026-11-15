@@ -51,6 +51,8 @@ export interface RouteStats {
   maxDistanceFromHome: number | null;
   maxAlt: number | null;
   waypointCount: number;
+  /** Tổng số giây dừng tại các waypoint (`hold_s`). */
+  holdSeconds: number;
 }
 
 /** Điểm bay thật của mission, theo thứ tự bay: home(cất cánh) → WP… → (home nếu RTL). */
@@ -106,13 +108,14 @@ export function routeStats(items: readonly MissionWaypoint[], home: LatLon | nul
     maxDistanceFromHome: far,
     maxAlt: alts.length ? Math.max(...alts) : null,
     waypointCount: wps.length,
+    holdSeconds: wps.reduce((sum, w) => sum + (w.hold_s ?? 0), 0),
   };
 }
 
-/** Thời gian bay ước lượng (s) ở `speed` m/s, cộng thời gian lên/xuống ở `vSpeed`. Chỉ là ƯỚC LƯỢNG. */
+/** Thời gian bay ước lượng (s) ở `speed` m/s, cộng thời gian lên/xuống ở `vSpeed` và số giây dừng. Chỉ là ƯỚC LƯỢNG. */
 export function estimateDuration(stats: RouteStats, speed: number, vSpeed = 1): number | null {
   if (!(speed > 0) || stats.legs.length === 0) return null;
-  let t = 0;
+  let t = stats.holdSeconds;
   for (const leg of stats.legs) {
     const horizontal = Math.sqrt(Math.max(0, leg.distance ** 2 - leg.climb ** 2));
     t += Math.max(horizontal / speed, Math.abs(leg.climb) / vSpeed);
@@ -144,6 +147,8 @@ export interface GeneratedPoint {
   lat: number;
   lon: number;
   alt: number;
+  /** Dừng tại điểm, giây (thiếu = bay lướt qua). */
+  hold_s?: number;
 }
 
 /** `count` điểm cách đều trên vòng tròn bán kính `radius` m quanh `center`, theo chiều kim đồng hồ. */
@@ -182,15 +187,26 @@ export function lawnmowerPattern(center: LatLon, width: number, height: number, 
   return pts;
 }
 
-/** Đi thẳng `distance` m theo `bearing` rồi quay về: hai điểm. */
-export function outAndBackPattern(center: LatLon, distance: number, bearing: number, alt: number): GeneratedPoint[] {
+/**
+ * Số giây dừng ở mỗi đầu của mẫu đi–về. Waypoint không dừng thì ArduCopter nối chặng sau vào
+ * chặng này và vào cua trước khi tới điểm: chặng 8 m quay đầu sớm ~1,5 m (SITL 01/11/2026,
+ * WP_RADIUS 2 m), chặng 5 m chỉ còn hơn 3 m. Dừng 2 s thì drone tới đủ quãng rồi mới quay.
+ */
+export const OUTBACK_HOLD_S = 2;
+
+/**
+ * Đi thẳng `distance` m theo `bearing` rồi quay về ĐÚNG điểm xuất phát, `laps` lượt:
+ * xa, gốc, xa, gốc… mỗi điểm dừng `holdS` giây. Điểm cuối nằm ngay trên `center` (home), nên
+ * lệnh RTL kết thúc mission không leo lên RTL_ALT_M trước khi về: ArduCopter kẹp độ cao về bằng
+ * khoảng cách tới home × RTL_CONE_SLOPE, nhưng không thấp hơn độ cao đang bay — sát home thì
+ * giữ nguyên độ cao. Mission thấp vẫn thấp tới lúc hạ cánh.
+ */
+export function outAndBackPattern(center: LatLon, distance: number, bearing: number, alt: number, laps = 1, holdS = OUTBACK_HOLD_S): GeneratedPoint[] {
   const b = toRad(bearing);
-  const far = offsetLatLon(center[0], center[1], distance * Math.cos(b), distance * Math.sin(b));
-  const mid = offsetLatLon(center[0], center[1], (distance / 2) * Math.cos(b), (distance / 2) * Math.sin(b));
-  return [
-    { ...mid, alt },
-    { ...far, alt },
-  ];
+  const hold = holdS > 0 ? { hold_s: holdS } : {};
+  const far = { ...offsetLatLon(center[0], center[1], distance * Math.cos(b), distance * Math.sin(b)), alt, ...hold };
+  const start = { lat: center[0], lon: center[1], alt, ...hold };
+  return Array.from({ length: Math.max(1, Math.round(laps)) }, () => [{ ...far }, { ...start }]).flat();
 }
 
 // ---------------------------------------------------------------------------
@@ -203,14 +219,17 @@ const FRAME_RELATIVE = 3;
 
 /**
  * Xuất mission sang văn bản `.waypoints`. Dòng 0 là home (Mission Planner bắt
- * buộc có), độ cao tương đối với home — cùng quy ước với backend.
+ * buộc có), độ cao tương đối với home — cùng quy ước với backend. Cột param1
+ * của WAYPOINT là số giây dừng (`hold_s`), đúng như FC hiểu.
  */
 export function toWaypointsFile(items: readonly MissionWaypoint[], home: LatLon | null): string {
   const f = (v: number, d = 8) => v.toFixed(d);
   const lines = ["QGC WPL 110"];
   lines.push(["0", "1", FRAME_GLOBAL, MAV_CMD.NAV_WAYPOINT, 0, 0, 0, 0, f(home?.[0] ?? 0), f(home?.[1] ?? 0), f(0, 6), 1].join("\t"));
   items.forEach((it, i) => {
-    lines.push([i + 1, 0, FRAME_RELATIVE, it.command ?? MAV_CMD.NAV_WAYPOINT, 0, 0, 0, 0, f(it.lat), f(it.lon), f(it.alt, 6), 1].join("\t"));
+    const command = it.command ?? MAV_CMD.NAV_WAYPOINT;
+    const param1 = command === MAV_CMD.NAV_WAYPOINT ? (it.hold_s ?? 0) : 0;
+    lines.push([i + 1, 0, FRAME_RELATIVE, command, param1, 0, 0, 0, f(it.lat), f(it.lon), f(it.alt, 6), 1].join("\t"));
   });
   return `${lines.join("\n")}\n`;
 }
@@ -233,16 +252,19 @@ export function parseWaypointsFile(text: string): ParsedWaypointsFile {
     const c = row.split(/\s+/);
     if (c.length < 12) throw new Error(`Dòng ${i + 2}: cần 12 cột, có ${c.length}`);
     const cmd = Number(c[3]);
+    const param1 = Number(c[4]);
     const lat = Number(c[8]);
     const lon = Number(c[9]);
     const alt = Number(c[10]);
-    if (![cmd, lat, lon, alt].every(Number.isFinite)) throw new Error(`Dòng ${i + 2}: có ô không phải số`);
+    if (![cmd, param1, lat, lon, alt].every(Number.isFinite)) throw new Error(`Dòng ${i + 2}: có ô không phải số`);
     if (i === 0) {
       out.home = { lat, lon };
       return;
     }
     if (cmd === MAV_CMD.NAV_TAKEOFF) out.takeoffAlt = alt;
-    else if (cmd === MAV_CMD.NAV_WAYPOINT) out.waypoints.push({ lat, lon, alt });
+    // param1 của WAYPOINT = số giây dừng. Giữ nguyên số trong file — số lẻ hay quá lớn thì
+    // luật kiểm tra báo đỏ, không làm tròn im lặng.
+    else if (cmd === MAV_CMD.NAV_WAYPOINT) out.waypoints.push({ lat, lon, alt, ...(param1 ? { hold_s: param1 } : {}) });
     else if (cmd === MAV_CMD.NAV_RETURN_TO_LAUNCH || cmd === MAV_CMD.NAV_LAND) out.finalCommand = cmd;
     else out.skipped.push(cmd);
   });

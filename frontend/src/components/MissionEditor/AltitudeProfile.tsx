@@ -5,8 +5,11 @@
  * Dải [min_alt, max_alt] của backend tô nền để thấy ngay điểm nào ra ngoài —
  * cùng luật với `missionRules.ts`, chỉ là nhìn bằng mắt. Rê chuột: đường dóng +
  * nhãn điểm gần nhất.
+ *
+ * Bề ngang vẽ theo đúng bề rộng khung (1 đơn vị = 1 px), cao cố định: khung rộng thì biểu đồ dài
+ * ra chứ không phóng to cả chữ lẫn chiều cao (đẩy bản đồ ở trang Nhiệm vụ xuống).
  */
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import { useHome, useMissionDraft } from "@/hooks/useMissionDraft";
@@ -15,8 +18,9 @@ import { MAV_CMD } from "@/lib/missionRules";
 import { routeProfile } from "@/lib/routeTools";
 import type { ProfilePoint } from "@/lib/routeTools";
 
-const W = 640;
-const H = 180;
+const DEFAULT_W = 640;
+const MIN_W = 280;
+const H = 168;
 const PAD = { l: 38, r: 12, t: 12, b: 26 };
 
 function niceStep(span: number, target = 5): number {
@@ -33,12 +37,21 @@ export function AltitudeProfile({ className }: { className?: string }) {
   const pts = useMemo(() => routeProfile(items, home), [items, home]);
   const [hover, setHover] = useState<ProfilePoint | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(DEFAULT_W);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => setW(Math.max(MIN_W, Math.round(entry.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const hasWaypoint = items.some((it) => it.command === MAV_CMD.NAV_WAYPOINT);
   if (!home || !hasWaypoint || pts.length < 2) {
     return (
-      <div className={className} data-testid="altitude-profile">
-        <p className="grid h-[150px] place-items-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground">
+      <div className={className} data-testid="altitude-profile" ref={boxRef}>
+        <p className="grid h-[120px] place-items-center rounded-lg border border-dashed border-border text-center text-xs text-muted-foreground">
           {home ? "Thêm ít nhất một waypoint để thấy hồ sơ độ cao." : "Chưa có điểm home — chưa dựng được hồ sơ độ cao."}
         </p>
       </div>
@@ -65,7 +78,7 @@ export function AltitudeProfile({ className }: { className?: string }) {
   };
 
   return (
-    <div className={className} data-testid="altitude-profile">
+    <div className={className} data-testid="altitude-profile" ref={boxRef}>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}

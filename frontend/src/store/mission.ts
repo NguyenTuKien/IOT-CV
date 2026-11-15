@@ -39,6 +39,21 @@ export interface DraftWaypoint {
   lon: number;
   /** `NaN` = ô nhập đang trống. Luật kiểm tra sẽ báo; không tự điền số. */
   alt: number;
+  /** Dừng tại điểm, giây (thiếu = bay lướt qua). Hiện chỉ mẫu Đi – về đặt. */
+  hold_s?: number;
+}
+
+/** Một điểm đưa vào bản nháp từ ngoài (mẫu tự sinh, file, thư viện). */
+export interface DraftPoint {
+  lat: number;
+  lon: number;
+  alt: number;
+  hold_s?: number;
+}
+
+/** `hold_s` chỉ có mặt khi khác 0, để item không dừng giữ nguyên hình dạng cũ. */
+function holdField(hold: number | undefined): { hold_s?: number } {
+  return hold ? { hold_s: hold } : {};
 }
 
 export type UploadState = "idle" | "validating" | "uploading" | "reading-back" | "done" | "error";
@@ -88,9 +103,9 @@ interface MissionStore {
   /** Đảo thứ tự các waypoint (bay ngược lộ trình). */
   reverse(): void;
   /** Thay cả lộ trình (mẫu tự sinh, nạp từ file). Hoàn tác được. */
-  replaceWaypoints(points: readonly { lat: number; lon: number; alt: number }[]): void;
+  replaceWaypoints(points: readonly DraftPoint[]): void;
   /** Nạp nguyên một bản nháp (kể cả độ cao cất cánh, lệnh cuối). */
-  loadDraft(draft: { takeoffAlt: number; finalCommand: FinalCommand; waypoints: readonly { lat: number; lon: number; alt: number }[] }): void;
+  loadDraft(draft: { takeoffAlt: number; finalCommand: FinalCommand; waypoints: readonly DraftPoint[] }): void;
   undo(): void;
   redo(): void;
   /** Nối cả một lộ trình (vẽ bằng terra-draw) vào cuối bản nháp, cùng một độ cao. */
@@ -120,6 +135,10 @@ function newId(): string {
   return crypto.randomUUID();
 }
 
+function toDraftWaypoint(p: DraftPoint): DraftWaypoint {
+  return { id: newId(), lat: p.lat, lon: p.lon, alt: p.alt, ...holdField(p.hold_s) };
+}
+
 /** Độ cao gợi ý cho điểm mới, kẹp vào giới hạn backend. Chưa có giới hạn thì giữ nguyên. */
 export function effectiveDefaultAlt(defaultAlt: number, limits: Pick<RuleLimits, "min_alt" | "max_alt"> | null): number {
   if (!limits || Number.isNaN(defaultAlt)) return defaultAlt;
@@ -141,7 +160,7 @@ export function toMissionWaypoints(
     { seq: 1, lat: home?.[0] ?? 0, lon: home?.[1] ?? 0, alt: draft.takeoffAlt, command: MAV_CMD.NAV_TAKEOFF },
   ];
   draft.waypoints.forEach((w, i) => {
-    items.push({ seq: i + 2, lat: w.lat, lon: w.lon, alt: w.alt, command: MAV_CMD.NAV_WAYPOINT });
+    items.push({ seq: i + 2, lat: w.lat, lon: w.lon, alt: w.alt, command: MAV_CMD.NAV_WAYPOINT, ...holdField(w.hold_s) });
   });
   items.push({ seq: items.length + 1, lat: 0, lon: 0, alt: 0, command: draft.finalCommand });
   return items;
@@ -157,6 +176,7 @@ export function sameMission(a: readonly MissionWaypoint[], b: readonly MissionWa
     const y = b[i];
     return (
       (x.command ?? MAV_CMD.NAV_WAYPOINT) === (y.command ?? MAV_CMD.NAV_WAYPOINT) &&
+      (x.hold_s ?? 0) === (y.hold_s ?? 0) &&
       Math.abs(x.lat - y.lat) <= COORD_EPS &&
       Math.abs(x.lon - y.lon) <= COORD_EPS &&
       Math.abs(x.alt - y.alt) <= ALT_EPS
@@ -232,12 +252,12 @@ export const useMissionStore = create<MissionStore>((set, get) => ({
     }),
   setAllAlt: (alt) => edit(set, (s) => (s.waypoints.length === 0 ? null : { waypoints: s.waypoints.map((w) => ({ ...w, alt })) })),
   reverse: (): void => edit(set, (s) => (s.waypoints.length < 2 ? null : { waypoints: [...s.waypoints].reverse() })),
-  replaceWaypoints: (points) => edit(set, () => ({ waypoints: points.map((p) => ({ id: newId(), lat: p.lat, lon: p.lon, alt: p.alt })) })),
+  replaceWaypoints: (points) => edit(set, () => ({ waypoints: points.map(toDraftWaypoint) })),
   loadDraft: (draft) =>
     edit(set, () => ({
       takeoffAlt: draft.takeoffAlt,
       finalCommand: draft.finalCommand,
-      waypoints: draft.waypoints.map((p) => ({ id: newId(), lat: p.lat, lon: p.lon, alt: p.alt })),
+      waypoints: draft.waypoints.map(toDraftWaypoint),
     })),
   remove: (id) => edit(set, (s) => ({ waypoints: s.waypoints.filter((w) => w.id !== id) })),
   clear: () => edit(set, (s) => (s.waypoints.length === 0 ? null : { waypoints: [] })),

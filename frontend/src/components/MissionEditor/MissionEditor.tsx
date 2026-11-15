@@ -8,10 +8,11 @@
  * Nút NẠP MISSION bị khoá khi còn lỗi hoặc máy bay chưa sẵn sàng, và tooltip
  * nói rõ vì sao — nút xám không có lý do là điều gây bực nhất cho người mới.
  */
-import { ArrowDownUp, CloudUpload, Redo2, Trash2, Undo2 } from "lucide-react";
+import { ArrowDownUp, CloudUpload, House, MoveRight, Redo2, Timer, Trash2, Undo2 } from "lucide-react";
 import { useEffect } from "react";
 
 import { IconRoute } from "@/components/icons";
+import { Chip } from "@/components/kit";
 import type { CSSProperties } from "react";
 
 import { Panel } from "@/components/Panel";
@@ -25,7 +26,7 @@ import { useLimits } from "@/hooks/useLimits";
 import { useHome, useMissionDraft } from "@/hooks/useMissionDraft";
 import { formatClock } from "@/lib/format";
 import { haversineM } from "@/lib/geo";
-import { MAV_CMD, uploadBlockers } from "@/lib/missionRules";
+import { holdsForUpload, MAV_CMD, uploadBlockers } from "@/lib/missionRules";
 import { cn } from "@/lib/utils";
 import { isUploading, sameMission, useMissionStore } from "@/store/mission";
 import type { FinalCommand, UploadState } from "@/store/mission";
@@ -100,7 +101,17 @@ function FinalCommandToggle({ value, onChange }: { value: FinalCommand; onChange
 function LoadedMissionLine({ draftItems }: { draftItems: Parameters<typeof sameMission>[0] }) {
   const source = useTelemetryStore((s) => s.status?.mission?.source ?? null);
   const readback = useMissionStore((s) => s.readback);
+  const busy = useMissionStore((s) => isUploading(s.uploadState));
 
+  // Backend đặt source "local" ngay khi FC ACK, TRƯỚC khi đọc lại xong — trong lúc đó
+  // chưa phải "lệch" (Wi-Fi yếu thì đọc lại mất hơn chục giây, 01/11/2026).
+  if (source === "local" && busy) {
+    return (
+      <p className="text-xs text-hud-cyan" data-testid="mission-loaded-line">
+        FC đã nhận mission, đang đọc lại để kiểm từng điểm…
+      </p>
+    );
+  }
   if (source === "local") {
     return (
       <p className="text-xs text-hud-amber" data-testid="mission-loaded-line">
@@ -196,6 +207,7 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
   const lastErrors = useMissionStore((s) => s.lastErrors);
   const lastErrorCode = useMissionStore((s) => s.lastErrorCode);
   const missionSource = useTelemetryStore((s) => s.status?.mission?.source ?? null);
+  const holds = useTelemetryStore((s) => holdsForUpload(s.telemetry?.armed, s.telemetry?.mode));
   const actions = useMissionStore.getState();
 
   const busy = isUploading(uploadState);
@@ -213,18 +225,25 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
       title="Soạn mission"
       subtitle="Cất cánh → các điểm → về nhà / hạ cánh"
       icon={IconRoute}
+      accent="blue"
       style={style}
       className={className}
       testId="mission-panel"
-      bodyClassName="flex flex-col gap-3 p-3"
+      bodyClassName="flex min-h-0 flex-col gap-2.5 p-3"
       actions={
-        missionSource === "local" ? (
-          <Badge className="border-hud-amber/40 bg-hud-amber/15 text-hud-amber" data-testid="mission-unconfirmed">
-            Chưa xác nhận
-          </Badge>
-        ) : missionSource === "readback" ? (
-          <Badge className="border-hud-green/40 bg-hud-green/15 text-hud-green">FC đã xác nhận</Badge>
-        ) : null
+        <>
+          <Chip tone="blue" size="xs" mono title="Số item gửi xuống FC, tính cả cất cánh và RTL/LAND">
+            {items.length}
+            {limits ? ` / ${limits.max_waypoints}` : ""} item
+          </Chip>
+          {missionSource === "local" ? (
+            <Badge className="border-hud-amber/40 bg-hud-amber/15 text-hud-amber" data-testid="mission-unconfirmed">
+              Chưa xác nhận
+            </Badge>
+          ) : missionSource === "readback" ? (
+            <Badge className="border-hud-green/40 bg-hud-green/15 text-hud-green">FC đã xác nhận</Badge>
+          ) : null}
+        </>
       }
     >
       {!home ? (
@@ -235,17 +254,20 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
 
       <DraftToolbar />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-foreground/[0.02] px-2.5 py-1.5">
         <Label className="text-xs text-muted-foreground">Độ cao cho điểm mới</Label>
         <AltField value={defaultAlt} onChange={actions.setDefaultAlt} limits={limits} label="Độ cao cho điểm mới" />
         <span className="ml-auto text-[11px] text-muted-foreground">
-          {limits ? `Giới hạn ${limits.min_alt}–${limits.max_alt} m · tối đa ${limits.max_waypoints} item` : "Chưa có giới hạn"}
+          {limits ? `cho phép ${limits.min_alt}–${limits.max_alt} m` : "Chưa có giới hạn"}
         </span>
       </div>
 
-      <ol className="space-y-1" data-testid="mission-rows">
+      {/* Danh sách cuộn bên trong panel; nút NẠP ở chân panel luôn thấy. */}
+      <ol className="-mr-1.5 min-h-0 flex-1 overflow-y-auto pt-0.5 pr-1.5" data-testid="mission-rows">
         <RowShell
           fixed
+          first
+          kind="takeoff"
           seq={1}
           testId="mission-row-takeoff"
           invalid={badSeqs.has(1)}
@@ -256,17 +278,45 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
         {waypoints.map((w, i) => {
           const seq = i + 2;
           const dist = home ? haversineM(home[0], home[1], w.lat, w.lon) : null;
+          // Chặng tới điểm này: từ điểm trước, hoặc từ home với điểm đầu (cất cánh thẳng đứng tại home).
+          const prev = i > 0 ? ([waypoints[i - 1].lat, waypoints[i - 1].lon] as const) : home;
+          const leg = prev ? haversineM(prev[0], prev[1], w.lat, w.lon) : null;
           return (
             <RowShell
               key={w.id}
+              kind="waypoint"
               seq={seq}
               testId="mission-row-wp"
               invalid={badSeqs.has(seq)}
               title="WAYPOINT"
+              meta={
+                <>
+                  {leg === null ? null : (
+                    <Chip size="xs" tone="neutral" mono icon={MoveRight} title={`Chặng: ${leg.toFixed(1)} m ngang từ ${i === 0 ? "home" : `WP${seq - 1}`}`}>
+                      {leg.toFixed(0)} m
+                    </Chip>
+                  )}
+                  {dist === null ? null : (
+                    <Chip
+                      size="xs"
+                      tone={limits && dist > limits.max_distance_home ? "danger" : "teal"}
+                      mono
+                      icon={House}
+                      title={`Cách home ${dist.toFixed(1)} m (ngang)${limits ? ` · rào phần mềm ${limits.max_distance_home} m` : ""}`}
+                    >
+                      {dist.toFixed(0)} m
+                    </Chip>
+                  )}
+                  {w.hold_s ? (
+                    <Chip size="xs" tone="amber" mono icon={Timer} title="FC dừng tại điểm này trước khi đi tiếp">
+                      {w.hold_s} s
+                    </Chip>
+                  ) : null}
+                </>
+              }
               detail={
                 <>
                   {fmtCoord(w.lat)}, {fmtCoord(w.lon)}
-                  {dist === null ? null : ` · ${dist.toFixed(0)} m tới home`}
                 </>
               }
               alt={
@@ -292,12 +342,15 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
           );
         })}
         {waypoints.length === 0 ? (
-          <li className="rounded-md border border-dashed border-border px-2 py-2 text-center text-xs text-muted-foreground">
+          <li className="relative mb-1.5 ml-[2.25rem] rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs leading-relaxed text-muted-foreground">
+            <span className="absolute top-0 bottom-0 -left-[1.4rem] w-px bg-border" aria-hidden />
             Bấm lên bản đồ, vẽ lộ trình, hoặc chọn một mẫu lộ trình để thêm waypoint.
           </li>
         ) : null}
         <RowShell
           fixed
+          last
+          kind={finalCommand === MAV_CMD.NAV_LAND ? "land" : "rtl"}
           seq={finalSeq}
           testId="mission-row-final"
           invalid={badSeqs.has(finalSeq)}
@@ -307,9 +360,11 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
         />
       </ol>
 
-      <MissionValidation issues={issues} backendErrors={uploadState === "error" ? lastErrors : []} backendCode={lastErrorCode} />
+      <div className="max-h-[30%] shrink-0 overflow-y-auto empty:hidden">
+        <MissionValidation issues={issues} backendErrors={uploadState === "error" ? lastErrors : []} backendCode={lastErrorCode} />
+      </div>
 
-      <div className="mt-auto space-y-2 border-t border-border pt-3">
+      <div className="shrink-0 space-y-2 border-t border-border pt-3">
         {statusText ? (
           <div className="space-y-1" data-testid="mission-upload-status" data-state={uploadState}>
             <p className={cn("text-xs font-medium", uploadState === "done" ? "text-hud-green" : "text-hud-cyan")}>{statusText}</p>
@@ -317,6 +372,12 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
           </div>
         ) : null}
         <LoadedMissionLine draftItems={items} />
+        {holds ? (
+          <p className="rounded-md border border-hud-amber/40 bg-hud-amber/[0.07] px-2 py-1.5 text-xs text-hud-amber" data-testid="mission-hold-notice">
+            Drone đang bay AUTO. Bấm NẠP MISSION thì drone chuyển GUIDED, đứng giữ chỗ (không theo cần ga) tới khi nạp xong. Rồi bấm
+            AUTO ở trang Bay để bay mission mới từ điểm 1.
+          </p>
+        ) : null}
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -333,6 +394,7 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
               <span className="ml-auto inline-flex" tabIndex={canUpload ? undefined : 0} data-testid="mission-upload-wrap">
                 <Button
                   size="sm"
+                  className="h-9 px-4 font-display tracking-wide"
                   disabled={!canUpload}
                   onClick={() => startMissionUpload(home)}
                   data-testid="mission-upload"
@@ -344,7 +406,7 @@ export function MissionEditor({ style, className }: { style?: CSSProperties; cla
             </TooltipTrigger>
             <TooltipContent className="max-w-72">
               {canUpload ? (
-                "Gửi mission xuống flight controller. Backend kiểm lại toàn bộ, nạp, rồi đọc ngược lên để so khớp. Chưa bay — BẮT ĐẦU AUTO là nút riêng (Phase 10)."
+                "Gửi mission xuống flight controller. Backend kiểm lại toàn bộ, nạp, đọc ngược lên để so khớp, rồi đặt FC bắt đầu từ điểm 1. Drone đang bay AUTO thì chuyển GUIDED đứng giữ chỗ trước khi nạp. Nạp không làm drone bay mission — bay là nút AUTO riêng ở trang Bay."
               ) : (
                 <ul className="list-disc space-y-0.5 pl-4" data-testid="mission-lock-reasons">
                   {lockReasons.map((r) => (
