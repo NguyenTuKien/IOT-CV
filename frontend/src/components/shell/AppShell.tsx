@@ -29,8 +29,10 @@ function useAppHotkeys(): void {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const ui = useUiStore.getState();
-      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit\d$/.test(e.code)) {
-        const page = PAGES.find((p) => p.hotkey === e.code.slice(5));
+      // Alt + số (Digit7 → "7") hoặc Alt + chữ (KeyL → "L"); theo `e.code` nên không phụ
+      // thuộc bộ gõ tiếng Việt.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^(Digit\d|Key[A-Z])$/.test(e.code)) {
+        const page = PAGES.find((p) => p.hotkey === e.code.replace(/^(Digit|Key)/, ""));
         if (page) {
           e.preventDefault();
           navigate(page.path);
@@ -76,8 +78,9 @@ export function AppShell() {
           <SafetyBanner />
           <AppHeader />
         </div>
-        {/* Chừa chỗ dưới cho thanh thoát hiểm nổi (có ở mọi trang trừ trang Bay). */}
-        <main className={cn("mx-auto w-full max-w-[2400px] flex-1", pathname !== "/" && "pb-20")}>
+        {/* Màn hẹp: chừa chỗ dưới cho thanh thoát hiểm nổi (mọi trang trừ trang Bay).
+            Màn rộng: nút thoát hiểm nằm trong header, chỉ cần khoảng thở. */}
+        <main className={cn("mx-auto w-full max-w-[2400px] flex-1", pathname !== "/" && "pb-24 md:pb-6")}>
           <Suspense fallback={<PageSkeleton />}>
             {/* Chuyển trang: mờ-trượt 8 px bằng CSS (`.rise-in`), tự tắt khi giảm chuyển động. */}
             <div key={pathname} className="rise-in">

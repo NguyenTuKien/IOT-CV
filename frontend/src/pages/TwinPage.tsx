@@ -158,7 +158,8 @@ export default function TwinPage() {
   }, []);
 
   return (
-    <div className="relative h-[calc(100dvh-5.75rem)] min-h-[560px] overflow-hidden" data-testid="twin-page">
+    // Trừ header (--shell-header-h, index.css) và khoảng đệm dưới 1.5rem của <main> (pb-6): vừa đúng một màn hình.
+    <div className="relative h-[calc(100dvh-var(--shell-header-h)-1.5rem)] min-h-[560px] overflow-hidden" data-testid="twin-page">
       {view === "hangar" ? <HangarView /> : null}
       {view === "twin" ? (
       <TwinScene
@@ -314,8 +315,8 @@ export default function TwinPage() {
           <StatStrip />
         </div>
 
-        {/* Bản đồ nhỏ */}
-        <div className="pointer-events-auto absolute right-3 bottom-4 hidden h-48 w-64 overflow-hidden rounded-2xl border border-panel-edge shadow-xl lg:block">
+        {/* Bản đồ nhỏ — góc DƯỚI TRÁI: góc phải là bảng điều khiển, đặt ở đó thì bản đồ che mất nửa dưới bảng. */}
+        <div className="pointer-events-auto absolute bottom-4 left-3 hidden h-48 w-64 overflow-hidden rounded-2xl border border-panel-edge shadow-xl lg:block">
           <MapView mode="flight" compact className="relative h-full w-full" />
         </div>
       </div>

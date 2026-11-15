@@ -10,6 +10,8 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 
 import { fetchEvents, fetchTelemetryHistory } from "@/lib/api";
+import { hintFor, noteRepeat, repeatSignature, type RepeatRun } from "@/lib/eventGroups";
+import { formatClock } from "@/lib/format";
 import { ERROR_CODE_LABEL } from "@/lib/protocol";
 import type { ServerEnvelope } from "@/lib/protocol";
 import { setActiveSocket } from "@/lib/uplink";
@@ -21,6 +23,7 @@ import { telemetryHistory } from "@/store/history";
 import { countBytes, countFrame, flushFrameCounts, useSessionStore } from "@/store/session";
 import { useMissionStore } from "@/store/mission";
 import { fromServerEvent, useTelemetryStore, webEvent } from "@/store/telemetry";
+import type { LogEntry } from "@/store/telemetry";
 
 /** Lấy bao nhiêu sự kiện cũ lúc mở trang (`GET /api/events?limit=`). */
 export const EVENT_HISTORY_LIMIT = 100;
@@ -34,6 +37,31 @@ export const TOAST_MAX_AGE_S = 10;
 
 /** Nạp sẵn lịch sử backend giữ chừng này giây — biểu đồ có dữ liệu ngay khi mở. */
 export const HISTORY_SEED_SECONDS = 600;
+
+/** Chuỗi lặp của từng lỗi đã nhận khi trang đang mở (khoá: `repeatSignature`). */
+const errorRuns = new Map<string, RepeatRun>();
+/** Chữ ký của các toast lỗi còn trên màn hình. */
+const openErrorToasts = new Set<string>();
+
+/**
+ * Mỗi chuỗi lỗi lặp lại chỉ một toast. FC nhắc "Takeoff blocked" 2 s một lần và PreArm 30 s một
+ * lần: bật toast mới cho từng lần là toast đỏ nối nhau không dứt. Lần lặp chỉ cập nhật ×N trên
+ * toast còn đang hiện (cùng `id`); toast đã tắt thì thôi, dòng ×N ở trang Nhật ký vẫn đủ.
+ */
+function toastError(entry: LogEntry): void {
+  const sig = repeatSignature(entry);
+  const run = noteRepeat(errorRuns, sig, entry.ts);
+  if (run.count > 1 && !openErrorToasts.has(sig)) return;
+  openErrorToasts.add(sig);
+  const closed = () => openErrorToasts.delete(sig);
+  const head = hintFor(entry.message) ?? entry.code;
+  toast.error(entry.message, {
+    id: sig,
+    description: run.count > 1 ? `${head} · ×${run.count} từ ${formatClock(run.firstTs)}` : head,
+    onAutoClose: closed,
+    onDismiss: closed,
+  });
+}
 
 function handleMessage(msg: ServerEnvelope): void {
   const store = useTelemetryStore.getState();
@@ -58,7 +86,7 @@ function handleMessage(msg: ServerEnvelope): void {
       // Toast chỉ cho `error`. Toast cho mọi `info` dạy người dùng phớt lờ
       // toast — đúng lúc cái quan trọng hiện ra thì họ không nhìn nữa.
       if (isNew && entry.level === "error" && Date.now() / 1000 - entry.ts <= TOAST_MAX_AGE_S) {
-        toast.error(entry.message, { description: entry.code });
+        toastError(entry);
       }
       return;
     }

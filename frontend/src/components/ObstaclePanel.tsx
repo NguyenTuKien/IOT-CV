@@ -9,7 +9,7 @@
  *    làm người dùng tưởng mình được bảo vệ đúng ở chỗ họ không được bảo vệ;
  *  - cung không có dữ liệu vẽ GẠCH CHÉO, không vẽ xanh (xem `lib/obstacle.ts`).
  */
-import { TriangleAlert } from "lucide-react";
+import { Info, TriangleAlert } from "lucide-react";
 
 import { IconRadar } from "@/components/icons";
 import type { CSSProperties } from "react";
@@ -55,34 +55,41 @@ function DistanceBar() {
   const hasDistance = distance != null && Number.isFinite(distance);
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="relative h-14 flex-1" data-testid="obstacle-bar">
-        {/* Ba dải: đỏ (≤ margin), vàng (≤ dist_max), xanh (xa hơn) */}
-        <div className="absolute inset-x-0 top-3 flex h-3 overflow-hidden rounded-full ring-1 ring-foreground/10">
-          <div className="bg-hud-red/45" style={{ width: pct(limits.avoid_margin_m) }} />
-          <div className="bg-hud-amber/40" style={{ width: pct(limits.avoid_dist_max_m - limits.avoid_margin_m) }} />
-          <div className="flex-1 bg-hud-green/30" />
-        </div>
-        {[limits.avoid_margin_m, limits.avoid_dist_max_m].map((mark) => (
-          <div key={mark} className="absolute top-1 h-7 w-px bg-foreground/60" style={{ left: pct(mark) }}>
-            <span className="absolute top-7 -translate-x-1/2 font-mono text-[10px] text-muted-foreground">{mark} m</span>
-          </div>
-        ))}
-        <span className="absolute top-7 left-0 font-mono text-[10px] text-muted-foreground">0</span>
-        <span className="absolute top-7 right-0 font-mono text-[10px] text-muted-foreground">{max} m</span>
-        {hasDistance ? (
-          <div
-            className="absolute top-0 size-0 -translate-x-1/2 border-x-[7px] border-t-[10px] border-x-transparent border-t-foreground drop-shadow"
-            style={{ left: pct(distance) }}
-            data-testid="obstacle-cursor"
-            aria-hidden
-          />
-        ) : null}
+    <div className="relative h-11" data-testid="obstacle-bar">
+      {/* Ba dải: đỏ (≤ margin), vàng (≤ dist_max), xanh (xa hơn) */}
+      <div className="absolute inset-x-0 top-3 flex h-2.5 overflow-hidden rounded-full ring-1 ring-foreground/10">
+        <div className="bg-hud-red/50" style={{ width: pct(limits.avoid_margin_m) }} />
+        <div className="bg-hud-amber/45" style={{ width: pct(limits.avoid_dist_max_m - limits.avoid_margin_m) }} />
+        <div className="flex-1 bg-hud-green/35" />
       </div>
-      <p className="w-24 text-right font-mono text-3xl font-semibold tabular-nums" data-testid="obstacle-distance">
-        {hasDistance && distance > max ? `> ${max} m` : formatNumber(distance, 1, "m")}
-      </p>
+      {[limits.avoid_margin_m, limits.avoid_dist_max_m].map((mark) => (
+        <div key={mark} className="absolute top-1.5 h-5.5 w-px bg-foreground/55" style={{ left: pct(mark) }}>
+          <span className="absolute top-6 -translate-x-1/2 font-mono text-[10px] whitespace-nowrap text-muted-foreground">{mark} m</span>
+        </div>
+      ))}
+      <span className="absolute top-7.5 left-0 font-mono text-[10px] text-muted-foreground">0</span>
+      <span className="absolute top-7.5 right-0 font-mono text-[10px] text-muted-foreground">{max} m</span>
+      {hasDistance ? (
+        <div
+          className="absolute top-0 size-0 -translate-x-1/2 border-x-[6px] border-t-[9px] border-x-transparent border-t-foreground drop-shadow"
+          style={{ left: pct(distance) }}
+          data-testid="obstacle-cursor"
+          aria-hidden
+        />
+      ) : null}
     </div>
+  );
+}
+
+function DistanceReadout({ tone }: { tone: ObstacleTone }) {
+  const limits = useLimits();
+  const distance = useTelemetryStore((s) => s.telemetry?.obstacle_distance);
+  const max = limits?.rangefinder_max_m;
+  const hasDistance = distance != null && Number.isFinite(distance);
+  return (
+    <p className={cn("font-mono text-[1.7rem] leading-none font-semibold tabular-nums", hasDistance ? TONE_TEXT[tone] : "text-muted-foreground")} data-testid="obstacle-distance">
+      {hasDistance && max && distance > max ? `> ${max} m` : formatNumber(distance, 1, "m")}
+    </p>
   );
 }
 
@@ -101,7 +108,7 @@ function SectorRose() {
   const ringAt = (m: number) => (max ? 20 + (Math.min(m, max) / max) * 36 : null);
 
   return (
-    <svg viewBox="-60 -60 120 120" className="size-36 shrink-0" role="img" aria-label="Sơ đồ 8 cung khoảng cách quanh drone" data-testid="sector-rose">
+    <svg viewBox="-60 -60 120 120" className="size-[6.75rem] shrink-0" role="img" aria-label="Sơ đồ 8 cung khoảng cách quanh drone" data-testid="sector-rose">
       <defs>
         <pattern id="sector-hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="5" height="5" fill="oklch(1 0 0 / 3%)" />
@@ -149,16 +156,17 @@ export function ObstaclePanel({ style, className }: { style?: CSSProperties; cla
   return (
     <Panel
       title="Vật cản"
-      subtitle="TFmini Plus · trạng thái AVOID do backend tính"
+      subtitle="TFmini Plus · AVOID do backend tính"
       icon={IconRadar}
+      accent="orange"
       variant="instrument"
       style={style}
       className={className}
       testId="obstacle-panel"
-      bodyClassName="flex flex-col gap-3 p-3"
+      bodyClassName="flex flex-col gap-2 p-2.5"
       actions={
         <span
-          className={cn("rounded-md border px-2 py-0.5 text-[11px] font-semibold", TONE_CHIP[tone])}
+          className={cn("rounded-md border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap", TONE_CHIP[tone])}
           data-testid="avoid-state"
           data-state={state ?? "none"}
           data-tone={tone}
@@ -167,31 +175,40 @@ export function ObstaclePanel({ style, className }: { style?: CSSProperties; cla
         </span>
       }
     >
-      <DistanceBar />
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <SectorRose />
-        <div className="flex flex-col gap-1 text-xs text-muted-foreground">
-          <p>
-            Cảm biến:{" "}
-            <span className={cn("font-medium", healthy === true ? "text-hud-green" : healthy === false ? "text-hud-red" : "")}>
-              {healthy === true ? "khoẻ" : healthy === false ? "không khoẻ" : "—"}
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+            <DistanceReadout tone={tone} />
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10.5px] font-semibold whitespace-nowrap",
+                healthy === true ? "border-hud-green/40 bg-hud-green/10 text-hud-green" : healthy === false ? "border-hud-red/45 bg-hud-red/10 text-hud-red" : "border-border text-muted-foreground",
+              )}
+              title="Cảm biến khoảng cách có đang gửi số đo hợp lệ không"
+            >
+              <span className={cn("size-1.5 rounded-full", healthy === true ? "bg-hud-green" : healthy === false ? "bg-hud-red" : "bg-muted-foreground/60")} aria-hidden />
+              {healthy === true ? "cảm biến khoẻ" : healthy === false ? "cảm biến lỗi" : "chưa rõ"}
             </span>
-          </p>
-          <p>Cung gạch chéo = không có dữ liệu. Phần cứng thật chỉ có MỘT tia đo thẳng trước (3.6°), nên 7/8 cung luôn gạch chéo.</p>
-          <p className={TONE_TEXT[tone]}>
-            FC chỉ tự phanh trước vật cản ở LOITER / ALT HOLD / POSHOLD.
+          </div>
+          <DistanceBar />
+          <p
+            className="flex items-start gap-1 text-[10.5px] leading-snug text-muted-foreground"
+            title="Phần cứng thật chỉ có MỘT tia đo thẳng trước (3.6°), nên 7/8 cung luôn gạch chéo — gạch chéo nghĩa là KHÔNG CÓ DỮ LIỆU, không phải trống trải."
+          >
+            <Info className="mt-px size-3 shrink-0" aria-hidden />
+            <span>
+              Một tia thẳng trước · gạch chéo = không có dữ liệu. FC tự phanh ở{" "}
+              <span className="font-medium text-foreground/85">LOITER · ALT HOLD · POSHOLD</span>.
+            </span>
           </p>
         </div>
       </div>
       {showsNoAvoidWarning(mode) ? (
-        <div role="note" data-testid="no-avoid-warning" className="flex gap-2 rounded-lg border border-hud-amber/50 bg-hud-amber/10 p-2.5 text-xs text-hud-amber">
-          <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <p className="leading-relaxed">
-            <span className="font-semibold">{NO_AVOID_WARNING[0]}</span>
-            <br />
-            {NO_AVOID_WARNING[1]}
-            <br />
-            {NO_AVOID_WARNING[2]}
+        <div role="note" data-testid="no-avoid-warning" className="flex gap-2 rounded-lg border border-hud-amber/50 bg-hud-amber/10 px-2.5 py-1.5 text-[11px] leading-snug text-hud-amber">
+          <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          <p>
+            <span className="font-semibold">{NO_AVOID_WARNING[0]}</span> <span className="opacity-90">{NO_AVOID_WARNING[1]} {NO_AVOID_WARNING[2]}</span>
           </p>
         </div>
       ) : null}

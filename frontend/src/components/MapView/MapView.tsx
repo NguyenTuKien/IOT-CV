@@ -16,7 +16,7 @@
  * không thì mỗi cú bấm đặt đỉnh cũng sinh thêm một waypoint thừa.
  */
 import L from "leaflet";
-import { Crosshair, Eraser, Expand, Home, Layers, LocateFixed, Minus, Plus, Route, Shrink, Spline } from "lucide-react";
+import { ChevronDown, Crosshair, Eraser, Expand, Home, Layers, LocateFixed, Minus, Plus, Route, Shrink, Spline } from "lucide-react";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
@@ -186,45 +186,90 @@ function LayerPicker({ value, onChange, onClose }: { value: MapBaseId; onChange(
   );
 }
 
+/**
+ * Gập/mở chú giải — nhớ trong trình duyệt (tiện ích của người xem, không phải cài đặt).
+ * Mặc định GẬP: mở sẵn thì khung chú giải che gần nửa bản đồ trên màn hình laptop. Nhãn rào ảo
+ * vẫn hiện khi gập.
+ */
+const LEGEND_KEY = "iot-cv.map-legend-open";
+
+function readLegendOpen(): boolean {
+  try {
+    return localStorage.getItem(LEGEND_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function Legend({ mode, drawing }: { mode: "flight" | "plan"; drawing: boolean }) {
   const home = useHome();
   const limits = useLimits();
   const hasPosition = useTelemetryStore((s) => typeof s.telemetry?.lat === "number" && typeof s.telemetry?.lon === "number");
   const fence = home && limits ? geofenceLabel(limits.max_distance_home) : null;
+  const [open, setOpen] = useState(readLegendOpen);
+  const toggle = () =>
+    setOpen((o) => {
+      try {
+        localStorage.setItem(LEGEND_KEY, o ? "0" : "1");
+      } catch {
+        /* chế độ ẩn danh / chặn lưu trữ: chỉ không nhớ được, vẫn gập được */
+      }
+      return !o;
+    });
 
   return (
     <div
-      className="pointer-events-none absolute top-2 left-2 z-[1000] max-w-[min(24rem,calc(100%-4rem))] space-y-1 rounded-xl border border-panel-edge bg-[color-mix(in_oklch,var(--panel-strong)_84%,transparent)] px-2.5 py-2 text-[11px] leading-snug text-foreground/90 backdrop-blur-md"
+      className="pointer-events-none absolute top-2 left-2 z-[1000] max-w-[min(22rem,calc(100%-4rem))] rounded-xl border border-panel-edge bg-[color-mix(in_oklch,var(--panel-strong)_86%,transparent)] px-2.5 py-1.5 text-[11px] leading-snug text-foreground/90 shadow-lg backdrop-blur-md"
       data-testid="map-legend"
     >
-      <p className="flex items-center gap-2">
-        <span className="inline-block h-0 w-6 border-t-2 border-dashed border-hud-amber" aria-hidden />
-        Bản nháp — chỉ nằm trong trình duyệt
-      </p>
-      <p className="flex items-center gap-2">
-        <span className="inline-block h-0 w-6 border-t-4 border-hud-green" aria-hidden />
-        Đã nạp — FC đọc lại xác nhận
-      </p>
-      {fence ? (
-        <p className="flex items-start gap-2 text-hud-amber" data-testid="geofence-label">
-          <span className="mt-1.5 inline-block h-0 w-6 shrink-0 border-t-2 border-dashed border-hud-amber" aria-hidden />
-          <span>
-            {fence[0]}
-            <br />
-            {fence[1]}
-          </span>
-        </p>
-      ) : null}
-      {!hasPosition ? <p className="text-muted-foreground">Chưa có vị trí GPS của drone.</p> : null}
-      {mode === "plan" ? (
-        drawing ? (
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="pointer-events-auto -mx-1 flex w-[calc(100%+0.5rem)] items-center gap-1.5 rounded-md px-1 py-0.5 text-left font-display text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase transition-colors hover:text-foreground"
+        data-testid="map-legend-toggle"
+      >
+        <ChevronDown className={cn("size-3 transition-transform", !open && "-rotate-90")} aria-hidden />
+        Chú giải
+      </button>
+      <div className="mt-1 space-y-1">
+        {open ? (
+          <>
+            <p className="flex items-center gap-2">
+              <span className="inline-block h-0 w-5 shrink-0 border-t-2 border-dashed border-hud-amber" aria-hidden />
+              Bản nháp — chỉ nằm trong trình duyệt
+            </p>
+            <p className="flex items-center gap-2">
+              <span className="inline-block h-0 w-5 shrink-0 border-t-4 border-hud-green" aria-hidden />
+              Đã nạp — FC đọc lại xác nhận
+            </p>
+          </>
+        ) : null}
+        {/* Nhãn rào ảo luôn hiện, kể cả khi gập (SAFETY.md mục 8: rào web chỉ là lớp phụ). */}
+        {fence ? (
+          <p className="flex items-start gap-2 text-hud-amber" data-testid="geofence-label">
+            <span className="mt-1.5 inline-block h-0 w-5 shrink-0 border-t-2 border-dashed border-hud-amber" aria-hidden />
+            <span>
+              {fence[0]}
+              {open ? (
+                <>
+                  <br />
+                  <span className="opacity-85">{fence[1]}</span>
+                </>
+              ) : null}
+            </span>
+          </p>
+        ) : null}
+        {!hasPosition ? <p className="text-muted-foreground">Chưa có vị trí GPS của drone.</p> : null}
+        {/* Đang vẽ thì luôn nhắc cách kết thúc nét; hướng dẫn chung chỉ hiện khi mở chú giải. */}
+        {mode === "plan" && drawing ? (
           <p className="text-hud-amber" data-testid="draw-hint">
             Đang vẽ lộ trình: bấm từng đỉnh · bấm lại đỉnh cuối hoặc Enter để xong · Esc để huỷ nét.
           </p>
-        ) : (
+        ) : mode === "plan" && open ? (
           <p className="text-muted-foreground">Bấm bản đồ để thêm điểm · kéo điểm để dời · bấm “+” giữa chặng để chèn.</p>
-        )
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

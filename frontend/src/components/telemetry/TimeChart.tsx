@@ -22,6 +22,8 @@ export interface ChartSeries {
   pick(d: Telemetry): number | null | undefined;
   /** "1" | "2" → `--series-1` / `--series-2`. */
   slot: 1 | 2;
+  /** Biến CSS màu nét (vd. `--hud-teal`); bỏ trống = màu chuỗi 1/2 chung. */
+  color?: string;
 }
 
 interface TimeChartProps {
@@ -69,7 +71,8 @@ export function TimeChart({ series, unit, windowSec, paused = false, height = 17
     const opts: uPlot.Options = {
       width: el.clientWidth || 600,
       height,
-      padding: [8, 8, 0, 0],
+      // Lề phải đủ cho nửa nhãn giờ cuối trục ("04:34:00"), không thì nhãn bị cắt ở mép.
+      padding: [8, 30, 0, 0],
       cursor: { drag: { x: false, y: false }, points: { size: 7 } },
       legend: { show: true, live: true },
       scales: { x: { time: true }, y: range ? { range } : { auto: true } },
@@ -92,7 +95,7 @@ export function TimeChart({ series, unit, windowSec, paused = false, height = 17
         { label: "Giờ", value: (_u, v) => (v == null ? "—" : new Date(v * 1000).toLocaleTimeString("vi-VN")) },
         ...series.map((s) => ({
           label: s.label,
-          stroke: cssVar(s.slot === 1 ? "--series-1" : "--series-2"),
+          stroke: cssVar(s.color ?? (s.slot === 1 ? "--series-1" : "--series-2")),
           width: 2,
           spanGaps: false,
           points: { show: false },

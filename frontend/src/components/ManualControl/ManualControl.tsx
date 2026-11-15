@@ -17,6 +17,7 @@
 import { Gamepad2, Hand, Loader2 } from "lucide-react";
 
 import { IconStick } from "@/components/icons";
+import { Chip } from "@/components/kit";
 import type { CSSProperties } from "react";
 
 import { Panel } from "@/components/Panel";
@@ -38,7 +39,7 @@ function WebControlSwitch() {
   const { on, pending, disabled, blocker, toggle } = useWebControlToggle();
 
   return (
-    <div className="flex flex-col gap-1.5 well px-3 py-2">
+    <div className={cn("flex flex-col gap-1 well px-3 py-2 transition-colors", on && "border-hud-amber/45 bg-hud-amber/8")}>
       <div className="flex items-center gap-3">
         <Switch
           id="web-control"
@@ -54,7 +55,7 @@ function WebControlSwitch() {
         </label>
         {pending ? <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Đang chờ backend" /> : null}
       </div>
-      <p id="web-control-reason" className="text-xs text-muted-foreground" data-testid="web-control-reason">
+      <p id="web-control-reason" className="text-[11.5px] leading-snug text-muted-foreground" data-testid="web-control-reason">
         {on
           ? "Web đang giữ quyền lái. Gạt mode trên RC hoặc tắt công tắc để trả quyền."
           : (blocker ?? "Bật để lái bằng bàn phím. Backend sẽ tự thu quyền nếu mode rời GUIDED.")}
@@ -70,7 +71,7 @@ function WebControlSwitch() {
 
 const signed = (v: number) => formatSigned(v, 2, "").trim();
 
-function Readout() {
+function Readout({ on }: { on: boolean }) {
   const sent = useControlStore((s) => s.manual.sent);
   const held = useControlStore((s) => s.manual.held);
   const gamepad = useControlStore((s) => s.manual.gamepadActive);
@@ -78,58 +79,70 @@ function Readout() {
   const maxVelocity = useTelemetryStore((s) => s.status?.limits.max_velocity);
 
   return (
-    <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-      <div className="well px-3 py-2" data-testid="manual-sent" data-sending={sent !== null}>
-        <p className="mb-1 font-sans text-[11px] text-muted-foreground">
+    <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-1.5 font-mono text-xs">
+      <div className="well px-2.5 py-1.5" data-testid="manual-sent" data-sending={sent !== null}>
+        <p className="mb-0.5 font-sans text-[10.5px] text-muted-foreground">
           Đang xin{gamepad ? " (tay cầm)" : ""} · trần {formatNumber(maxVelocity, 1, "m/s")}
         </p>
         {sent ? (
-          <p className="tabular-nums">
-            vx {signed(sent.vx)} · vy {signed(sent.vy)} · vz {signed(sent.vz)} m/s
+          <p className="text-[11.5px] leading-snug text-hud-amber tabular-nums">
+            vx {signed(sent.vx)} · vy {signed(sent.vy)} · vz {signed(sent.vz)}
             <br />
-            xoay {formatSigned(sent.yaw_rate, 0, "°/s")}
+            xoay {formatSigned(sent.yaw_rate, 0, "°/s")} · giữ {held.length ? held.map((c) => KEY_LABEL[c] ?? c).join("+") : "—"}
           </p>
         ) : (
-          <p className="text-muted-foreground">im — không gửi lệnh</p>
+          <p className="text-[11.5px] leading-snug text-muted-foreground">{on ? "im — không gửi lệnh" : "tắt — phím không gửi gì"}</p>
         )}
-        <p className="mt-1 text-muted-foreground">giữ: {held.length ? held.map((c) => KEY_LABEL[c] ?? c).join(" + ") : "—"}</p>
       </div>
-      <div className="well px-3 py-2" data-testid="manual-actual">
-        <p className="mb-1 font-sans text-[11px] text-muted-foreground">Tốc độ thật (telemetry)</p>
-        <p className="text-lg tabular-nums">{formatNumber(groundSpeed, 2, "m/s")}</p>
-        <p className="mt-1 font-sans text-[11px] leading-snug text-muted-foreground">
-          Xin mà không đi: chưa cất cánh, AVOID đang phanh, hoặc lệnh không tới nơi.
-        </p>
+      <div
+        className="well px-2.5 py-1.5"
+        data-testid="manual-actual"
+        title="Xin mà không đi: chưa cất cánh, AVOID đang phanh, hoặc lệnh không tới nơi."
+      >
+        <p className="mb-0.5 font-sans text-[10.5px] text-muted-foreground">Tốc độ thật</p>
+        <p className="text-base leading-tight font-semibold tabular-nums">{formatNumber(groundSpeed, 2, "m/s")}</p>
       </div>
     </div>
   );
 }
 
+/**
+ * Sơ đồ phím, số đo và nút DỪNG LUÔN hiện (người dùng 15/11/2026: gập lại thì lúc cần lái không
+ * thấy đâu). WEB CONTROL tắt thì sơ đồ phím mờ đi — nhìn là biết phím đang không có tác dụng.
+ */
 export function ManualControl({ style, className }: { style?: CSSProperties; className?: string }) {
   const held = useControlStore((s) => s.manual.held);
   const sending = useControlStore((s) => s.manual.sent !== null);
+  const gamepad = useControlStore((s) => s.manual.gamepadActive);
+  const { on } = useWebControlToggle();
 
   return (
     <Panel
       title="Lái tay"
-      subtitle="Bàn phím / tay cầm · chỉ khi WEB CONTROL bật"
+      subtitle="Bàn phím hoặc tay cầm, khi WEB CONTROL bật"
       icon={IconStick}
+      accent="amber"
       style={style}
       className={className}
       testId="manual-control"
       actions={
-        <span className="flex items-center gap-1 text-[10px] text-muted-foreground" title="Tay cầm: cắm vào rồi bấm một nút bất kỳ">
-          <Gamepad2 className="size-3.5" aria-hidden /> tay cầm: tuỳ chọn
-        </span>
+        <Chip
+          tone={gamepad ? "ok" : "neutral"}
+          size="xs"
+          icon={Gamepad2}
+          title="Tay cầm (tuỳ chọn): cắm vào rồi bấm một nút bất kỳ để trình duyệt nhận"
+        >
+          {gamepad ? "tay cầm" : "tay cầm: chưa"}
+        </Chip>
       }
-      bodyClassName="flex flex-col gap-3 p-3"
+      bodyClassName="flex flex-col gap-2 p-3"
     >
       <WebControlSwitch />
-      <KeypadHint held={held} />
-      <Readout />
+      <KeypadHint held={held} dimmed={!on && held.length === 0} />
+      <Readout on={on} />
       <Button
         variant="destructive"
-        className="h-10 rounded-lg font-display text-sm font-semibold"
+        className="h-9 rounded-lg font-display text-[13px] font-semibold"
         onClick={stopManualNow}
         disabled={!sending && held.length === 0}
         data-testid="manual-stop"

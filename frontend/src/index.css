@@ -29,6 +29,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Chiều cao header hai tầng (52 + 44 px + 2 px viền, AppHeader): trang toàn màn hình (Bay, Nhiệm vụ,
+     3D) trừ đúng số này, lệch 2 px là cả trang có thanh cuộn dọc. */
+  --shell-header-h: 98px;
   --background: oklch(0.972 0.006 250);
   --foreground: oklch(0.2 0.03 262);
   --card: oklch(1 0 0);
@@ -68,6 +71,12 @@
   --hud-amber: oklch(0.6 0.15 62);
   --hud-red: oklch(0.54 0.21 25);
   --hud-violet: oklch(0.5 0.19 295);
+  /* Màu PHÂN LOẠI (nhóm trang, nguồn sự kiện, loại panel) — không mang nghĩa an toàn. */
+  --hud-blue: oklch(0.52 0.17 262);
+  --hud-teal: oklch(0.54 0.1 188);
+  --hud-orange: oklch(0.6 0.17 45);
+  --hud-pink: oklch(0.56 0.2 350);
+  --hud-indigo: oklch(0.5 0.17 280);
   --panel: oklch(1 0 0 / 88%);
   --panel-strong: oklch(1 0 0);
   --panel-edge: oklch(0.2 0.03 262 / 10%);
@@ -121,6 +130,11 @@
   --hud-amber: oklch(0.84 0.15 80);
   --hud-red: oklch(0.7 0.19 22);
   --hud-violet: oklch(0.74 0.14 295);
+  --hud-blue: oklch(0.74 0.14 258);
+  --hud-teal: oklch(0.8 0.11 182);
+  --hud-orange: oklch(0.78 0.15 52);
+  --hud-pink: oklch(0.76 0.16 350);
+  --hud-indigo: oklch(0.74 0.13 280);
   --panel: oklch(0.19 0.026 258 / 78%);
   --panel-strong: oklch(0.2 0.027 258);
   --panel-edge: oklch(1 0 0 / 8%);
@@ -145,6 +159,11 @@
   --color-hud-amber: var(--hud-amber);
   --color-hud-red: var(--hud-red);
   --color-hud-violet: var(--hud-violet);
+  --color-hud-blue: var(--hud-blue);
+  --color-hud-teal: var(--hud-teal);
+  --color-hud-orange: var(--hud-orange);
+  --color-hud-pink: var(--hud-pink);
+  --color-hud-indigo: var(--hud-indigo);
   --color-series-1: var(--series-1);
   --color-series-2: var(--series-2);
   --color-panel: var(--panel);

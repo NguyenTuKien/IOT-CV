@@ -43,6 +43,7 @@ import { sendCommand } from "@/hooks/controlUplink";
 import { sendHold, sendLand, sendRtl } from "@/hooks/flightCommands";
 import { useLimits } from "@/hooks/useLimits";
 import { formatNumber } from "@/lib/format";
+import { modeColor } from "@/lib/modes";
 import { WEB_MODES } from "@/lib/protocol";
 import type { CmdMode } from "@/lib/protocol";
 import { cn } from "@/lib/utils";
@@ -176,6 +177,8 @@ interface CmdButtonProps {
   pending?: boolean;
   disabled?: boolean;
   tone?: "default" | "warn" | "danger" | "exit";
+  /** Chấm màu riêng của flight mode (`lib/modes.ts`) — cùng màu chip mode trên header. */
+  swatch?: string;
   onClick(): void;
   testId: string;
   className?: string;
@@ -188,7 +191,7 @@ const TONE: Record<NonNullable<CmdButtonProps["tone"]>, string> = {
   exit: "border-hud-cyan/40 bg-hud-cyan/10 text-hud-cyan hover:bg-hud-cyan/20",
 };
 
-function CmdButton({ icon: Icon, label, hint, active, pending, disabled, tone = "default", onClick, testId, className }: CmdButtonProps) {
+function CmdButton({ icon: Icon, label, hint, active, pending, disabled, tone = "default", swatch, onClick, testId, className }: CmdButtonProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -202,12 +205,18 @@ function CmdButton({ icon: Icon, label, hint, active, pending, disabled, tone = 
             data-active={active ?? false}
             aria-pressed={active}
             className={cn(
-              "h-9 w-full rounded-lg font-mono text-xs tracking-wide",
+              "btn-raised h-9 w-full rounded-lg font-mono text-xs tracking-wide",
               TONE[tone],
               active && "border-hud-green/70 bg-hud-green/18 text-hud-green shadow-[0_0_16px_-6px] shadow-hud-green",
             )}
           >
-            {pending ? <Loader2 className="animate-spin" aria-label="Đang chờ FC" /> : Icon ? <Icon aria-hidden /> : null}
+            {pending ? (
+              <Loader2 className="animate-spin" aria-label="Đang chờ FC" />
+            ) : Icon ? (
+              <Icon aria-hidden />
+            ) : swatch ? (
+              <span className="size-2 shrink-0 rounded-full ring-2 ring-background/60" style={{ background: swatch }} aria-hidden />
+            ) : null}
             {label}
           </Button>
         </span>
@@ -248,6 +257,7 @@ function ModeGrid({ onAsk }: { onAsk(d: Dialog): void }) {
             pending={pendingByMode.has(m)}
             disabled={!ready || autoLocked}
             tone={exit ? "exit" : m === "STABILIZE" ? "warn" : "default"}
+            swatch={modeColor(m)}
             testId={`mode-${m}`}
             onClick={() => {
               if (m === "AUTO") onAsk({ kind: "auto" });
@@ -299,6 +309,7 @@ export function ModePanel({ style, className }: { style?: CSSProperties; classNa
       title="Chế độ bay"
       subtitle="Mode, ARM, cất cánh và lệnh thoát hiểm"
       icon={IconStick}
+      accent="blue"
       style={style}
       className={className}
       testId="mode-panel"

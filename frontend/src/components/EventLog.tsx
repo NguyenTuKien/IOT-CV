@@ -5,36 +5,35 @@
  * Giờ lấy theo lúc sự kiện XẢY RA (`data.ts`), không phải lúc gửi — backend
  * phát lại sự kiện cũ cho tab mới mở. `code` chỉ nằm trong tooltip: nó dành
  * cho người sửa lỗi, không cho người dùng.
+ *
+ * Màu: MỨC (cyan/vàng/đỏ) ở vạch trái + icon; NGUỒN (mavlink, mission…) ở chip
+ * — bảng màu chung ở `lib/eventStyle.ts`.
  */
-import { Info, OctagonX, TriangleAlert } from "lucide-react";
-
-import { IconLog } from "@/components/icons";
-import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
+import { Link } from "react-router";
 
+import { IconLog } from "@/components/icons";
+import { Chip } from "@/components/kit";
 import { Panel } from "@/components/Panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { groupRepeats, hintFor } from "@/lib/eventGroups";
+import type { EventGroup } from "@/lib/eventGroups";
+import { LEVEL_STYLE, sourceAccent, sourceLabel } from "@/lib/eventStyle";
+import type { EventLevel } from "@/lib/eventStyle";
 import { formatClock } from "@/lib/format";
 import { EVENT_LEVELS } from "@/lib/protocol";
+import { ACCENT_DOT, ACCENT_SOFT, ACCENT_TEXT } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 import { useTelemetryStore } from "@/store/telemetry";
-import type { LogEntry } from "@/store/telemetry";
 
-type Level = LogEntry["level"];
-
-const LEVEL_STYLE: Record<Level, { icon: LucideIcon; text: string; bar: string; chip: string; label: string }> = {
-  info: { icon: Info, text: "text-hud-cyan", bar: "bg-hud-cyan/60", chip: "border-hud-cyan/35 bg-hud-cyan/10 text-hud-cyan", label: "Thông tin" },
-  warn: { icon: TriangleAlert, text: "text-hud-amber", bar: "bg-hud-amber", chip: "border-hud-amber/40 bg-hud-amber/10 text-hud-amber", label: "Cảnh báo" },
-  error: { icon: OctagonX, text: "text-hud-red", bar: "bg-hud-red", chip: "border-hud-red/45 bg-hud-red/12 text-hud-red", label: "Lỗi" },
-};
-
-function LevelFilter({ active, counts, onToggle }: { active: Set<Level>; counts: Record<Level, number>; onToggle(level: Level): void }) {
+function LevelFilter({ active, counts, onToggle }: { active: Set<EventLevel>; counts: Record<EventLevel, number>; onToggle(level: EventLevel): void }) {
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-1" role="group" aria-label="Lọc theo mức">
       {EVENT_LEVELS.map((level) => {
-        const { icon: Icon, chip, label } = LEVEL_STYLE[level];
+        const { icon: Icon, accent, label } = LEVEL_STYLE[level];
         const on = active.has(level);
         return (
           <button
@@ -44,14 +43,12 @@ function LevelFilter({ active, counts, onToggle }: { active: Set<Level>; counts:
             aria-pressed={on}
             title={`${on ? "Ẩn" : "Hiện"} mức "${label}"`}
             className={cn(
-              "flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-mono text-[11px] transition-opacity",
-              chip,
-              on ? "opacity-100" : "opacity-35 grayscale",
+              "flex h-6 items-center gap-1 rounded-md border px-1.5 font-mono text-[11px] font-semibold transition-all",
+              on ? ACCENT_SOFT[accent] : "border-border text-muted-foreground opacity-50 hover:opacity-80",
             )}
           >
             <Icon className="size-3" aria-hidden />
-            {level}
-            <span className="tabular-nums opacity-80">{counts[level]}</span>
+            <span className="tabular-nums">{counts[level]}</span>
           </button>
         );
       })}
@@ -59,38 +56,51 @@ function LevelFilter({ active, counts, onToggle }: { active: Set<Level>; counts:
   );
 }
 
-function Row({ e }: { e: LogEntry }) {
-  const { icon: Icon, text, bar } = LEVEL_STYLE[e.level];
+function Row({ group: { entry: e, count, firstTs } }: { group: EventGroup }) {
+  const { icon: Icon, accent } = LEVEL_STYLE[e.level];
+  const hint = hintFor(e.message);
   return (
-    <li className="group relative flex items-start gap-3 rounded-md py-1.5 pr-2 pl-3 hover:bg-foreground/4" data-code={e.code}>
-      <span className={cn("absolute top-1.5 bottom-1.5 left-0 w-0.5 rounded-full", bar)} aria-hidden />
-      <span className="w-16 shrink-0 pt-px font-mono text-[11px] text-muted-foreground tabular-nums">{formatClock(e.ts)}</span>
-      <Icon className={cn("mt-0.5 size-3.5 shrink-0", text)} aria-label={e.level} />
-      <span className="w-16 shrink-0 truncate rounded bg-foreground/5 px-1.5 py-px text-center font-mono text-[10px] text-muted-foreground">
-        {e.source}
-      </span>
+    <li className="relative flex items-start gap-2 py-1 pr-2.5 pl-3.5 transition-colors hover:bg-foreground/5" data-code={e.code} data-level={e.level}>
+      <span className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", ACCENT_DOT[accent], e.level === "info" && "opacity-45")} aria-hidden />
+      {/* Một hàng như dòng log: giờ | mức | nội dung | nguồn — mắt dò theo cột giờ, không theo chip. */}
+      <span className="w-[3.4rem] shrink-0 pt-[3px] font-mono text-[11px] leading-none text-muted-foreground tabular-nums">{formatClock(e.ts)}</span>
+      <Icon className={cn("mt-[1px] size-3.5 shrink-0", ACCENT_TEXT[accent])} aria-label={e.level} />
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="min-w-0 flex-1 text-[13px] leading-snug text-foreground/90">{e.message}</span>
+          <div className="min-w-0 flex-1">
+            <p className={cn("text-[12.5px] leading-snug", e.level === "info" ? "text-foreground/90" : "font-medium text-foreground")}>
+              {e.message}
+              {count > 1 ? (
+                <span className="ml-1.5 inline-flex rounded bg-foreground/8 px-1 align-[1px] font-mono text-[10.5px] text-muted-foreground">
+                  ×{count} từ {formatClock(firstTs)}
+                </span>
+              ) : null}
+            </p>
+            {hint ? <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground">{hint}</p> : null}
+          </div>
         </TooltipTrigger>
         <TooltipContent className="font-mono">{e.code}</TooltipContent>
       </Tooltip>
+      <Chip tone={sourceAccent(e.source)} size="xs" title={`nguồn: ${e.source}`} className="mt-px shrink-0">
+        {sourceLabel(e.source)}
+      </Chip>
     </li>
   );
 }
 
-export function EventLog({ style, className }: { style?: CSSProperties; className?: string }) {
+export function EventLog({ style, className, showLink = false }: { style?: CSSProperties; className?: string; showLink?: boolean }) {
   const events = useTelemetryStore((s) => s.events);
-  const [active, setActive] = useState<Set<Level>>(() => new Set(EVENT_LEVELS));
+  const [active, setActive] = useState<Set<EventLevel>>(() => new Set(EVENT_LEVELS));
 
   const shown = useMemo(() => events.filter((e) => active.has(e.level)), [events, active]);
+  const groups = useMemo(() => groupRepeats(shown), [shown]);
   const counts = useMemo(() => {
-    const c: Record<Level, number> = { info: 0, warn: 0, error: 0 };
+    const c: Record<EventLevel, number> = { info: 0, warn: 0, error: 0 };
     for (const e of events) c[e.level] += 1;
     return c;
   }, [events]);
 
-  const toggle = (level: Level) =>
+  const toggle = (level: EventLevel) =>
     setActive((prev) => {
       const next = new Set(prev);
       if (next.has(level)) next.delete(level);
@@ -101,16 +111,24 @@ export function EventLog({ style, className }: { style?: CSSProperties; classNam
   return (
     <Panel
       title="Nhật ký sự kiện"
+      subtitle={`${shown.length}/${events.length} sự kiện · mới nhất ở trên`}
       icon={IconLog}
+      accent="indigo"
       style={style}
       className={className}
       testId="event-log"
       actions={
         <>
-          <span className="mr-1 font-mono text-[11px] text-muted-foreground tabular-nums">
-            {shown.length}/{events.length}
-          </span>
           <LevelFilter active={active} counts={counts} onToggle={toggle} />
+          {showLink ? (
+            <Link
+              to="/logs"
+              className="flex h-6 items-center gap-0.5 rounded-md px-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-foreground/6 hover:text-foreground"
+              title="Mở trang Nhật ký: lọc theo nguồn, tìm kiếm, xuất file"
+            >
+              Tất cả <ArrowUpRight className="size-3" />
+            </Link>
+          ) : null}
         </>
       }
     >
@@ -120,9 +138,9 @@ export function EventLog({ style, className }: { style?: CSSProperties; classNam
             {events.length === 0 ? "Chưa có sự kiện nào." : "Không có sự kiện nào ở mức đang chọn."}
           </p>
         ) : (
-          <ul className="flex flex-col p-1.5">
-            {shown.map((e) => (
-              <Row key={e.key} e={e} />
+          <ul className="zebra flex flex-col py-1">
+            {groups.map((g) => (
+              <Row key={g.entry.key} group={g} />
             ))}
           </ul>
         )}

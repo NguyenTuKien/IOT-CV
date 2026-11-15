@@ -21,7 +21,8 @@ import {
   IconVision,
 } from "@/components/icons";
 import type { IconProps } from "@/components/icons";
-import { Settings2 } from "lucide-react";
+import type { Accent } from "@/lib/tone";
+import { History, Settings2 } from "lucide-react";
 
 import FlightPage from "@/pages/FlightPage";
 
@@ -32,6 +33,15 @@ export const NAV_GROUP_LABEL: Record<NavGroup, string> = {
   monitor: "Giám sát",
   system: "An toàn & hệ thống",
 };
+
+/** Màu phân loại của từng nhóm trang: icon trên thanh tab và ô icon ở đầu trang. */
+export const NAV_GROUP_ACCENT: Record<NavGroup, Accent> = {
+  ops: "cyan",
+  monitor: "violet",
+  system: "orange",
+};
+
+export const NAV_GROUPS: readonly NavGroup[] = ["ops", "monitor", "system"];
 
 export interface PageDef {
   path: string;
@@ -122,6 +132,17 @@ export const PAGES: readonly PageDef[] = [
     testId: "nav-logs",
   },
   {
+    path: "/flights",
+    label: "Lịch sử bay",
+    description: "Phát lại từng chuyến đã bay từ log: đường bay trên bản đồ, độ cao, hình camera, sóng và mất gói, pin, sự kiện.",
+    group: "monitor",
+    icon: History as unknown as ComponentType<IconProps>,
+    // Số 0–9 đã hết; phím chữ không trùng phím lái (luật ở `PageDef.hotkey`).
+    hotkey: "L",
+    component: lazy(() => import("@/pages/FlightsPage")),
+    testId: "nav-flights",
+  },
+  {
     path: "/preflight",
     label: "Kiểm tra trước bay",
     description: "Các cổng kiểm tự động từ telemetry cùng danh sách việc người vận hành phải tự xác nhận.",
@@ -152,6 +173,12 @@ export const PAGES: readonly PageDef[] = [
     testId: "nav-settings",
   },
 ];
+
+/** Icon + màu nhóm của một trang — cho `PageHeader`, cùng icon với tab trên header. */
+export function pageMeta(path: string): { icon: ComponentType<IconProps>; accent: Accent } {
+  const page = PAGES.find((p) => p.path === path);
+  return { icon: page?.icon ?? IconOverview, accent: page ? NAV_GROUP_ACCENT[page.group] : "cyan" };
+}
 
 export function pageForPath(pathname: string): PageDef | undefined {
   return PAGES.find((p) => p.path === pathname) ?? PAGES.find((p) => p.path !== "/" && pathname.startsWith(p.path));

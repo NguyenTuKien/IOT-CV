@@ -110,6 +110,154 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
+
+  /* Chip flight mode: màu lấy từ biến --m (`lib/modes.ts`). Nền sáng thì chữ
+     đậm hơn cho đủ tương phản; trong vùng .dark (theme Đêm, PFD) giữ màu gốc. */
+  .mode-chip {
+    color: color-mix(in oklch, var(--m) 68%, black);
+    background: color-mix(in oklch, var(--m) 14%, transparent);
+    border-color: color-mix(in oklch, var(--m) 50%, transparent);
+  }
+  .dark .mode-chip {
+    color: var(--m);
+  }
+
+  /* Danh sách dài: sọc xen kẽ rất nhẹ để mắt bám được dòng khi đọc ngang. */
+  .zebra > :nth-child(even) {
+    background: color-mix(in oklch, var(--foreground) 2.6%, transparent);
+  }
+
+  /*
+   * Lưới trang BAY. Ba cột ở ≥ 1280 px (cao đúng một màn hình, mỗi cột cuộn riêng):
+   *   [màn hình bay + vật cản] [bản đồ / 3D  +  video | nhật ký] [chế độ bay + lái tay]
+   * Hẹp hơn thì các cột "mở ra" (display: contents) và từng panel vào ô có tên:
+   *   1024–1280: hai cột — đồng hồ bên trái, bản đồ/video/nhật ký bên phải;
+   *   < 1024:    một cột — đồng hồ, bản đồ, lệnh bay, video, vật cản, nhật ký, lái tay.
+   */
+  .cockpit {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "hud" "map" "mode" "video" "obs" "log" "manual";
+  }
+  .cockpit-col {
+    display: contents;
+  }
+  /* Tên ô CHỈ gán ở lưới hẹp: ở ≥ 1280 px panel nằm trong cột flex / hàng lưới riêng,
+     một tên ô không tồn tại ở đó sẽ đặt hai panel chồng lên nhau. */
+  @media (max-width: 1279.98px) {
+    .ck-hud { grid-area: hud; }
+    .ck-map { grid-area: map; }
+    .ck-mode { grid-area: mode; }
+    .ck-video { grid-area: video; }
+    .ck-obs { grid-area: obs; }
+    .ck-log { grid-area: log; }
+    .ck-manual { grid-area: manual; }
+  }
+  @media (min-width: 1024px) {
+    .cockpit {
+      grid-template-columns: minmax(330px, 370px) minmax(0, 1fr);
+      grid-template-areas: "hud map" "obs video" "mode log" "manual log";
+    }
+  }
+  /* Nhật ký ở lưới hai cột KHÔNG được góp chiều cao: không thì 200 dòng sự kiện kéo
+     dài hàng "mode/manual" thành một cột trống dài vài nghìn px. Cao bằng hai ô bên
+     trái, phần còn lại cuộn trong panel. */
+  @media (min-width: 1024px) and (max-width: 1279.98px) {
+    .ck-log {
+      contain: size;
+    }
+  }
+  @media (min-width: 1280px) {
+    .cockpit {
+      grid-template-columns: minmax(340px, 380px) minmax(0, 1fr) minmax(320px, 360px);
+      grid-template-areas: none;
+      height: calc(100dvh - var(--shell-header-h));
+      min-height: 700px;
+    }
+    .cockpit-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+    }
+    .cockpit-col.cockpit-center {
+      overflow: visible;
+    }
+    .cockpit-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+      gap: 0.75rem;
+      flex-shrink: 0;
+      height: clamp(260px, 32dvh, 340px);
+    }
+  }
+
+  /*
+   * Lưới trang NHIỆM VỤ. Ba cột ở ≥ 1280 px, cao vừa phần còn lại của màn hình (mỗi cột cuộn riêng):
+   *   [thống kê · mẫu · thư viện] [bản đồ soạn + hồ sơ độ cao] [bảng mission + NẠP]
+   * 1024–1280: bản đồ + hồ sơ bên trái, bảng mission bên phải, công cụ xuống dưới.
+   * < 1024: một cột theo thứ tự làm việc — bản đồ, bảng mission, hồ sơ, công cụ.
+   */
+  .planner {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "map" "editor" "profile" "stats" "tmpl" "lib";
+  }
+  .planner-col {
+    display: contents;
+  }
+  @media (max-width: 1279.98px) {
+    .pl-map { grid-area: map; height: min(64dvh, 600px); min-height: 380px; }
+    .pl-editor { grid-area: editor; }
+    .pl-profile { grid-area: profile; }
+    .pl-stats { grid-area: stats; }
+    .pl-tmpl { grid-area: tmpl; }
+    .pl-lib { grid-area: lib; }
+  }
+  @media (min-width: 1024px) {
+    .planner {
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+      grid-template-areas: "map editor" "profile editor" "stats tmpl" "stats lib";
+    }
+    /* Bảng mission cao bằng bản đồ + hồ sơ, không kéo dài hàng theo số waypoint. */
+    .pl-editor {
+      contain: size;
+    }
+  }
+  @media (min-width: 1280px) {
+    .planner {
+      grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(390px, 440px);
+      grid-template-areas: none;
+      min-height: 560px;
+    }
+    .planner-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      min-height: 0;
+      overflow-y: auto;
+      scrollbar-gutter: stable;
+    }
+    .planner-col.planner-center {
+      overflow: visible;
+    }
+    .pl-editor {
+      contain: none;
+      min-height: 0;
+    }
+  }
+
+  /* Nút bấm "nổi": sáng mép trên, bóng dưới — cho nút lệnh, không cho nút phụ. */
+  .btn-raised {
+    box-shadow:
+      inset 0 1px 0 0 color-mix(in oklch, white 14%, transparent),
+      0 6px 16px -10px var(--shadow-tint);
+  }
 }
 
 /* ---- Chuyển động --------------------------------------------------------------- */

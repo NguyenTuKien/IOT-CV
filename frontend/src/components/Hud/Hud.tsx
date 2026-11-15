@@ -13,7 +13,7 @@
  *  2. Có số thì có đơn vị.
  *  3. Mỗi ô có tooltip giải thích cho người mới.
  */
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { useMemo } from "react";
 
 import {
@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 
 import { IconHorizon } from "@/components/icons";
-import { Sparkline } from "@/components/kit";
+import { Chip, ModeBadge, Sparkline } from "@/components/kit";
 import { Panel } from "@/components/Panel";
 import { useLimits } from "@/hooks/useLimits";
 import {
@@ -43,7 +43,6 @@ import {
   formatSigned,
   hasValue,
   linkAgeTone,
-  modeTone,
 } from "@/lib/format";
 import type { Tone } from "@/lib/format";
 import { GPS_FIX_3D, GPS_FIX_LABEL } from "@/lib/protocol";
@@ -54,13 +53,6 @@ import { useTelemetryStore } from "@/store/telemetry";
 
 import { PrimaryFlightDisplay } from "./PrimaryFlightDisplay";
 import { StatBlock } from "./StatBlock";
-
-const TONE_PILL: Record<Tone, string> = {
-  neutral: "border-white/10 bg-white/5 text-muted-foreground",
-  ok: "border-hud-green/40 bg-hud-green/15 text-hud-green",
-  warn: "border-hud-amber/40 bg-hud-amber/15 text-hud-amber",
-  danger: "border-hud-red/50 bg-hud-red/20 text-hud-red",
-};
 
 /**
  * Số vệ tinh ứng với từng vạch sóng — chỉ để vẽ, không phải điều kiện bay
@@ -76,18 +68,7 @@ function Trend({ pick, color, min }: { pick: (d: Telemetry) => number | null | u
   const version = useHistoryTick(1000);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const values = useMemo(() => recentSeries(pick, TREND_WINDOW_MS), [version]);
-  return <Sparkline values={values} color={color} min={min} height={16} />;
-}
-
-function Pill({ tone, children, title }: { tone: Tone; children: ReactNode; title: string }) {
-  return (
-    <span
-      title={title}
-      className={cn("rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold tracking-wider", TONE_PILL[tone])}
-    >
-      {children}
-    </span>
-  );
+  return <Sparkline values={values} color={color} min={min} height={18} />;
 }
 
 function ModeArmed() {
@@ -96,16 +77,17 @@ function ModeArmed() {
   const known = mode !== undefined;
   return (
     <>
-      <Pill tone={modeTone(mode)} title="Chế độ bay hiện tại">
-        {known ? mode : NO_VALUE}
-      </Pill>
+      <ModeBadge mode={known ? mode : null} size="xs" />
       {/* Đỏ là "đang nguy hiểm — motor có thể quay", không phải "lỗi". */}
-      <Pill
-        tone={known ? (armed ? "danger" : "neutral") : "neutral"}
+      <Chip
+        tone={known && armed ? "danger" : "neutral"}
+        variant={known && armed ? "solid" : "soft"}
+        size="xs"
+        mono
         title={armed ? "Motor đã được phép quay — đang nguy hiểm" : "Motor bị khoá"}
       >
         {known ? (armed ? "ARMED" : "DISARMED") : NO_VALUE}
-      </Pill>
+      </Chip>
     </>
   );
 }
@@ -247,33 +229,37 @@ function EkfCell() {
   );
 }
 
+/**
+ * Ở lưới ba cột (≥ 1280 px) cột trái cao đúng một màn hình: màn hình bay CO LẠI theo chỗ còn
+ * trống (tối thiểu 150 px, giữ tỉ lệ, viền tối hai bên) để radar vật cản bên dưới luôn lọt khung
+ * — màn hình 1707×900 (laptop 2560×1600 ở 150 %) không phải cuộn cột. Ô số không co.
+ */
 export function Hud({ style, className }: { style?: CSSProperties; className?: string }) {
   return (
     <Panel
       title="Màn hình bay"
-      subtitle="Tư thế · tốc độ · độ cao · hướng mũi"
+      subtitle="Tư thế, độ cao, tốc độ"
       icon={IconHorizon}
       actions={<ModeArmed />}
       style={style}
       className={className}
       variant="instrument"
       testId="hud-panel"
+      bodyClassName="flex flex-col gap-2 p-2.5"
     >
-      <div className="flex flex-col gap-2.5 p-2.5">
-        {/* Màn hình bay giữ nền TỐI ở cả hai theme — như thiết bị thật trong buồng lái. */}
-        <div className="dark rounded-xl border border-white/8 bg-[oklch(0.13_0.02_262)] p-2 text-foreground shadow-[inset_0_0_40px_oklch(0_0_0/45%)]">
-          <PrimaryFlightDisplay />
-        </div>
-        <div className="grid grid-cols-2 content-start gap-1.5">
-          <AltitudeCell />
-          <SpeedCell />
-          <HeadingCell />
-          <ClimbCell />
-          <GpsCell />
-          <BatteryCell />
-          <LinkAgeCell />
-          <EkfCell />
-        </div>
+      {/* Màn hình bay giữ nền TỐI ở cả hai theme — như thiết bị thật trong buồng lái. */}
+      <div className="dark flex max-h-[400px] min-h-[150px] shrink basis-auto items-center justify-center overflow-hidden rounded-xl border border-white/8 bg-[oklch(0.13_0.02_262)] p-1.5 text-foreground shadow-[inset_0_0_40px_oklch(0_0_0/45%)]">
+        <PrimaryFlightDisplay className="h-full max-h-full" />
+      </div>
+      <div className="grid shrink-0 grid-cols-2 content-start gap-1.5">
+        <AltitudeCell />
+        <SpeedCell />
+        <HeadingCell />
+        <ClimbCell />
+        <GpsCell />
+        <BatteryCell />
+        <LinkAgeCell />
+        <EkfCell />
       </div>
     </Panel>
   );

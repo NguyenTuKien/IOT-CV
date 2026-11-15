@@ -44,6 +44,8 @@ export function missionPath(items: readonly MissionWaypoint[]): LatLngTuple[] {
 export function geofenceLabel(maxDistanceM: number): [string, string] {
   return [
     `Giới hạn phần mềm ${maxDistanceM.toFixed(0)} m — đây chỉ là lớp phụ.`,
-    "Geofence thật nằm trên flight controller (FENCE_*, cấu hình ở Phase 19).",
+    // FC bật rào thật từ 01/11/2026, nới bán kính 15/11 (`02-avoid-tfmini.param`); số
+    // cụ thể KHÔNG ghi ở đây — file param là nguồn duy nhất.
+    "Rào thật là FENCE_* trên flight controller: vượt rào thì FC tự RTL.",
   ];
 }
