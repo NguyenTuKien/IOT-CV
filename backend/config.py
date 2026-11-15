@@ -241,6 +241,14 @@ RECORD_MIN_FREE_GB = _env_float("RECORD_MIN_FREE_GB", 2.0)
 TLOG_ENABLE = _env_bool("TLOG_ENABLE", True)
 TLOG_DIR = str((PROJECT_ROOT / _env_str("TLOG_DIR", "logs/tlog")).resolve())
 
+# Trang Lịch sử bay (backend/flights/, 15/11/2026): đọc log dataflash tải từ FC ở
+# FLIGHT_LOGS_DIR/fc-dataflash-*/*.bin, cùng TLOG_DIR và RECORD_DIR ở trên. Kết quả đọc
+# từng file lưu đệm JSON ở FLIGHT_CACHE_DIR (xoá thư mục đó là đọc lại từ đầu).
+FLIGHT_LOGS_DIR = str((PROJECT_ROOT / _env_str("FLIGHT_LOGS_DIR", "logs")).resolve())
+FLIGHT_CACHE_DIR = str(
+    (PROJECT_ROOT / _env_str("FLIGHT_CACHE_DIR", "logs/.cache/flights")).resolve()
+)
+
 
 def camera_source_url() -> str:
     """URL mà `stream.py` đọc. `stream.py` không biết nguồn là giả hay thật —

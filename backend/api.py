@@ -18,16 +18,22 @@ import os
 import platform
 import sys
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from backend import __version__, config
+from backend.flights import store_from_config
+from backend.flights.video import RecordingCache
 from backend.schemas import (
     CONTRACT_VERSION,
     CmdMissionUpload,
     ConfigPayload,
     EventsPayload,
+    FlightDetail,
+    FlightListPayload,
+    FlightSkippedFile,
     LimitsPayload,
     MissionPayload,
     MissionUploadResult,
@@ -214,5 +220,48 @@ def build_router(hub) -> APIRouter:
                 yield part
 
         return StreamingResponse(body(), media_type=MJPEG_MEDIA_TYPE)
+
+    # ---- Lịch sử bay (15/11/2026, backend/flights/) — chỉ ĐỌC log trên đĩa -------------
+    # Lần đầu đọc hết log (.bin lớn ~ chục giây) rồi lưu đệm; chạy ngoài event loop để
+    # telemetry của chuyến đang bay không khựng.
+    flights_store = store_from_config()
+    recordings = RecordingCache(Path(config.RECORD_DIR))
+
+    def _flight_list() -> FlightListPayload:
+        scan = flights_store.scan()
+        return FlightListPayload(
+            flights=[f["summary"] for f in flights_store.flights()],
+            skipped=[FlightSkippedFile(file=f, reason=r) for f, r in scan.skipped],
+        )
+
+    @router.get("/flights", response_model=FlightListPayload)
+    async def flights() -> FlightListPayload:
+        return await asyncio.to_thread(_flight_list)
+
+    @router.get("/flight", response_model=FlightDetail)
+    async def flight(id: str = Query(..., pattern=r"^\d{8}-\d{6}$")) -> FlightDetail:  # noqa: A002
+        found = await asyncio.to_thread(flights_store.flight, id)
+        if found is None:
+            raise HTTPException(404, f"Không có chuyến {id}")
+        return FlightDetail(**found)
+
+    @router.get("/flights/frame")
+    async def flight_frame(
+        rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"), n: int = Query(..., ge=0)
+    ) -> Response:
+        """Khung JPEG thứ `n` (thứ tự dòng `frames.csv`) của lần ghi `rec`."""
+
+        def read() -> bytes | None:
+            item = recordings.get(rec)
+            return item.frame(n) if item else None
+
+        data = await asyncio.to_thread(read)
+        if data is None:
+            raise HTTPException(404, "Không có khung hình này")
+        return Response(
+            data,
+            media_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=86400, immutable"},
+        )
 
     return router
