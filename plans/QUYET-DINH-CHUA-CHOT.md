@@ -5,6 +5,9 @@
 >
 > **Cập nhật 25/10/2026:** sau khi lắp ráp và bay thử, có thêm 5 quyết định **đã chốt** và 2 quyết
 > định **đang mở** về drone thật — xem mục "Drone thật" ngay dưới.
+>
+> **Cập nhật 01/11/2026:** thôi bay trong nhà; người dùng chốt thêm 6 quyết định cho bay ngoài trời
+> (hàng 6–11 bảng dưới). Geofence **đã chốt**, chỉ còn Wi-Fi đang mở.
 
 ## Drone thật — 25/10/2026
 
@@ -18,13 +21,19 @@
 | 3 | `MOT_SPIN_ARM` **0,13** | Khởi động hụt 13/32 → 2/28; 0,15 không tốt hơn |
 | 4 | **SwB = công tắc ARM/DISARM**, lệch plan (plan arm bằng cần, để SwB cho Auto) | Người dùng đã quen tay. Rủi ro: gạt SwB lên khi đang bay là drone rơi |
 | 5 | **Auto trên núm VrB (CH9)** | 4 công tắc đã có việc; núm phải xoay gần hết hành trình mới vào Auto |
+| 6 | **Geofence trần 20 m, vòng 50 m** quanh home (`FENCE_TYPE 3`, `FENCE_MARGIN 2`, chạm rào → RTL) — thay gợi ý 30 m / 50 m của plan 19.10 | Người dùng không muốn bay cao quá 20 m; Wi-Fi ESP32 chỉ chắc trong ~50 m. Backend chạy drone thật đặt lớp phụ 18 m / 45 m |
+| 7 | Tốc độ **3 m/s** cho cả Loiter và mission (`LOIT_SPEED_MS 3`, `WP_SPD 3`) | Người mới; trước đó 12,5 / 10 m/s |
+| 8 | Mission AUTO **không tự tránh vật cản** (`OA_TYPE 0`) | Mission bay 5–10 m trên bãi trống; TFmini chỉ có một tia nhìn thẳng, path planner sẽ né về hướng chưa có dữ liệu |
+| 9 | Internet ngoài bãi = **điện thoại phát Wi-Fi** (2,4 GHz) | Laptop vẫn phát hotspot riêng cho hai ESP32 |
+| 10 | Độ cao RTL **15 m** (`RTL_ALT_M 15`) | Dưới trần 20 m; mission đi–về kết thúc ngay trên home thì RTL không leo |
+| 11 | Mất sóng tay cầm → **RTL** (`FS_THR_ENABLE 1`), pin yếu → **RTL**, pin cạn → Land | Trong nhà để Land; ngoài trời về được thì phải về |
 
 **Đang mở** — chỉ cần chốt trước Phase 21 (lái từ web):
 
 1. **Wi-Fi mất 19–32% gói** — đủ để dead-man 300 ms tự dừng drone khi lái từ web. Hai cách đã nêu:
    card Wi-Fi USB riêng cho hotspot của laptop, hoặc một router riêng. Chưa chọn.
-2. **Kích thước geofence** (`FENCE_ALT_MAX`, `FENCE_RADIUS`) — plan Phase 19.10 gợi ý 30 m / 50 m,
-   phải đối chiếu với bãi bay thật. Chưa chọn bãi.
+2. ~~Kích thước geofence~~ — **đã chốt 01/11/2026**, hàng 6 bảng trên. Còn phải đối chiếu với bãi bay
+   thật khi chọn được bãi.
 
 > Cách dùng: mở phiên Claude mới, dán câu này: *"Đọc file `plans/QUYET-DINH-CHUA-CHOT.md` rồi giải thích cho tôi từng lựa chọn như nói với người chưa biết gì, sau đó hỏi tôi từng câu một để chốt."*
 > Bốn báo cáo nghiên cứu gốc nằm ở `plans/reports/260921-research-*.md`. Không cần đọc chúng trước, file này đã tóm tắt đủ để quyết.

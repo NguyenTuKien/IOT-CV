@@ -346,7 +346,7 @@ như đứng yên. Che tay trước ống kính → `dist` tụt xuống vài ch
 
 ```text
 Do    PIN-1  +5V   -> pad 5V cua stack   (KHONG dung chung UBEC voi camera/ESP32)
-Trang PIN-2  RXD   -> DE TRONG           (driver ArduPilot chi doc, khong gui lenh)
+Trang PIN-2  RXD   -> chan T3 cua FC     (driver chi doc; day nay de chinh cam bien qua FC)
 Xanh  PIN-3  TXD   -> chan R3 cua FC
 Den   PIN-4  GND   -> GND chung
 ```
@@ -389,9 +389,15 @@ CONFIG -> Full Parameter List:
     PRX1_TYPE    = 4      dung rangefinder lam cam bien proximity
     RNGFND1_TYPE = 20     Benewake-Serial
     AVOID_ENABLE = 3      fence + proximity
-    FENCE_ENABLE = 1      BAT BUOC di kem AVOID_ENABLE=3
+    FENCE_ENABLE = 1      chi cho bay ngoai troi (fence can GPS moi arm)
     OA_TYPE      = 0      path planner TAT luc dau - dung
 ```
+
+**Đính chính 26/10/2026:** bản cũ ghi `FENCE_ENABLE = 1` "bắt buộc đi kèm `AVOID_ENABLE=3`" — sai.
+`AC_Avoid` 4.7.1 bật tránh bằng proximity chỉ theo bit 2 của `AVOID_ENABLE`, không xét fence. Ô
+`rangefinder1`/Sonar Range của Mission Planner luôn 0 với TFmini nhìn thẳng trước (ArduPilot chỉ gửi
+gói `RANGEFINDER` cho cảm biến nhìn xuống); xem số đo ở gói `DISTANCE_SENSOR` id 10 (proximity) hoặc
+panel obstacle của web. Nếu cảm biến chạy sai cấu hình, sửa qua FC bằng `scripts/fc/tfmini_qua_fc.py`.
 
 **Kết quả mong đợi:** `rangefinder1` hiện số và đổi theo khoảng cách tay; các tham số đọc lại đúng.
 

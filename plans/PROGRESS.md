@@ -893,14 +893,14 @@ Ngày bắt đầu: 25/10/2026 · Ngày xong: ______
 **Cổng pass chính của cả nhóm phase test trên bàn:**
 
 - [x] **Web GCS hiện telemetry SỐNG của drone THẬT đang nằm trên bàn** — góc nghiêng, hướng, GPS, điện áp pin, chế độ bay, trạng thái armed — và **tất cả đi qua Wi-Fi với cáp USB đã rút**. *(25/10, sau khi sửa backend chốt nhầm sysid của GCS/DroneBridge: web nhận đủ 160/160 mẫu telemetry, trễ 39–165 ms; nghiêng drone bằng tay thì roll đổi đúng chiều (−49,6° → +46,6°); hiện hướng 68°, pin 16,36 V, `STABILIZE`, `DISARMED`, GPS "chưa fix" vì trong nhà. Ảnh `logs/camera/web-gcs-drone-that-20261025.png`, chỉ có trên máy dự án.)*
-- [ ] **Panel obstacle trên web hiện số thật của TFmini Plus** và đổi theo khi đưa tay lại gần.
+- [x] **Panel obstacle trên web hiện số thật của TFmini Plus** và đổi theo khi đưa tay lại gần. *(26/10, đo ở tầng WebSocket mà panel đọc, qua Wi-Fi: `obstacle_distance` 2,56 m (bức tường) → 0,95 m khi đặt vật ~1 m, `rangefinder_healthy=true`, `avoid_state` NEAR ở Stabilize đúng thiết kế; mốc trong nhà 0,5 m → OFF ở 2,55 m. Giao diện panel đã kiểm ở Phase 10 trên cùng hợp đồng WS; lần này không chụp ảnh panel.)*
 
 Các cổng phụ:
 
 - [x] ESP32 bridge ở chế độ STA, nối được vào hotspot laptop. *(`DroneBridgeESP32.mshome.net` trên `IOTCV-HOTSPOT`, MAVLink đi hai chiều.)*
 - [ ] Mission Planner nối được qua UDP 14550 không dây (đã rút USB).
 - [ ] `MAVLINK_ENDPOINT=udpin:0.0.0.0:14550` trong `.env`; log backend hiện heartbeat của bo bay thật.
-- [ ] `rangefinder1` hiện trong Mission Planner tab Status và phản ứng đúng.
+- [ ] `rangefinder1` hiện trong Mission Planner tab Status và phản ứng đúng. *(26/10: không đạt được như viết — MP chỉ hiện rangefinder nhìn xuống, TFmini nhìn trước luôn 0. Thay bằng `DISTANCE_SENSOR` id 10 hướng 0: 102 mẫu/10 s, đổi 256 → 13 → ~100 cm theo vật. Xem đính chính trong plan 17.7.)*
 - [x] `PRX1_TYPE`, `RNGFND1_TYPE`, `AVOID_ENABLE`, `FENCE_ENABLE`, `OA_TYPE=0` đọc lại đúng giá trị sau khi nạp `02-avoid-tfmini.param`. *(25/10: `4 / 20 / 3 / 1 / 0`, đọc lại cả sau lần khôi phục tham số.)*
 - [ ] Camera nối hotspot; `/stream` và `/set?quality=` chạy được khi truy cập trực tiếp; panel video trên web hiện ảnh thật kèm lớp phủ **giả**.
 - [ ] Bài kiểm tổng 10 phút: telemetry không đứt; mọi lần đứt (kể cả video) đã ghi lại.
@@ -919,6 +919,17 @@ chưa kiểm, fps chưa ghi sổ tay. Wi-Fi mất 19–32% gói theo từng đ�
 25/10/2026 chiều — vì TFmini `No Data` chặn arm, người dùng chọn **tạm tắt** `RNGFND1_TYPE` và
 `PRX1_TYPE` (= 0), `FENCE_ENABLE` = 0, giống lúc bay 24/10. Dòng `PRX1_TYPE … đọc lại đúng giá trị`
 ở trên là đúng tại thời điểm tick; bật lại `20 / 4 / 1` sau khi sửa TFmini.
+
+26/10/2026 — **TFmini đã sửa** (báo cáo `plans/reports/261026-tfmini-va-receiver.md`). Người dùng hàn
+trắng → T3; cảm biến trả lời lệnh qua dây trắng (v1.7.0), về cài đặt gốc + lưu + khởi động lại →
+~100 khung/giây, đơn vị cm (số 2566 cũ là mm). FC đọc lại: `RNGFND1_TYPE 20`, `PRX1_TYPE 4`,
+`AVOID_ENABLE 3`, `OA_TYPE 0`, `FENCE_ENABLE 0` (người dùng chọn để bay trong nhà). Người dùng yêu
+cầu mốc tránh 40–50 cm để thử trong nhà: `AVOID_MARGIN 0,5`, `AVOID_DIST_MAX 0,5` (file param vẫn
+giữ `2 / 5` cho ngoài trời). SITL `run_avoid_brake.py` chạy lại với bộ tham số dự án: PASS. Script
+mới `scripts/fc/tfmini_qua_fc.py` đọc/chỉnh TFmini qua `SERIAL_CONTROL`.
+
+01/11/2026 — mốc tránh trên FC đã trả về `2 / 5` và fence đã bật cho bay ngoài trời (ghi chú cuối
+Phase 19).
 
 ## 🔧 Phase 18 — Lắp ráp khung
 
@@ -972,10 +983,10 @@ Ngày bắt đầu: 25/10/2026 · Ngày xong: ______
 - [ ] Test desync: đẩy ga 10→20→30→50 % trên cả 4 motor, **không** có tiếng khục / giật / tự dừng; tăng ga đột ngột cũng không; 4 motor khởi động mượt và gần như cùng lúc ở 5–10 %.
 - [x] `esc1..4_rpm` có số trên tab `Status` khi chạy Motor Test (nếu không có: đã ghi lại, không chặn Phase 20, phải xử lý trước Phase 22). *(Log ESC có RPM + nhiệt độ cả 4 kênh, 10 mẫu/giây; áp/dòng của ESC không dùng được.)*
 - [x] Test RC failsafe: tắt tay FS-i6X → cảnh báo hiện trong ≤ 3 giây **và** giá trị kênh ga tụt xuống dưới `FS_THR_VALUE`; bật lại → cảnh báo tự hết. *(25/10 trên drone đã lắp: CH3 = 911 < 975, `Radio Failsafe` < 0,5 s; bật lại → `Radio Failsafe Cleared`. Xem Phase 15.)*
-- [ ] Điện áp Mission Planner khớp đồng hồ vạn năng trong **0,05 V**; `BATT_LOW_VOLT,14.0` / `BATT_CRT_VOLT,13.2` / `BATT_FS_LOW_ACT,2` / `BATT_FS_CRT_ACT,1` / `BATT_LOW_TIMER,10` / `BATT_CAPACITY,5300` đã đặt; `BATT_ARM_VOLT` đã bật lại.
+- [ ] Điện áp Mission Planner khớp đồng hồ vạn năng trong **0,05 V**; `BATT_LOW_VOLT,14.0` / `BATT_CRT_VOLT,13.2` / `BATT_FS_LOW_ACT,2` / `BATT_FS_CRT_ACT,1` / `BATT_LOW_TIMER,10` / `BATT_CAPACITY,5300` đã đặt; `BATT_ARM_VOLT` đã bật lại. *(01/11: sáu tham số đã đặt và đọc lại trên FC — `BATT_FS_LOW_ACT` từ 1 (Land) về 2 (RTL). SITL `run_ngoai_troi.py` S7: áp dưới 14,0 V đủ 10 s → RTL, về hạ cách home 0,1 m. Còn so điện áp với đồng hồ vạn năng và `BATT_ARM_VOLT` vẫn 0.)*
 - [x] `FS_GCS_ENABLE` = **0**. *(Đọc lại 25/10.)*
-- [ ] `FENCE_ENABLE,1` + `FENCE_TYPE,3` + `FENCE_ALT_MAX,30` + `FENCE_RADIUS,50` + `FENCE_ACTION,1` + `FENCE_MARGIN,2`; hàng rào hiện đúng trên bản đồ Mission Planner; giá trị 30/50 đã được đối chiếu với kích thước bãi bay thật.
-- [x] **Không còn cảnh báo pre-arm nào**, và **không một pre-arm check nào bị disable** (`ARMING_CHECK` giữ nguyên giá trị mặc định đầy đủ). *(25/10 tối: `MAV_CMD_RUN_PREARM_CHECKS` không trả lỗi nào, bit PreArm của `SYS_STATUS` = khoẻ; `ARMING_SKIPCHK 0`. **Lưu ý:** đang ở cấu hình tạm — TFmini/PRX/fence tắt; bật lại thì phải kiểm lại cổng này.)*
+- [ ] `FENCE_ENABLE,1` + `FENCE_TYPE,3` + `FENCE_ALT_MAX,30` + `FENCE_RADIUS,50` + `FENCE_ACTION,1` + `FENCE_MARGIN,2`; hàng rào hiện đúng trên bản đồ Mission Planner; giá trị 30/50 đã được đối chiếu với kích thước bãi bay thật. *(01/11: người dùng chốt trần **20 m** thay 30 (`plans/QUYET-DINH-CHUA-CHOT.md` hàng 6); FC đọc lại `1 / 3 / 20 / 50 / 1 / 2`. SITL với đúng bộ tham số: Loiter ga hết cỡ dừng ở 18,1 m, Loiter tiến hết cỡ dừng ở 48 m, Stabilize và AltHold vượt rào thì RTL về hạ đúng home — `plans/reports/261101-cau-hinh-bay-ngoai-troi.md`. Còn xem hàng rào trên bản đồ MP và đối chiếu bãi bay thật.)*
+- [x] **Không còn cảnh báo pre-arm nào**, và **không một pre-arm check nào bị disable** (`ARMING_CHECK` giữ nguyên giá trị mặc định đầy đủ). *(25/10 tối: `MAV_CMD_RUN_PREARM_CHECKS` không trả lỗi nào, bit PreArm của `SYS_STATUS` = khoẻ; `ARMING_SKIPCHK 0`. **Lưu ý:** đang ở cấu hình tạm — TFmini/PRX/fence tắt; bật lại thì phải kiểm lại cổng này. **26/10: đã kiểm lại khi bật TFmini + PRX** (fence vẫn 0): `MAV_CMD_RUN_PREARM_CHECKS` không trả lỗi nào khi tay phát bật; tắt tay phát thì báo `Radio failsafe on` đúng như phải báo.)*
 - [x] Arm/disarm không cánh 3/3 lần thành công; cả 4 motor idle đều, không motor nào đứng im. *(25/10: 15 lần arm/disarm **có cánh** bằng SwB, log 006–007; sau giây đầu cả 4 motor idle đều ~2.000 vòng/phút.)*
 - [ ] 4 cánh gắn đúng: CCW trên trước-phải/sau-trái (M2/M3), CW trên trước-trái/sau-phải (M4/M1); vặn vào **không cần lực**; xoay theo chiều quay thì **siết chặt thêm**; không rơ; không cánh nào nứt.
 - [ ] Đo lực đẩy thật trên cân ở 25/50/75/100 %; tỉ số `(lực đẩy 100% × 4) / AUW` ≥ **2 : 1**; đã ghi vào `docs/do-dac/19-do-luc-day.md`.
@@ -993,6 +1004,34 @@ desync: đã treo ở ~50–55% lệnh motor không tụt vòng, nhưng chưa qu
 lắp đúng chiều (đã bay) nhưng chưa ai kiểm siết/rơ/nứt; lực đẩy chưa đo; `docs/checklist-truoc-bay.md`
 chưa có; pin mới ~4,07 V/cell. Bẫy nguồn điện (USB trước pin, rút pin khi còn USB) đã ghi ở báo cáo
 `261025-hieu-chinh-bay-trong-nha.md` mục 4.
+
+01/11/2026 — **thôi bay trong nhà, FC về cấu hình ngoài trời** (báo cáo
+`plans/reports/261101-cau-hinh-bay-ngoai-troi.md`, bản chụp tham số trước/sau ở
+`D:\IOT_Tools\downloads\speedybee-f405v5\snapshot-20261101-*.param`): `FS_THR_ENABLE` 3 → 1 và
+`BATT_FS_LOW_ACT` 1 → 2 (Land → RTL), fence bật 20 m / 50 m, `AVOID_MARGIN` / `AVOID_DIST_MAX`
+0,5 → 2 / 5, `LOIT_SPEED_MS` 12,5 → 3, `WP_SPD` 10 → 3; `RTL_ALT_M 15`, `OA_TYPE 0` giữ nguyên.
+Làm qua USB, **không cắm pin** — GPS, la bàn, điện áp, pre-arm khi có fence chưa kiểm lại.
+
+01/11/2026 chiều — **cắm pin, kiểm lại trên FC thật** (báo cáo trên, mục 6): 39 tham số ngoài trời
+đọc lại khớp; pin 16,93 V; la bàn IST8310 khoẻ nhưng offset vẫn là bản hiệu chỉnh trong nhà 25/10;
+tay cầm 14 kênh, ga thấp 1010; pre-arm trong nhà chỉ còn GPS / fence / TFmini thấy bàn 0,22 m.
+Wi-Fi 0 gói mất, telemetry tới web 8 Hz, tlog thật đọc lại được, web nạp mission Đi–về lên SITL đạt.
+**Ba việc mới lộ ra, chưa xong:** (1) drone nằm yên đọc pitch −2,98° (27/10 cũng −2,6…−3,9°,
+`AHRS_TRIM_X/Y` 3,20° / 1,90°) — kiểm bằng thước thuỷ rồi Calibrate Level, nhiều khả năng là gốc của
+3 lần trôi lùi 27/10; (2) RC1–4 vẫn 1100/1900 mặc định — Radio Calibration; (3) camera thật chỉ
+1,6 khung/s khi laptop nối Wi-Fi nhà 5 GHz — thử lại khi laptop nối điện thoại 2,4 GHz.
+`MOT_THST_HOVER` vẫn 0,27 (học từ 6S), để FC tự học ở chuyến đầu. Thử failsafe tay cầm hôm nay
+chưa có kết quả (chưa tắt tay cầm lúc đang theo dõi); 25/10 đã đạt.
+
+01/11/2026 16:25–17:05 — **ba việc trong nhà đã xong** (báo cáo trên, mục 6): Calibrate Level
+(`AHRS_TRIM_X/Y` 3,20° / 1,90° → 2,57° / −0,84°, drone nằm yên đọc pitch −0,11°, roll +0,12°); Radio
+Calibration (RC1–4 1000–2000, `RC3_MIN` 1006 > 985, 16 kênh đúng thứ tự); failsafe tay cầm (tắt →
+CH3 911, FC báo `Radio Failsafe - Disarming`; bật lại → RC khoẻ). Pre-arm trong nhà chỉ còn GPS +
+fence. Bản chụp đủ 889 tham số: `D:\IOT_Tools\downloads\speedybee-f405v5\snapshot-20261101-sau-hieu-chinh-trong-nha.param`.
+Laptop nối điện thoại 2,4 GHz: camera 3,3 khung/s (Wi-Fi nhà 1,6), không mất khung; **MAVLink UDP
+mất ~20–37 % gói** (đo byte: laptop nhận 78 % những gì ESP32 đọc từ FC), chưa chốt nguyên nhân, đo lại
+ở bãi. Sửa `scripts/fc/kiem_fc.py`: qua Wi-Fi, lệnh gửi tới comp 0 bị ESP32 DroneBridge trả lời nhầm.
+Còn: cánh sau-trái, la bàn + GPS + pre-arm ngoài trời, chuyến Loiter đầu.
 
 ## 🔧 Phase 20 — Bay RC cơ bản
 
@@ -1030,6 +1069,21 @@ bài F1–F4 chính thức (chưa đủ điều kiện vào phase: la bàn ngoà
 `MOT_THST_HOVER` FC đang nhớ là 0,27 (cao hơn mức cần thật ~0,20 trong nhà); chỉ học lại khi bay
 AltHold/Loiter. Chưa có thư mục `logs/flight_YYYYMMDD_HHMM/` + `notes.md` theo đúng quy ước 20.2.
 
+- 01/11/2026, pin 4S, **ngoài trời**, ~19:45–20:31, hơn chục chuyến (Stabilize, Loiter, AltHold,
+  RTL, mission Đi–về từ web, thử vượt fence). Chỉ còn log 5 chuyến 20:12–20:31; các chuyến trước bị
+  ghi đè, laptop ngủ từ 19:45 nên không có tlog/video. 5 chuyến còn log: hạ cách home 3–19 cm, rung
+  ≤ 26 m/s², `Clip` 0, EKF ≤ 0,44, hover học được 0,22 (FC giờ nhớ 0,228). M1 khởi động lỗi 4/5 lần
+  → 02/11 đặt `TKOFF_RPM_MIN 1000` / `MAX 4000`, bù áp `MOT_BAT_VOLT_*`, log mỗi chuyến một file
+  (`LOG_FILE_DSRMROT 1`, `EK3_LOG_LEVEL 1`); còn phải kiểm cơ khí M1 (đã kiểm 15/11: không lỗi). Chi tiết:
+  `plans/reports/261102-phan-tich-bay-01-11.md`.
+- 02/11/2026 10:10–10:44, pin 4S, ngoài trời: 9 lần ARM, 6 chuyến cất cánh (Loiter + mission từ web),
+  cao ≤ 18,3 m, xa ≤ 48,6 m, pin cuối ≥ 15,14 V, đủ log FC + tlog + video. `TKOFF_RPM_MIN` không chặn lần
+  nào. Xem lại từng chuyến trên trang **Lịch sử bay** của web (làm 15/11). Phân tích:
+  `plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md`.
+- 15/11/2026, trên bàn, không cánh: kiểm toàn bộ phần cứng, không thấy hỏng. 41 lần Motor Test khởi
+  động, 0 lần khựng, 4 motor lệch vòng quay ≤ 2,8 %; M1 quay tay như ba motor kia; tay cầm, failsafe,
+  TFmini, hai ESP32 đạt. Chưa kiểm được GPS (trong nhà). `plans/reports/261115-kiem-phan-cung-that.md`.
+
 ## 🔧 Phase 21 — Bay tự động + từ web
 
 Plan: plans/phase-21-bay-tu-dong-va-web.md
@@ -1056,7 +1110,13 @@ Ngày bắt đầu: ______ · Ngày xong: ______
 - [ ] `docs/test-log.md` có đủ 4 dòng F5–F8, ghi rõ ngày F8 pass.
 - [ ] `docs/so-tay/21-bay-tu-dong-va-web.md` đã viết xong.
 
-Ghi chú: 
+Ghi chú: 02/11/2026 đã bay mission nạp từ web và nạp mission mới khi đang bay (backend chuyển GUIDED
+giữ chỗ). Chuyến 10:30 nạp sai vì backend đọc nhầm HEARTBEAT của bo DroneBridge, sửa 15/11
+(`plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md` mục 3.1). Số liệu tầm Wi-Fi đầu tiên (chưa
+ghi vào `docs/do-dac/`): MAVLink còn dùng được tới ~49 m (mất gói 2–12 %/chuyến), camera VGA chỉ ổn trong
+~15 m (xa hơn 25 m còn 1,8 khung/s). 15/11/2026: rào FC nới 50 → 100 m (trần giữ 20 m, SITL 8/8 PASS,
+backend `MAX_DISTANCE_HOME 95`); backend tự hạ chất lượng JPEG camera khi dưới 4 khung/s, chưa bay thử
+(cùng báo cáo, mục 11).
 
 ## 🔧 Phase 22 — Tránh vật cản thật + tuning
 
