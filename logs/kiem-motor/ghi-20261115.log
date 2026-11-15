@@ -1,0 +1,48 @@
+[fc] đã nối udpin:127.0.0.1:14552
+Đang ghi 900 s vào logs\kiem-motor\motor-20261115.csv. Script KHÔNG làm motor quay; người vận hành bấm Motor Test ở Mission Planner.
+  [  27.2s] FC: PreArm: GPS 1: Bad fix
+  [  27.2s] FC: PreArm: Fence requires position
+  [  57.7s] FC: starting motor test
+  [  60.8s] FC: finished motor test
+  [  69.8s] FC: starting motor test
+  [  72.9s] FC: finished motor test
+  [  81.7s] FC: starting motor test
+  [  84.8s] FC: finished motor test
+  [  88.3s] FC: PreArm: GPS 1: Bad fix
+  [  88.3s] FC: PreArm: Fence requires position
+  [  89.3s] FC: starting motor test
+  [  92.4s] FC: finished motor test
+  [  98.4s] FC: starting motor test
+  [ 101.5s] FC: finished motor test
+  [ 105.1s] FC: starting motor test
+  [ 108.2s] FC: finished motor test
+  [ 113.7s] FC: starting motor test
+  [ 116.8s] FC: finished motor test
+  [ 119.3s] FC: PreArm: GPS 1: Bad fix
+  [ 119.3s] FC: PreArm: Fence requires position
+  [ 150.3s] FC: PreArm: GPS 1: Bad fix
+  [ 150.3s] FC: PreArm: Fence requires position
+  [ 157.6s] FC: starting motor test
+  [ 162.6s] FC: finished motor test
+  [ 167.5s] FC: starting motor test
+  [ 172.5s] FC: finished motor test
+  [ 175.0s] FC: starting motor test
+  [ 180.0s] FC: finished motor test
+  [ 181.3s] FC: PreArm: GPS 1: Bad fix
+  [ 181.3s] FC: PreArm: Fence requires position
+  [ 182.8s] FC: starting motor test
+  [ 187.8s] FC: finished motor test
+  [ 191.6s] FC: starting motor test
+  [ 196.6s] FC: finished motor test
+  [ 208.7s] FC: starting motor test
+  [ 213.7s] FC: finished motor test
+  [ 217.6s] FC: starting motor test
+  [ 222.6s] FC: finished motor test
+  [ 225.2s] FC: starting motor test
+  [ 230.2s] FC: finished motor test
+  [ 232.4s] FC: starting motor test
+  [ 237.4s] FC: finished motor test
+  [ 241.5s] FC: starting motor test
+  [ 246.6s] FC: finished motor test
+  [ 272.3s] FC: PreArm: GPS 1: Bad fix
+  [ 272.3s] FC: PreArm: Fence requires position

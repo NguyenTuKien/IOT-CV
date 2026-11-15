@@ -1,0 +1,86 @@
+# 008-20261102-033039.bin
+
+## Chuyến 1 — 10:30:39 → 10:33:21 (arm 162 s, bay 149 s)
+- Lưu ý: giờ arm suy từ lúc đặt home (log mất bản ghi ARM)
+- Chế độ: LOITER 10:30:39 (công tắc chế độ) → LOITER 10:30:39 (công tắc chế độ) → AUTO 10:31:02 (công tắc phụ) → AUTO 10:31:51 (công tắc phụ)
+- Disarm: hết mission
+- Cao nhất 15.2 m so với home · xa nhất 27.2 m
+- Chạm đất cách home 0.10 m
+- Tốc độ đất lớn nhất 3.2 m/s · vệ tinh ít nhất 28 · HDOP lớn nhất 0.59
+- Gói GPS cách nhau: TB 200.0, p95 200.0, max 291.0 ms; 1 lần > 245 ms
+- Leo nhanh nhất 2.6 m/s, hạ nhanh nhất -1.6 m/s · ga ra (ThO) TB 0.2, p95 0.2, max 0.3 · hover học được 0.187
+- Pin 15.76 → 15.45 V (thấp nhất 15.34) · dòng TB 9.5, p95 11.8, max 17.4 A · tốn 428 mAh
+- Rung (m/s², tốt < 30, xấu > 60): X TB 6.1, p95 9.5, max 11.7 · Y TB 6.3, p95 10.0, max 12.0 · Z TB 7.4, p95 12.0, max 16.1 · clip +0
+- EKF (tỉ số kiểm < 1 là nhận đo): vận tốc max 0.23, vị trí 0.07, cao 0.23, la bàn 0.20
+- Bám góc: roll RMS 0.7° (max 4.6°), pitch RMS 1.0° (max 5.4°), yaw RMS 1.7° (max 8.5°); nghiêng thật lớn nhất 17°
+- Lúc rời đất: pitch thật−lệnh lớn nhất -1.6° · roll -1.6° (dương: pitch = ngóc mũi, roll = nghiêng phải)
+- Góc giữ chỗ khi treo: roll TB -1.2°, pitch TB -0.0° (169 mẫu, mũi hướng 266°±89)
+- Cân bằng motor: M1 1457 · M2 1425 · M3 1461 · M4 1425 µs (701 mẫu treo); trước−sau -34, phải−trái -2, CW−CCW -2 µs
+- Motor chạm trần (≥1950) 0 mẫu, chạm sàn (≤1100) 0 mẫu / 1486
+- ESC khởi động: M1 sau-phải 0.39 s; M2 trước-phải 0.41 s; M3 sau-trái 0.23 s; M4 trước-trái 0.26 s, HỤT 1 lần
+- ESC tụt vòng khi bay: không
+- Nhiệt ESC lớn nhất 51 °C
+- Mission: WP2 gần nhất 1.33 m; WP3 gần nhất 0.92 m; WP4 gần nhất 0.78 m; WP5 gần nhất 0.75 m; WP6 gần nhất 3.75 m; WP6 gần nhất 1.28 m; WP6 gần nhất 1.12 m; WP6 gần nhất 0.98 m; WP6 gần nhất 0.72 m; WP6 gần nhất 0.61 m; WP6 gần nhất 28.45 m; WP6 gần nhất 28.60 m; WP6 gần nhất 28.66 m; WP6 gần nhất 28.71 m; WP6 gần nhất 1.10 m; WP7 gần nhất 1.11 m; WP8 gần nhất 1.17 m; WP9 gần nhất 0.06 m
+- FC 10:30:39: ArduCopter V4.7.1 (dbe79216)
+- FC 10:30:39: ChibiOS: d103983f
+- FC 10:30:39: speedybeef4v5 0020001A 34344713 36333338
+- FC 10:30:39: Param space used: 1094/4096
+- FC 10:30:39: RC Protocol: IBUS
+- FC 10:30:39: RCOut: DS300:1-4 PWM:5-7
+- FC 10:30:39: New mission
+- FC 10:30:39: New fence
+- FC 10:30:39: Frame: QUAD/X
+- FC 10:30:39: GPS 1: probing for u-blox at 230400 baud
+- FC 10:30:39: u-blox 1 HW: 000A0000 SW: ROM SPG 5.10 (7b202e)
+- FC 10:30:58: EKF3 IMU0 MAG0 in-flight yaw alignment complete
+- FC 10:31:02: Mission: 1 Takeoff
+- FC 10:31:02: Mission: 2 WP
+- FC 10:31:14: Reached command #2
+- FC 10:31:14: Mission: 3 WP
+- FC 10:31:23: Reached command #3
+- FC 10:31:23: Mission: 4 WP
+- FC 10:31:32: Reached command #4
+- FC 10:31:32: Mission: 5 WP
+- FC 10:31:41: Reached command #5
+- FC 10:31:41: Mission: 6 WP
+- FC 10:31:49: Mission: 6 WP
+- FC 10:31:49: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:50: Mission: 6 WP
+- FC 10:31:50: Auto mission changed, restarted command
+- FC 10:31:51: Mission: 6 WP
+- FC 10:31:51: Auto mission changed, restarted command
+- FC 10:31:51: Flight plan received
+- FC 10:31:51: New mission
+- FC 10:31:51: Mission: 6 WP
+- FC 10:31:51: Auto mission changed, restarted command
+- FC 10:31:51: Frame: QUAD/X
+- FC 10:31:51: GPS 1: probing for u-blox at 230400 baud
+- FC 10:31:51: u-blox 1 HW: 000A0000 SW: ROM SPG 5.10 (7b202e)
+- FC 10:32:02: Reached command #6
+- FC 10:32:02: Mission: 7 WP
+- FC 10:32:14: Reached command #7
+- FC 10:32:14: Mission: 8 WP
+- FC 10:32:19: Reached command #8
+- FC 10:32:19: Mission: 9 WP
+- FC 10:32:32: Reached command #9
+- FC 10:32:32: Mission: 10 RTL
+
+## Toàn log
+- Có dữ liệu bay từ 10:30:39 tới 10:33:36
+- Gói GPS cách nhau (cả log): TB 207.2, p95 200.0, max 3600.0 ms; 3 lần > 245
+- Nguồn bo: Vcc bo không đo (NaN); cờ nguồn gặp: [0]
+- CPU: tải TB 44.0, p95 47.0, max 47.9 %, vòng lặp chậm 19
+- Log rơi 164 message (bộ đệm ghi đầy)
+- TFmini (đo được): TB 3.5, p95 3.6, max 5.9 m

@@ -1,0 +1,56 @@
+# 007-20261102-032636.bin
+
+## Chuyến 1 — 10:26:36 → 10:29:15 (arm 159 s, bay 143 s)
+- Chế độ: LOITER 10:26:36 (công tắc chế độ) → LOITER 10:26:37 (công tắc chế độ) → AUTO 10:27:08 (công tắc phụ) → LOITER 10:27:42 (công tắc chế độ) → AUTO 10:27:59 (công tắc phụ)
+- Disarm: hết mission
+- Cao nhất 16.6 m so với home · xa nhất 27.1 m
+- Chạm đất cách home 0.24 m
+- Tốc độ đất lớn nhất 3.3 m/s · vệ tinh ít nhất 27 · HDOP lớn nhất 0.59
+- Gói GPS cách nhau: TB 200.0, p95 200.0, max 206.0 ms; 0 lần > 245 ms
+- Leo nhanh nhất 1.8 m/s, hạ nhanh nhất -1.9 m/s · ga ra (ThO) TB 0.2, p95 0.2, max 0.2 · hover học được 0.184
+- Pin 15.94 → 15.64 V (thấp nhất 15.54) · dòng TB 9.2, p95 11.8, max 16.8 A · tốn 407 mAh
+- Rung (m/s², tốt < 30, xấu > 60): X TB 5.8, p95 9.6, max 15.3 · Y TB 5.8, p95 8.7, max 13.2 · Z TB 6.9, p95 10.9, max 15.9 · clip +0
+- EKF (tỉ số kiểm < 1 là nhận đo): vận tốc max 0.28, vị trí 0.08, cao 0.25, la bàn 0.21
+- Bám góc: roll RMS 0.6° (max 3.3°), pitch RMS 1.3° (max 7.4°), yaw RMS 2.2° (max 15.5°); nghiêng thật lớn nhất 20°
+- Lúc rời đất: pitch thật−lệnh lớn nhất -0.8° · roll -0.5° (dương: pitch = ngóc mũi, roll = nghiêng phải)
+- Góc giữ chỗ khi treo: roll TB -0.2°, pitch TB +0.4° (286 mẫu, mũi hướng 355°±8)
+- Cân bằng motor: M1 1437 · M2 1419 · M3 1453 · M4 1436 µs (867 mẫu treo); trước−sau -18, phải−trái -17, CW−CCW +0 µs
+- Motor chạm trần (≥1950) 0 mẫu, chạm sàn (≤1100) 0 mẫu / 1429
+- ESC khởi động: M1 sau-phải 0.60 s; M2 trước-phải 0.41 s; M3 sau-trái 0.33 s; M4 trước-trái 0.25 s
+- ESC tụt vòng khi bay: không
+- Nhiệt ESC lớn nhất 52 °C
+- Mission: WP2 gần nhất 1.35 m; WP3 gần nhất 0.95 m; WP4 gần nhất 0.78 m; WP5 gần nhất 9.71 m; WP5 gần nhất 1.30 m; WP6 gần nhất 0.96 m; WP7 gần nhất 0.04 m
+- FC 10:26:37: ArduCopter V4.7.1 (dbe79216)
+- FC 10:26:37: ChibiOS: d103983f
+- FC 10:26:37: speedybeef4v5 0020001A 34344713 36333338
+- FC 10:26:37: Param space used: 1094/4096
+- FC 10:26:37: RC Protocol: IBUS
+- FC 10:26:37: RCOut: DS300:1-4 PWM:5-7
+- FC 10:26:37: New mission
+- FC 10:26:37: New fence
+- FC 10:26:37: Frame: QUAD/X
+- FC 10:26:37: GPS 1: probing for u-blox at 230400 baud
+- FC 10:26:59: EKF3 IMU0 MAG0 in-flight yaw alignment complete
+- FC 10:27:08: Mission: 1 Takeoff
+- FC 10:27:08: Mission: 2 WP
+- FC 10:27:19: Reached command #2
+- FC 10:27:19: Mission: 3 WP
+- FC 10:27:28: Reached command #3
+- FC 10:27:28: Mission: 4 WP
+- FC 10:27:38: Reached command #4
+- FC 10:27:38: Mission: 5 WP
+- FC 10:27:59: Mission: 5 WP
+- FC 10:28:07: Reached command #5
+- FC 10:28:07: Mission: 6 WP
+- FC 10:28:16: Reached command #6
+- FC 10:28:16: Mission: 7 WP
+- FC 10:28:27: Reached command #7
+- FC 10:28:27: Mission: 8 RTL
+
+## Toàn log
+- Có dữ liệu bay từ 10:26:36 tới 10:29:30
+- Gói GPS cách nhau (cả log): TB 200.0, p95 200.0, max 206.0 ms; 0 lần > 245
+- Nguồn bo: Vcc bo không đo (NaN); cờ nguồn gặp: [0]
+- CPU: tải TB 43.1, p95 46.3, max 46.4 %, vòng lặp chậm 2
+- Log rơi 173 message (bộ đệm ghi đầy)
+- TFmini (đo được): TB 3.5, p95 3.6, max 4.3 m

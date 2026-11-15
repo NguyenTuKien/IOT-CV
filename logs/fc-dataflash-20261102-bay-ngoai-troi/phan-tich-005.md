@@ -1,0 +1,54 @@
+# 005-20261102-032319.bin
+
+## Chuyến 1 — 10:23:19 → 10:25:37 (arm 138 s, bay 119 s)
+- Chế độ: LOITER 10:23:19 (công tắc chế độ) → AUTO 10:23:50 (công tắc phụ)
+- Disarm: hết mission
+- Cao nhất 15.6 m so với home · xa nhất 28.7 m
+- Chạm đất cách home 0.12 m
+- Tốc độ đất lớn nhất 3.3 m/s · vệ tinh ít nhất 26 · HDOP lớn nhất 0.59
+- Gói GPS cách nhau: TB 200.0, p95 200.0, max 208.0 ms; 0 lần > 245 ms
+- Leo nhanh nhất 1.9 m/s, hạ nhanh nhất -1.6 m/s · ga ra (ThO) TB 0.2, p95 0.2, max 0.2 · hover học được 0.185
+- Pin 16.12 → 15.86 V (thấp nhất 15.75) · dòng TB 8.9, p95 11.6, max 16.3 A · tốn 339 mAh
+- Rung (m/s², tốt < 30, xấu > 60): X TB 5.8, p95 9.2, max 12.6 · Y TB 5.9, p95 9.8, max 16.5 · Z TB 6.8, p95 11.1, max 23.5 · clip +0
+- EKF (tỉ số kiểm < 1 là nhận đo): vận tốc max 0.27, vị trí 0.10, cao 0.16, la bàn 0.18
+- Bám góc: roll RMS 0.7° (max 4.2°), pitch RMS 0.8° (max 3.8°), yaw RMS 1.2° (max 6.1°); nghiêng thật lớn nhất 16°
+- Lúc rời đất: pitch thật−lệnh lớn nhất -1.6° · roll +1.1° (dương: pitch = ngóc mũi, roll = nghiêng phải)
+- Góc giữ chỗ khi treo: roll TB -1.3°, pitch TB +1.0° (296 mẫu, mũi hướng 339°±78)
+- Cân bằng motor: M1 1430 · M2 1436 · M3 1430 · M4 1432 µs (775 mẫu treo); trước−sau +4, phải−trái +2, CW−CCW -2 µs
+- Motor chạm trần (≥1950) 0 mẫu, chạm sàn (≤1100) 0 mẫu / 1192
+- ESC khởi động: M1 sau-phải 0.42 s; M2 trước-phải 0.55 s, HỤT 3 lần; M3 sau-trái 0.26 s; M4 trước-trái 0.29 s
+- ESC tụt vòng khi bay: không
+- Nhiệt ESC lớn nhất 52 °C
+- Mission: WP2 gần nhất 1.41 m; WP3 gần nhất 1.10 m; WP4 gần nhất 0.95 m; WP5 gần nhất 0.78 m; WP6 gần nhất 0.72 m; WP7 gần nhất 0.03 m
+- FC 10:23:20: ArduCopter V4.7.1 (dbe79216)
+- FC 10:23:20: ChibiOS: d103983f
+- FC 10:23:20: speedybeef4v5 0020001A 34344713 36333338
+- FC 10:23:20: Param space used: 1094/4096
+- FC 10:23:20: RC Protocol: IBUS
+- FC 10:23:20: RCOut: DS300:1-4 PWM:5-7
+- FC 10:23:20: New mission
+- FC 10:23:20: New fence
+- FC 10:23:20: Frame: QUAD/X
+- FC 10:23:45: EKF3 IMU0 MAG0 in-flight yaw alignment complete
+- FC 10:23:50: Mission: 1 Takeoff
+- FC 10:23:52: Mission: 2 WP
+- FC 10:24:04: Reached command #2
+- FC 10:24:04: Mission: 3 WP
+- FC 10:24:13: Reached command #3
+- FC 10:24:13: Mission: 4 WP
+- FC 10:24:22: Reached command #4
+- FC 10:24:22: Mission: 5 WP
+- FC 10:24:31: Reached command #5
+- FC 10:24:31: Mission: 6 WP
+- FC 10:24:40: Reached command #6
+- FC 10:24:40: Mission: 7 WP
+- FC 10:24:51: Reached command #7
+- FC 10:24:51: Mission: 8 RTL
+
+## Toàn log
+- Có dữ liệu bay từ 10:23:19 tới 10:25:52
+- Gói GPS cách nhau (cả log): TB 200.0, p95 200.0, max 208.0 ms; 0 lần > 245
+- Nguồn bo: Vcc bo không đo (NaN); cờ nguồn gặp: [0]
+- CPU: tải TB 41.0, p95 43.8, max 44.4 %, vòng lặp chậm 6
+- Log rơi 211 message (bộ đệm ghi đầy)
+- TFmini (đo được): TB 3.6, p95 5.5, max 6.0 m
