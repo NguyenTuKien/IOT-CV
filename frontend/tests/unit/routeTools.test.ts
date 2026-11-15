@@ -5,6 +5,7 @@ import type { LatLon } from "../../src/lib/geo";
 import { MAV_CMD } from "../../src/lib/missionRules";
 import type { MissionWaypoint } from "../../src/lib/protocol";
 import {
+  OUTBACK_HOLD_S,
   bearingDeg,
   estimateDuration,
   lawnmowerPattern,
@@ -73,6 +74,14 @@ describe("routeStats", () => {
     expect(slow).toBeGreaterThan(fast);
     expect(estimateDuration(s, 0)).toBeNull();
   });
+
+  it("số giây dừng ở waypoint cộng vào thời gian ước lượng", () => {
+    const items = mission([{ north: 40, east: 0, alt: 5 }]);
+    const without = estimateDuration(routeStats(items, HOME), 2)!;
+    const withHold = routeStats([items[0], { ...items[1], hold_s: 7 }, items[2]], HOME);
+    expect(withHold.holdSeconds).toBe(7);
+    expect(estimateDuration(withHold, 2)! - without).toBeCloseTo(7, 6);
+  });
 });
 
 describe("routeProfile", () => {
@@ -106,9 +115,26 @@ describe("mẫu lộ trình", () => {
   });
 
   it("đi–về: điểm xa đúng quãng và hướng", () => {
-    const [, far] = outAndBackPattern(HOME, 30, 90, 5);
+    const [far] = outAndBackPattern(HOME, 30, 90, 5);
     expect(haversineM(HOME[0], HOME[1], far.lat, far.lon)).toBeCloseTo(30, 1);
     expect(bearingDeg(HOME[0], HOME[1], far.lat, far.lon)).toBeCloseTo(90, 1);
+  });
+
+  it("đi–về: mỗi lượt quay về đúng home, điểm cuối nằm trên home (RTL khỏi leo)", () => {
+    const pts = outAndBackPattern(HOME, 15, 200, 8, 3);
+    expect(pts).toHaveLength(6);
+    pts.forEach((p, i) => {
+      const d = haversineM(HOME[0], HOME[1], p.lat, p.lon);
+      expect(d).toBeCloseTo(i % 2 === 0 ? 15 : 0, 3);
+      expect(p.alt).toBe(8);
+    });
+    expect(outAndBackPattern(HOME, 15, 0, 8, 0)).toHaveLength(2); // ít nhất một lượt
+  });
+
+  it("đi–về: mỗi đầu dừng OUTBACK_HOLD_S giây để FC tới đủ quãng; holdS 0 thì bay lướt", () => {
+    expect(OUTBACK_HOLD_S).toBeGreaterThan(0);
+    expect(outAndBackPattern(HOME, 5, 0, 5, 2).map((p) => p.hold_s)).toEqual(Array(4).fill(OUTBACK_HOLD_S));
+    expect(outAndBackPattern(HOME, 5, 0, 5, 1, 0).every((p) => !("hold_s" in p))).toBe(true);
   });
 });
 
@@ -124,6 +150,17 @@ describe("file .waypoints (Mission Planner)", () => {
     expect(back.waypoints).toHaveLength(2);
     expect(back.waypoints[1].lat).toBeCloseTo(items[2].lat, 7);
     expect(back.waypoints[1].alt).toBeCloseTo(7.5, 5);
+  });
+
+  it("số giây dừng đi vào cột param1 của WAYPOINT và đọc lại được", () => {
+    const items = mission([{ north: 5, east: 0, alt: 5 }]);
+    items[1] = { ...items[1], hold_s: 2 };
+    const text = toWaypointsFile(items, HOME);
+    const rows = text.split("\n"); // [tiêu đề, home, cất cánh, WP2, RTL]
+    expect(rows[3].split("\t")[4]).toBe("2"); // WP2, cột param1
+    expect(rows[2].split("\t")[4]).toBe("0"); // cất cánh không mang số giây dừng
+    const back = parseWaypointsFile(text);
+    expect(back.waypoints[0].hold_s).toBe(2);
   });
 
   it("bỏ qua lệnh web không soạn được và báo lại, không im lặng", () => {

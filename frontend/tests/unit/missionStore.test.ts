@@ -115,6 +115,44 @@ describe("sameMission", () => {
     s().updateAlt(s().waypoints[0].id, 6);
     expect(sameMission(items(), sent)).toBe(false);
   });
+
+  it("khác số giây dừng là khác mission", () => {
+    s().replaceWaypoints([{ lat: HOME[0] + 5e-5, lon: HOME[1], alt: 5, hold_s: 2 }]);
+    const sent = items();
+    s().replaceWaypoints([{ lat: HOME[0] + 5e-5, lon: HOME[1], alt: 5 }]);
+    expect(sameMission(items(), sent)).toBe(false);
+  });
+});
+
+describe("hold_s — dừng tại điểm", () => {
+  beforeEach(() => useMissionStore.setState(initial, true));
+
+  it("mẫu/file/thư viện mang hold_s vào bản nháp, item gửi đi có hold_s; điểm không dừng giữ hình dạng cũ", () => {
+    s().replaceWaypoints([
+      { lat: HOME[0] + 5e-5, lon: HOME[1], alt: 5, hold_s: 2 },
+      { lat: HOME[0], lon: HOME[1], alt: 5 },
+    ]);
+    const [, xa, goc] = items();
+    expect(xa).toMatchObject({ command: MAV_CMD.NAV_WAYPOINT, hold_s: 2 });
+    expect("hold_s" in goc).toBe(false);
+    expect(validateForUpload(items(), HOME, LIMITS)).toEqual([]);
+
+    s().loadDraft({ takeoffAlt: 6, finalCommand: MAV_CMD.NAV_LAND, waypoints: [{ lat: HOME[0] + 5e-5, lon: HOME[1], alt: 5, hold_s: 3 }] });
+    expect(s().waypoints[0].hold_s).toBe(3);
+  });
+
+  it("kéo điểm, đổi độ cao, đảo thứ tự không làm mất số giây dừng", () => {
+    s().replaceWaypoints([
+      { lat: HOME[0] + 5e-5, lon: HOME[1], alt: 5, hold_s: 2 },
+      { lat: HOME[0], lon: HOME[1], alt: 5 },
+    ]);
+    const id = s().waypoints[0].id;
+    s().moveTo(id, HOME[0] + 6e-5, HOME[1]);
+    s().updateAlt(id, 7);
+    s().setAllAlt(6);
+    s().reverse();
+    expect(s().waypoints.map((w) => w.hold_s)).toEqual([undefined, 2]);
+  });
 });
 
 describe("trạng thái nạp mission", () => {

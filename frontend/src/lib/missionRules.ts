@@ -15,7 +15,8 @@
  *  - lệnh ngoài danh sách trắng bị chặn, và không kiểm gì thêm ở item đó;
  *  - RTL không mang toạ độ → không kiểm toạ độ, độ cao, khoảng cách;
  *  - TAKEOFF cất cánh tại chỗ → chỉ kiểm độ cao;
- *  - LAND ở (0, 0) trên dây = hạ tại chỗ; độ cao của LAND không bị kiểm.
+ *  - LAND ở (0, 0) trên dây = hạ tại chỗ; độ cao của LAND không bị kiểm;
+ *  - `hold_s` (dừng tại điểm) chỉ WAYPOINT có, và phải là giây nguyên FC cất được.
  *
  * Chống trôi (plan Phase 09 §9.5.2): ngưỡng LUÔN lấy từ `status.limits` truyền
  * vào, không có hằng số ngưỡng nào ở đây. `tests/unit/missionRules.test.ts`
@@ -39,6 +40,13 @@ export const MAV_CMD = {
 } as const;
 
 export const MISSION_COMMANDS: readonly number[] = Object.values(MAV_CMD);
+
+/**
+ * ArduCopter cất số giây dừng của WAYPOINT vào uint16: giây nguyên, tối đa 65535. Giới hạn của
+ * giao thức (như MAV_CMD), không phải ngưỡng an toàn — trùng `MISSION_MAX_HOLD_S` của
+ * `backend/schemas.py`, `missionRules.test.ts` đọc thẳng file đó để bắt trôi.
+ */
+export const MISSION_MAX_HOLD_S = 65535;
 
 export type RuleLimits = Pick<LimitsPayload, "min_alt" | "max_alt" | "max_distance_home" | "max_waypoints">;
 
@@ -77,6 +85,17 @@ function isZeroOnWire(lat: number, lon: number): boolean {
   return Math.abs(lat) < half && Math.abs(lon) < half;
 }
 
+/** Lỗi của `hold_s`, hoặc `null` — soi gương `_loi_hold()` của backend. */
+function holdError(wp: MissionWaypoint, command: number): string | null {
+  const hold = wp.hold_s ?? 0;
+  if (hold === 0) return null;
+  if (command !== MAV_CMD.NAV_WAYPOINT) return `WP${wp.seq}: chỉ WAYPOINT mới dừng được, ${COMMAND_LABEL[command]} không nhận số giây dừng`;
+  if (!(hold >= 0 && hold <= MISSION_MAX_HOLD_S) || !Number.isInteger(hold)) {
+    return `WP${wp.seq}: dừng ${num(hold)} s không hợp lệ — FC chỉ nhận số giây nguyên 0–${MISSION_MAX_HOLD_S}`;
+  }
+  return null;
+}
+
 /** Luật từng item — soi gương `validate_mission()`. */
 export function validateMission(
   waypoints: readonly MissionWaypoint[],
@@ -104,6 +123,8 @@ export function validateMission(
       issues.push({ seq: wp.seq, message: `WP${wp.seq}: lệnh ${command} không được phép — chỉ nhận ${allowed}` });
       continue;
     }
+    const hold = holdError(wp, command);
+    if (hold) issues.push({ seq: wp.seq, message: hold });
     if (command === MAV_CMD.NAV_RETURN_TO_LAUNCH) continue;
 
     const landInPlace = command === MAV_CMD.NAV_LAND && isZeroOnWire(wp.lat, wp.lon);
@@ -187,4 +208,13 @@ export function uploadBlockers(input: {
   if (input.ekfOk === false) reasons.push("EKF chưa khoẻ");
   if (!input.home) reasons.push("Chưa có điểm home — arm drone hoặc chờ GPS fix");
   return reasons;
+}
+
+/**
+ * Nạp lúc này thì backend có chuyển drone sang GUIDED đứng giữ chỗ trước không — soi gương
+ * `MissionManager._dang_bay_auto()`. Đang bay AUTO mà mission đổi thì ArduPilot bay ngay tới
+ * item cùng số thứ tự của mission mới, nên backend dừng drone lại trước khi nạp.
+ */
+export function holdsForUpload(armed: boolean | null | undefined, mode: string | null | undefined): boolean {
+  return armed === true && mode === "AUTO";
 }

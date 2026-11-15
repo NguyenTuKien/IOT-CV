@@ -8,7 +8,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { FinalCommand } from "./mission";
+import type { DraftPoint, FinalCommand } from "./mission";
 
 export interface SavedMission {
   id: string;
@@ -16,7 +16,7 @@ export interface SavedMission {
   savedAt: number;
   takeoffAlt: number;
   finalCommand: FinalCommand;
-  waypoints: { lat: number; lon: number; alt: number }[];
+  waypoints: DraftPoint[];
 }
 
 interface SavedMissionsStore {

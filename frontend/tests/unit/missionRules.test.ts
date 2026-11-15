@@ -16,8 +16,10 @@ import { describe, expect, it } from "vitest";
 import { haversineM } from "../../src/lib/geo";
 import type { LatLon } from "../../src/lib/geo";
 import {
+  holdsForUpload,
   MAV_CMD,
   MISSION_COMMANDS,
+  MISSION_MAX_HOLD_S,
   uploadBlockers,
   validateForUpload,
   validateMission,
@@ -69,6 +71,7 @@ describe("ngưỡng lấy từ backend, không gõ cứng", () => {
     expect(MAV_CMD.NAV_TAKEOFF).toBe(read("TAKEOFF"));
     const whitelist = /^MISSION_COMMANDS = \(([^)]*)\)/m.exec(src)?.[1].split(",").map((s) => s.trim()).filter(Boolean);
     expect(whitelist).toHaveLength(MISSION_COMMANDS.length);
+    expect(MISSION_MAX_HOLD_S).toBe(Number(/^MISSION_MAX_HOLD_S = (\d+)/m.exec(src)?.[1]));
   });
 
   it("đổi limits truyền vào là đổi kết quả (không có hằng số ẩn)", () => {
@@ -211,6 +214,30 @@ describe("luật Phase 07 — lệnh, cấu trúc, RTL/LAND/TAKEOFF", () => {
   });
 });
 
+describe("hold_s — dừng tại điểm (01/11/2026), cùng dữ liệu với test_mission_validation.py", () => {
+  const dung = (hold: number, w: MissionWaypoint = wp(1)): MissionWaypoint => ({ ...w, hold_s: hold });
+
+  it("test_hold_mac_dinh_0_va_giay_nguyen_trong_uint16_hop_le", () => {
+    for (const giay of [0, 2, 65535]) expect(validateMission([dung(giay)], HOME, LIMITS)).toEqual([]);
+  });
+
+  it("test_hold_le_am_tran_hoac_nan_bi_chan", () => {
+    for (const giay of [2.5, -1, 65536, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const errors = msgs(validateMission([dung(giay)], HOME, LIMITS));
+      expect(errors, String(giay)).toHaveLength(1);
+      expect(errors[0]).toContain("giây nguyên");
+    }
+  });
+
+  it("test_hold_chi_nav_waypoint_moi_co", () => {
+    const catCanh = dung(2, W(1, HOME[0], HOME[1], 5, MAV_CMD.NAV_TAKEOFF));
+    const veNha = dung(2, W(2, 0, 0, 0, MAV_CMD.NAV_RETURN_TO_LAUNCH));
+    const errors = msgs(validateMission([catCanh, veNha], HOME, LIMITS));
+    expect(errors).toHaveLength(2);
+    expect(errors.every((e) => e.includes("chỉ WAYPOINT"))).toBe(true);
+  });
+});
+
 describe("uploadBlockers — soi gương precheck_mission", () => {
   const ok = { socketOpen: true, limitsKnown: true, fcConnected: true, gpsFixType: 3, ekfOk: true, home: HOME };
 
@@ -229,5 +256,19 @@ describe("uploadBlockers — soi gương precheck_mission", () => {
   it("EKF chưa biết (null) KHÔNG chặn — chỉ chặn khi FC nói hỏng, như backend", () => {
     expect(uploadBlockers({ ...ok, ekfOk: null })).toEqual([]);
     expect(uploadBlockers({ ...ok, ekfOk: false })).toEqual(["EKF chưa khoẻ"]);
+  });
+});
+
+describe("holdsForUpload — soi gương MissionManager._dang_bay_auto (02/11/2026)", () => {
+  it("chỉ armed + AUTO mới giữ chỗ GUIDED trước khi nạp", () => {
+    expect(holdsForUpload(true, "AUTO")).toBe(true);
+  });
+
+  it("mode khác, chưa armed, hay chưa biết thì nạp thẳng, không đổi mode", () => {
+    expect(holdsForUpload(true, "GUIDED")).toBe(false);
+    expect(holdsForUpload(true, "LOITER")).toBe(false);
+    expect(holdsForUpload(false, "AUTO")).toBe(false);
+    expect(holdsForUpload(undefined, "AUTO")).toBe(false);
+    expect(holdsForUpload(true, null)).toBe(false);
   });
 });
