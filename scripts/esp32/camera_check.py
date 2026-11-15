@@ -346,9 +346,15 @@ def main() -> int:
     except CheckFailed as exc:
         print(f"  FAIL {exc}")
         return 1
+    except OSError as exc:  # gồm TimeoutError, URLError: bo không trả lời trong HTTP_TIMEOUT_S
+        print(f"  FAIL mạng: {exc!r}. Đo đường Wi-Fi: py -3.13 scripts\\esp32\\wifi_ping_check.py")
+        return 1
     finally:
         if original is not None:
-            set_quality(base, original)
+            try:
+                set_quality(base, original)
+            except OSError as exc:
+                print(f"  CẢNH BÁO: chưa trả được quality về {original}: {exc!r}")
     print("PASS — camera đúng hợp đồng, /set và /status chạy, nhãn quality khớp khung thật.")
     return 0
 

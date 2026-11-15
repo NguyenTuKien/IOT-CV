@@ -32,6 +32,7 @@ from backend.schemas import (
     MissionPayload,
     MissionUploadResult,
     MissionWaypoint,
+    RecordingStatus,
     StatusPayload,
     SystemPayload,
     TelemetryHistoryPayload,
@@ -158,6 +159,36 @@ def build_router(hub) -> APIRouter:
             raise HTTPException(503, "Khối vision đang tắt (VISION_ENABLED=0)")
         reader.start()
         return StreamingResponse(mjpeg_multipart(reader), media_type=MJPEG_MEDIA_TYPE)
+
+    def _recording(action: str | None = None) -> RecordingStatus:
+        """Đèn REC của web. Không có bộ ghi (vision tắt) thì trả trạng thái 'không ghi'
+        kèm lý do, không 404: trang web chỉ cần hiện lý do."""
+        recorder = getattr(hub, "recorder", None)
+        if recorder is None:
+            return RecordingStatus(
+                auto=config.RECORD_VIDEO,
+                running=False,
+                writing=False,
+                reason="Khối vision đang tắt (VISION_ENABLED=0), không có camera để ghi",
+            )
+        if action == "start":
+            return RecordingStatus(**recorder.start())
+        if action == "stop":
+            return RecordingStatus(**recorder.stop())
+        return RecordingStatus(**recorder.status())
+
+    @router.get("/recording", response_model=RecordingStatus)
+    async def recording() -> RecordingStatus:
+        return _recording()
+
+    @router.post("/recording/start", response_model=RecordingStatus)
+    async def recording_start() -> RecordingStatus:
+        return await asyncio.to_thread(_recording, "start")
+
+    @router.post("/recording/stop", response_model=RecordingStatus)
+    async def recording_stop() -> RecordingStatus:
+        # stop() join thread ghi tới 5 s — chạy ngoài event loop cho telemetry khỏi khựng.
+        return await asyncio.to_thread(_recording, "stop")
 
     @router.get("/video/fake-source")
     async def video_fake_source() -> StreamingResponse:

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -199,6 +200,41 @@ FAKE_DETECTION_INTERVAL_MS = _env_int("FAKE_DETECTION_INTERVAL_MS", 300)
 # Khung mới nhất cũ hơn chừng này thì camera coi như MẤT (`camera.available`).
 CAMERA_STALE_S = _env_float("CAMERA_STALE_S", 2.0)
 
+# Camera thật tự hạ chất lượng JPEG khi khung/s tụt vì xa (15/11/2026,
+# backend/vision/auto_quality.py, cách chạy ghi ở đầu file đó). 0 = tắt, camera giữ mức đang có.
+# Không chạy với nguồn giả (CAMERA_FAKE=1). Thang esp32-camera 0–63, SỐ LỚN = khung NHỎ, kém nét.
+CAMERA_AUTO_QUALITY = _env_bool("CAMERA_AUTO_QUALITY", True)
+# Cổng HTTP điều khiển của firmware camera (`/set`, `/status`), cùng máy với CAMERA_STREAM_URL.
+CAMERA_CONTROL_PORT = _env_int("CAMERA_CONTROL_PORT", 80)
+# 12 = mức firmware tự đặt lúc khởi động (JPEG_QUALITY_DEFAULT): gần nhà luôn quay về đây.
+CAMERA_QUALITY_BEST = _env_int("CAMERA_QUALITY_BEST", 12)
+CAMERA_QUALITY_WORST = _env_int("CAMERA_QUALITY_WORST", 40)
+CAMERA_QUALITY_STEP = _env_int("CAMERA_QUALITY_STEP", 7)
+# Ngưỡng khung/s. Trong 15 m camera đạt 7,6–7,8 (02/11/2026), nên HIGH phải dưới mức đó,
+# không thì gần nhà cũng không bao giờ nâng nét lại được.
+CAMERA_AUTO_FPS_LOW = _env_float("CAMERA_AUTO_FPS_LOW", 4.0)
+CAMERA_AUTO_FPS_HIGH = _env_float("CAMERA_AUTO_FPS_HIGH", 6.5)
+# Cửa sổ đo 5 s: luồng thật thỉnh thoảng đứng 1 s (đo 15/11: 4, 5, 0, 9, 8 khung/s) — cửa sổ 3 s
+# coi đó là tụt (3 khung/s) và hạ nét oan; 5 s ra 5,2. Xa thật (≤ 3,1 khung/s) vẫn bắt được.
+CAMERA_AUTO_WINDOW_S = _env_float("CAMERA_AUTO_WINDOW_S", 5.0)
+CAMERA_AUTO_RECOVER_S = _env_float("CAMERA_AUTO_RECOVER_S", 10.0)
+CAMERA_AUTO_RECOVER_MAX_S = _env_float("CAMERA_AUTO_RECOVER_MAX_S", 120.0)
+
+# Ghi video camera về laptop (01/11/2026) — người dùng không có thẻ nhớ cho bo camera,
+# nên laptop là nơi duy nhất giữ hình (backend/vision/video_recorder.py). Mặc định chỉ
+# tự ghi với camera THẬT; nguồn giả của SITL không ghi cho khỏi đầy đĩa (bật tay được).
+RECORD_VIDEO = _env_bool("RECORD_VIDEO", not CAMERA_FAKE)
+# Đường dẫn tương đối neo vào gốc repo (như DEADMAN_LOG_PATH). logs/ đã gitignore.
+RECORD_DIR = str((PROJECT_ROOT / _env_str("RECORD_DIR", "logs/recordings")).resolve())
+# Mỗi đoạn video tối đa chừng này giây: laptop tắt ngang thì chỉ mất đoạn cuối.
+RECORD_SEGMENT_S = _env_float("RECORD_SEGMENT_S", 300.0)
+# Không có khung mới lâu hơn chừng này thì đóng đoạn đang ghi, có hình lại mở đoạn mới.
+# Quãng mất ngắn hơn được lấp bằng khung cuối (video giữ đúng giờ). 30 s: camera rớt Wi-Fi
+# vài giây một lần ngoài bãi; ngưỡng cũ 2 s cắt một buổi 33 phút thành 223 file (01/11/2026).
+RECORD_GAP_S = _env_float("RECORD_GAP_S", 30.0)
+# Ổ còn trống dưới chừng này GB thì dừng ghi (repo nằm ở ổ D).
+RECORD_MIN_FREE_GB = _env_float("RECORD_MIN_FREE_GB", 2.0)
+
 # Telemetry MAVLink: ghi MỌI gói nhận được ra file .tlog (Mission Planner, MAVExplorer
 # mở được) — mỗi lần nối link một file. Đây là bản sao phía laptop; log dataflash trên
 # FC (scripts/fc/tai_log.py) vẫn là bản đầy đủ nhất.
@@ -212,6 +248,17 @@ def camera_source_url() -> str:
     if CAMERA_FAKE:
         return f"http://127.0.0.1:{BACKEND_PORT}/api/video/fake-source"
     return CAMERA_STREAM_URL
+
+
+def camera_control_url() -> str | None:
+    """Gốc HTTP điều khiển camera thật (`<gốc>/set?quality=N`), cùng máy với CAMERA_STREAM_URL
+    nhưng ở CAMERA_CONTROL_PORT. None với nguồn giả hoặc URL không có tên máy."""
+    if CAMERA_FAKE:
+        return None
+    parts = urlsplit(CAMERA_STREAM_URL)
+    if not parts.hostname:
+        return None
+    return f"{parts.scheme or 'http'}://{parts.hostname}:{CAMERA_CONTROL_PORT}"
 
 
 # ---------------------------------------------------------------------------

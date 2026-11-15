@@ -20,6 +20,9 @@ Endpoint:
     GET  /api/video/fake-source   - nguồn MJPEG giả (CAMERA_FAKE=1)
     GET  /api/telemetry/history   - lịch sử telemetry backend giữ (biểu đồ web)
     GET  /api/system              - thông tin vận hành (trang Hệ thống)
+    GET  /api/recording           - bộ ghi video camera về laptop (đèn REC)
+    POST /api/recording/start     - bật ghi (thư mục mới trong logs/recordings)
+    POST /api/recording/stop      - tắt ghi, đóng file AVI
     WS   /ws                      - hai chiều, theo Hợp đồng WebSocket (schemas.py)
     /                             - frontend tĩnh đã build (frontend/dist), kể cả
                                     các đường dẫn trang của web (/mission, /3d…)
@@ -41,7 +44,7 @@ from backend.mavlink.control import FlightControl
 from backend.mavlink.deadman import DeadmanLoop
 from backend.mavlink.mission import MissionManager
 from backend.mavlink.safety import SafetyState
-from backend.mavlink.telemetry import TelemetryReader, TelemetryState
+from backend.mavlink.telemetry import TelemetryReader, TelemetryState, build_telemetry
 from backend.ws import WebSocketHub, websocket_endpoint
 
 log = logging.getLogger(__name__)
@@ -81,6 +84,33 @@ HUB = WebSocketHub(
 )
 
 
+def _make_recorder():
+    """Bộ ghi video camera về laptop (thay thẻ nhớ), hoặc None khi tắt vision. Nó chép
+    nguyên JPEG camera gửi vào file AVI, không cần OpenCV."""
+    if CAMERA is None:
+        return None
+    from backend.vision.video_recorder import VideoRecorder
+
+    return VideoRecorder(CAMERA, telemetry=lambda: build_telemetry(STATE))
+
+
+RECORDER = _make_recorder()
+# `api.py` đọc `hub.recorder` (tiêm qua hub như camera, tránh import vòng app <-> api).
+HUB.recorder = RECORDER
+
+
+def _make_auto_quality():
+    """Camera thật tự hạ/nâng chất lượng JPEG theo khung/s (CAMERA_AUTO_QUALITY), hoặc None."""
+    if CAMERA is None:
+        return None
+    from backend.vision.auto_quality import make_controller
+
+    return make_controller(CAMERA)
+
+
+AUTO_QUALITY = _make_auto_quality()
+
+
 def _autostart_enabled() -> bool:
     """Đặt TELEMETRY_AUTOSTART=0 để không tự mở MAVLink (hữu ích khi test)."""
     return os.environ.get("TELEMETRY_AUTOSTART", "1") not in ("0", "false", "False")
@@ -102,10 +132,21 @@ async def lifespan(app: FastAPI):
         # Camera cùng cờ: test không được tự mở kết nối HTTP nào.
         if CAMERA is not None:
             CAMERA.start()
+        if AUTO_QUALITY is not None:
+            AUTO_QUALITY.start()
+        # Ghi hình tự bật theo RECORD_VIDEO (mặc định: chỉ camera thật). Bộ ghi chạy
+        # thread riêng và tự chờ khung đầu tiên — camera chưa lên cũng không sao.
+        if RECORDER is not None and config.RECORD_VIDEO:
+            RECORDER.start()
     try:
         yield
     finally:
-        # Ngược thứ tự lúc bật: dừng người GHI trước, người ĐỌC sau.
+        # Ngược thứ tự lúc bật: dừng người GHI trước, người ĐỌC sau. Bộ ghi video
+        # dừng trước camera để kịp đóng file AVI cho đủ chỉ mục.
+        if RECORDER is not None:
+            RECORDER.stop()
+        if AUTO_QUALITY is not None:
+            AUTO_QUALITY.stop()
         if CAMERA is not None:
             CAMERA.stop()
         DEADMAN.stop()
