@@ -1,6 +1,7 @@
 """Test validate mission (GIAI ĐOẠN 14) — backend phải reject mission sai."""
 
 import math
+from dataclasses import replace
 
 from backend.mavlink.mission import Waypoint, haversine_m, validate_mission
 
@@ -158,3 +159,71 @@ def test_land_gan_0_duoi_nua_don_vi_1e7_la_ha_tai_cho():
     # 2e-7 độ thì ra dây là 2 -> toạ độ thật (và xa home) -> phải bị kiểm.
     land_xa = Waypoint(seq=6, lat=2e-7, lon=0.0, alt=0.0, command=21)
     assert validate_mission([land_xa], HOME) != []
+
+
+# ---------------------------------------------------------------------------
+# Cấu hình ngoài trời 01/11/2026 — mẫu "Đi – về" của web (`outAndBackPattern` trong
+# frontend/src/lib/routeTools.ts) đi qua cổng chặn với đúng giới hạn mà
+# chay-drone-that.bat đặt cho backend. Web giới hạn 4 lượt (OUTBACK_MAX_LAPS) vì
+# takeoff + 4 × (xa, home) + RTL = 10 item = MAX_WAYPOINTS mặc định. Mặc định của web:
+# 5 m, 1 lượt, mỗi đầu dừng 2 s (OUTBACK_HOLD_S) cho drone tới đủ quãng rồi mới quay.
+# ---------------------------------------------------------------------------
+NGOAI_TROI = {"max_alt": 18.0, "min_alt": 2.0, "max_distance_home": 45.0}
+
+
+def _di_ve(xa_m: float, luot: int, cao: float = 8.0, dung_s: float = 2) -> list[Waypoint]:
+    """Takeoff + [điểm xa về phía bắc, home] × số lượt + RTL, mỗi điểm dừng `dung_s` giây
+    — đúng thứ web gửi."""
+    lat_xa = HOME[0] + math.degrees(xa_m / 6378137.0)
+    giua = []
+    for i in range(luot):
+        giua += [
+            Waypoint(2 + 2 * i, lat_xa, HOME[1], cao, hold_s=dung_s),
+            Waypoint(3 + 2 * i, *HOME, cao, hold_s=dung_s),
+        ]
+    return _chuyen_bay(*giua)
+
+
+def _cong_ngoai_troi(wps: list[Waypoint]) -> list[str]:
+    return validate_mission(wps, HOME, **NGOAI_TROI) + validate_mission_structure(wps)
+
+
+def test_mau_di_ve_mac_dinh_qua_cong_ngoai_troi():
+    wps = _di_ve(5, 1)
+    assert len(wps) == 4
+    assert math.isclose(haversine_m(*HOME, wps[1].lat, wps[1].lon), 5, abs_tol=0.05)
+    assert _cong_ngoai_troi(wps) == []
+
+
+def test_mau_di_ve_4_luot_vua_dung_10_item_5_luot_bi_chan():
+    assert len(_di_ve(15, 4)) == 10
+    assert _cong_ngoai_troi(_di_ve(15, 4)) == []
+    assert any("vượt giới hạn 10" in e for e in _cong_ngoai_troi(_di_ve(15, 5)))
+
+
+def test_mau_di_ve_qua_xa_hoac_qua_cao_bi_chan_o_gioi_han_ngoai_troi():
+    assert any("cách home" in e for e in _cong_ngoai_troi(_di_ve(50, 1)))
+    assert any("vượt giới hạn 18" in e for e in _cong_ngoai_troi(_di_ve(15, 1, cao=19)))
+
+
+# ---------------------------------------------------------------------------
+# `hold_s` (01/11/2026) — dừng tại điểm. FC cất số giây vào uint16, nên chỉ giây
+# nguyên 0–65535 đi qua; chỉ NAV_WAYPOINT có nghĩa "dừng".
+# ---------------------------------------------------------------------------
+def test_hold_mac_dinh_0_va_giay_nguyen_trong_uint16_hop_le():
+    assert Waypoint(seq=1, lat=1.0, lon=1.0, alt=5.0).hold_s == 0
+    for giay in (0, 2, 65535):
+        assert validate_mission([replace(_wp(1), hold_s=giay)], HOME) == [], giay
+
+
+def test_hold_le_am_tran_hoac_nan_bi_chan():
+    for giay in (2.5, -1, 65536, float("nan"), float("inf")):
+        errors = validate_mission([replace(_wp(1), hold_s=giay)], HOME)
+        assert len(errors) == 1 and "giây nguyên" in errors[0], giay
+
+
+def test_hold_chi_nav_waypoint_moi_co():
+    cat_canh = Waypoint(1, HOME[0], HOME[1], 5.0, command=22, hold_s=2)
+    ve_nha = Waypoint(2, 0.0, 0.0, 0.0, command=20, hold_s=2)
+    errors = validate_mission([cat_canh, ve_nha], HOME)
+    assert len(errors) == 2 and all("chỉ NAV_WAYPOINT" in e for e in errors)

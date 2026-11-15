@@ -649,8 +649,9 @@ class WebSocketHub:
     async def upload_mission(self, payload, *, socket_id: str | None) -> MissionUploadResult:
         """Đường DUY NHẤT nạp mission — WebSocket và `POST /api/mission` đều gọi.
 
-        Thứ tự: cổng rẻ (precheck) -> upload -> readback -> (auto_start) AUTO.
-        Mission sai bị chặn ở precheck, TRƯỚC khi có bất kỳ MISSION_COUNT nào.
+        Thứ tự: cổng rẻ (precheck) -> (đang bay AUTO: GUIDED giữ chỗ) -> upload -> readback
+        -> (auto_start) AUTO. Mission sai bị chặn ở precheck, TRƯỚC khi có bất kỳ MISSION_COUNT
+        nào. Giữ chỗ là việc của `MissionManager.upload`; hub chỉ báo cho người lái biết.
         """
         loi = self.precheck_mission(payload, socket_id)
         if loi is not None:
@@ -666,28 +667,52 @@ class WebSocketHub:
                 {"sent": sent, "total": total},
             )
 
+        da_giu_cho = False
+
+        def giu_cho() -> None:
+            nonlocal da_giu_cho
+            da_giu_cho = True
+            self.bus.emit(
+                "warn",
+                "mission",
+                "mission.hold_for_upload",
+                "Drone đang bay AUTO: đã chuyển GUIDED đứng giữ chỗ để nạp mission mới",
+                {"mode": "GUIDED"},
+            )
+
         try:
             result = await asyncio.to_thread(
-                self.mission.upload, _to_waypoints(payload), self._home(), progress=progress
+                self.mission.upload,
+                _to_waypoints(payload),
+                self._home(),
+                progress=progress,
+                on_hold=giu_cho,
             )
         except ValueError as exc:
             errors = [e.strip() for e in str(exc).split(";") if e.strip()]
             return MissionUploadResult(ok=False, errors=errors, code="validation_failed")
         except ControlError as exc:
-            self.bus.emit(
-                "error", "mission", "mission.upload_failed", exc.message, exc.detail or None
-            )
+            message = exc.message
+            if da_giu_cho:
+                message += " Drone vẫn GUIDED đứng giữ chỗ."
+            self.bus.emit("error", "mission", "mission.upload_failed", message, exc.detail or None)
             await self.broadcast("status", self.build_status())
-            return MissionUploadResult(ok=False, errors=[exc.message], code=exc.code)
+            return MissionUploadResult(ok=False, errors=[message], code=exc.code)
         except ConnectionError as exc:
             return MissionUploadResult(ok=False, errors=[str(exc)], code="not_connected")
 
+        message = f"Đã nạp và đọc lại khớp {result.count} item"
+        if da_giu_cho:
+            message += (
+                ". Drone đang GUIDED đứng giữ chỗ — bấm AUTO ở trang Bay để bay mission mới"
+                " từ điểm 1"
+            )
         self.bus.emit(
             "info",
             "mission",
             "mission.uploaded",
-            f"Đã nạp và đọc lại khớp {result.count} item",
-            {"count": result.count, "readback_ok": result.readback_ok},
+            message,
+            {"count": result.count, "readback_ok": result.readback_ok, "held": da_giu_cho},
         )
         await self.broadcast("status", self.build_status())
 
@@ -1023,7 +1048,7 @@ async def _handle_velocity(hub: WebSocketHub, socket_id: str, envelope: Envelope
 
 def _to_waypoints(payload) -> list[Waypoint]:
     return [
-        Waypoint(seq=w.seq, lat=w.lat, lon=w.lon, alt=w.alt, command=w.command)
+        Waypoint(seq=w.seq, lat=w.lat, lon=w.lon, alt=w.alt, command=w.command, hold_s=w.hold_s)
         for w in payload.waypoints
     ]
 

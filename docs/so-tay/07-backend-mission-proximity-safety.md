@@ -193,6 +193,10 @@ Thử thật: tắt SITL khi máy bay đang AUTO ở 6 m. Backend báo `link.los
 3,1 s, `connected=false` sau 3,3 s (`LINK_TIMEOUT_S = 3`), không đổi mode, không crash,
 `/api/health` vẫn 200, và tự thử nối lại.
 
+Nạp mission khi drone đang bay AUTO thì backend chuyển GUIDED (thêm 02/11/2026). Đó là
+một phần của lệnh NẠP MISSION do người bấm, không phải phản ứng với sự cố; mục 14 giải
+thích vì sao nó không trái năm lý do trên.
+
 ## 10. Geofence phần mềm chỉ là lớp phụ
 
 Nhắc lại cho khỏi quên (`SAFETY.md` mục 8): giới hạn trong `config.py` chặn lỗi gõ,
@@ -260,6 +264,57 @@ duyệt thì bé và vỡ chữ. Nguồn giả giờ mặc định VGA 640×480,
 ESP32, số nhỏ là nét); QVGA vẫn đặt lại được bằng `CAMERA_FAKE_FRAMESIZE=QVGA`.
 
 ![Luồng video giả trong trình duyệt](anh/07-video-gia-trinh-duyet.png)
+
+## 14. Nạp mission mới khi drone đang bay (02/11/2026)
+
+Người dùng muốn đứng dưới đất sửa lộ trình trên web rồi nạp lên drone đang bay. Nạp
+thẳng thì gặp hai cái bẫy, cả hai đọc ra từ mã nguồn ArduPilot 4.7.1:
+
+1. **Đang AUTO mà mission đổi thì drone bay ngay tới một điểm tuỳ ý.** `ModeAuto::run()`
+   thấy mission đổi thì gọi `restart_current_nav_cmd()`: chạy lại item mang **cùng số
+   thứ tự** trong mission mới (dòng "Auto mission changed, restarted command"). Mission
+   cũ đang ở item 3 thì drone quay sang item 3 của mission mới, lúc mission trên FC có
+   khi còn đang nạp dở.
+2. **Lần vào AUTO sau, FC chạy tiếp từ số thứ tự cũ.** Với `MIS_RESTART 0`, `resume()`
+   dùng lại số FC đang nhớ, tức số của mission cũ. Lỗi này có cả khi nạp lúc drone đang
+   LOITER: mission mới mất lệnh takeoff và mấy điểm đầu.
+
+Backend chữa cả hai bằng hai bước (người dùng chọn cách này):
+
+- **Đứng giữ chỗ trước khi nạp.** Drone đang armed và AUTO thì backend chuyển GUIDED
+  trước gói `MISSION_COUNT` đầu tiên. Ở GUIDED mà không có lệnh mới, drone phanh lại
+  rồi đứng yên giữ vị trí và độ cao, không theo cần ga. Web báo trước bằng một dòng vàng
+  cạnh nút NẠP MISSION; sự kiện `mission.hold_for_upload` (mức warn) ghi lại lúc chuyển.
+  Không chuyển được GUIDED thì backend báo lỗi và không gửi gói mission nào.
+- **Đặt FC bắt đầu từ item 1.** Đọc lại khớp xong, backend gửi
+  `MAV_CMD_DO_SET_MISSION_CURRENT` với param1 = 1, param2 = 0 rồi chờ ACK, mất gói thì
+  gửi lại. Đừng đặt param2 = 1: nó làm FC `resume()` luôn, tức drone bay ngay. FC từ
+  chối hay không trả lời thì mission chưa tính là đã xác nhận, nút BẮT ĐẦU AUTO bị chặn.
+
+Bay mission mới vẫn là việc của người: bấm BẮT ĐẦU AUTO. Item 1 là TAKEOFF; drone đã cao
+hơn độ cao của item thì nó xong ngay, vì đích của TAKEOFF là độ cao lớn hơn trong hai
+số (của item và hiện tại). Rồi drone bay thẳng tới điểm 1 của lộ trình.
+
+Vì sao không trái mục 9: chuyển GUIDED là một phần của lệnh do người bấm, có báo trước,
+và tay cầm vẫn giành lại được ngay. Gặp sự cố thì backend vẫn không đổi mode.
+
+**Nạp hỏng giữa chừng, hay Wi-Fi rớt hẳn, thì drone cứ đứng GUIDED.** `FS_GCS_ENABLE 0`:
+FC không tự làm gì khi mất web. Web báo "Drone vẫn GUIDED đứng giữ chỗ". Nạp lại khi
+sóng về, hoặc giành lại bằng tay cầm như mọi lần (công tắc chế độ, hay RTL). Qua Wi-Fi
+ngoài bãi, FC im quá 3 s thì backend mở lại phiên nạp, tối đa 8 lần (khoảng 24 s) rồi
+mới báo hỏng (`MISSION_ITEM_TIMEOUT_S`, `MISSION_RETRIES`). Nạp càng lâu thì drone đứng
+càng lâu, nên để ý pin.
+
+Thử trên SITL (`scripts/sitl/run_nap_khi_bay.py`, backend thật, `POST /api/mission`,
+02/11/2026): drone đang bay mission A ở item 3, độ cao 6 m, rồi nạp mission B.
+
+| Đo | Kết quả |
+|---|---|
+| Từ lúc gọi nạp tới HEARTBEAT GUIDED đầu tiên | dưới 0,1 s (ArduCopter gửi HEARTBEAT ngay lúc đổi mode) |
+| Lệch khi đứng giữ chỗ, tính từ 3 s sau khi vào GUIDED (đã phanh xong) | 0,42 m ngang, 0,01 m độ cao |
+| Dòng "Auto mission changed" | không có |
+| Item FC báo sau khi nạp | 1 |
+| Sau BẮT ĐẦU AUTO | TAKEOFF xong ngay, FC báo item 2 (B1); tới B1 cách 1,3 m, không nhảy sang item 3 |
 
 ## Tự chạy lại
 
