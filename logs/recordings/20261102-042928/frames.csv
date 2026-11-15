@@ -1,0 +1,3 @@
+segment,video_frame,unix_time,frame_id,width,height,lat,lon,rel_alt_m,heading_deg,mode,armed
+1,0,1793568568.289,7620,640,480,,,,,UNKNOWN,False
+1,1,1793568568.827,7621,640,480,,,,,UNKNOWN,False
