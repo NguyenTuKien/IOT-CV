@@ -58,6 +58,10 @@ exclude = ["*.md"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
+[tool.ruff.lint.per-file-ignores]
+# Script dựng trang HTML sạc pin: docstring và chuỗi mẫu dài, không phải logic.
+"docs/huong-dan/sac-pin/build.py" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 addopts = "-q"
