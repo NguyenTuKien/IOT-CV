@@ -55,6 +55,16 @@ CAM_BIEN = {
 }
 
 
+def cho_heartbeat_fc(m: mavutil.mavfile, *, giay: float):
+    """HEARTBEAT đầu tiên của chính FC (autopilot hợp lệ), bỏ qua GCS và bo phụ."""
+    het = time.monotonic() + giay
+    while time.monotonic() < het:
+        hb = m.recv_match(type="HEARTBEAT", blocking=True, timeout=1.0)
+        if hb is not None and hb.autopilot != mavutil.mavlink.MAV_AUTOPILOT_INVALID:
+            return hb
+    return None
+
+
 class FcThat(SitlInstance):
     """FC thật qua một chuỗi kết nối pymavlink (COMx hoặc tcp:...). Kế thừa
     SitlInstance để dùng lại recv_match / fetch_all_params, nhưng không khởi động
@@ -68,11 +78,19 @@ class FcThat(SitlInstance):
     def start(self) -> None:
         m = mavutil.mavlink_connection(self.ket_noi, baud=self.baud, source_system=255)
         try:
-            if m.wait_heartbeat(timeout=20) is None:
+            hb = cho_heartbeat_fc(m, giay=20.0)
+            if hb is None:
                 raise SitlError(
                     f"Không có HEARTBEAT từ {self.ket_noi} sau 20 s — "
                     "sai cổng COM, hoặc bo còn ở chế độ DFU."
                 )
+            # pymavlink 2.4.50 chốt target_system theo HEARTBEAT nhưng để target_component
+            # = 0, tức MỌI thành phần của hệ. Qua Wi-Fi (udpin:0.0.0.0:14550), ESP32
+            # DroneBridge cũng là một thành phần của hệ 1: nó trả PARAM_REQUEST_LIST bằng
+            # 18 tham số của chính nó, fetch_all_params tưởng đủ bảng rồi trả về, snapshot
+            # ghi ra 18 dòng mà không báo lỗi (01/11/2026). Chốt đúng thành phần của FC.
+            m.target_system = hb.get_srcSystem()
+            m.target_component = hb.get_srcComponent()
             self.master = m
             self.cho_het_boot()
         except BaseException:
