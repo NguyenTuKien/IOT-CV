@@ -12,6 +12,7 @@ import { REST_REFS, validatorForRef } from "./protocol";
 import type { RestResponses } from "./protocol";
 
 type GetRoute = Extract<keyof RestResponses, `GET ${string}`>;
+type PostRoute = Extract<keyof RestResponses, `POST ${string}`>;
 
 export class ApiError extends Error {
   readonly status: number | null;
@@ -23,14 +24,25 @@ export class ApiError extends Error {
   }
 }
 
-export async function restGet<R extends GetRoute>(route: R, query = "", init?: RequestInit): Promise<RestResponses[R]> {
-  const path = route.slice("GET ".length) + query;
-  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...init?.headers } });
+async function parseRest<R extends keyof RestResponses>(route: R, res: Response): Promise<RestResponses[R]> {
   if (!res.ok) throw new ApiError(`${route} trả HTTP ${res.status}`, res.status);
 
   const parsed = validatorForRef(REST_REFS[route].$ref).safeParse(await res.json());
   if (!parsed.success) throw new ApiError(`${route} trả dữ liệu sai hợp đồng: ${parsed.error.issues[0]?.message}`);
   return parsed.data as RestResponses[R];
+}
+
+export async function restGet<R extends GetRoute>(route: R, query = "", init?: RequestInit): Promise<RestResponses[R]> {
+  const path = route.slice("GET ".length) + query;
+  const res = await fetch(path, { ...init, headers: { Accept: "application/json", ...init?.headers } });
+  return parseRest(route, res);
+}
+
+/** POST không có thân — các lệnh bật/tắt như `/api/recording/start`. */
+export async function restPost<R extends PostRoute>(route: R, init?: RequestInit): Promise<RestResponses[R]> {
+  const path = route.slice("POST ".length);
+  const res = await fetch(path, { ...init, method: "POST", headers: { Accept: "application/json", ...init?.headers } });
+  return parseRest(route, res);
 }
 
 /** Lịch sử sự kiện của backend, cũ trước mới sau (đúng thứ tự `EventBus`). */
@@ -63,4 +75,14 @@ export async function fetchSystem(init?: RequestInit) {
 /** Cấu hình backend (ngưỡng, endpoint, nhịp telemetry, phiên bản hợp đồng). */
 export async function fetchConfig(init?: RequestInit) {
   return restGet("GET /api/config", "", init);
+}
+
+/** Bộ ghi video camera về laptop: đang ghi không, ghi được bao nhiêu, vì sao không ghi. */
+export async function fetchRecording(init?: RequestInit) {
+  return restGet("GET /api/recording", "", init);
+}
+
+/** Bật / tắt ghi video. Bật lại là một thư mục ghi mới. */
+export async function setRecording(on: boolean) {
+  return restPost(on ? "POST /api/recording/start" : "POST /api/recording/stop");
 }

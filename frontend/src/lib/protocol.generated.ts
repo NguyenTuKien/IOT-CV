@@ -42,6 +42,10 @@ export interface CmdMissionUpload {
  * (chưa biết trường này) vẫn gửi được. Lệnh ngoài `MISSION_COMMANDS` thì
  * `validate_mission` từ chối, không phải pydantic — để lỗi về đúng mã
  * `validation_failed` kèm số thứ tự item, thay vì `bad_payload` chung chung.
+ *
+ * `hold_s` (01/11/2026): số giây dừng tại điểm, chỉ NAV_WAYPOINT. 0 = bay lướt
+ * qua — ArduCopter vào cua trước khi tới điểm, chặng đi–về 8 m quay đầu sớm ~1,5 m.
+ * Kiểu `float` cùng lý do với `command`: số lẻ về `validation_failed` có số item.
  */
 export interface MissionWaypoint {
   seq: number;
@@ -49,6 +53,7 @@ export interface MissionWaypoint {
   lon: number;
   alt: number;
   command?: number;
+  hold_s?: number;
 }
 export interface CmdMode {
   mode: "GUIDED" | "LOITER" | "ALT_HOLD" | "POSHOLD" | "BRAKE" | "RTL" | "LAND" | "AUTO" | "STABILIZE";
@@ -173,6 +178,108 @@ export interface EventsPayload {
   events: EventPayload[];
 }
 /**
+ * `GET /api/flight?id=…` — đủ để phát lại một chuyến.
+ */
+export interface FlightDetail {
+  summary: FlightSummary;
+  window_start: number;
+  window_end: number;
+  home?: FlightPoint | null;
+  series: FlightSeries;
+  column_sources: {
+    [k: string]: "dataflash" | "tlog";
+  };
+  modes: FlightModeSpan[];
+  events: FlightEvent[];
+  video: FlightVideoClip[];
+  files: string[];
+  clock_offset_s?: number | null;
+  clock_note?: string | null;
+}
+/**
+ * Một dòng của danh sách chuyến. Số liệu tính trong khoảng ARM → DISARM.
+ */
+export interface FlightSummary {
+  id: string;
+  start: number;
+  end: number;
+  duration_s: number;
+  took_off: boolean;
+  sources: ("dataflash" | "tlog" | "video")[];
+  modes: string[];
+  max_alt_m?: number | null;
+  max_dist_m?: number | null;
+  path_m?: number | null;
+  battery_start_v?: number | null;
+  battery_min_v?: number | null;
+  used_mah?: number | null;
+  link_loss_pct?: number | null;
+  video_fps?: number | null;
+  video_coverage_pct?: number | null;
+  warnings?: number;
+}
+export interface FlightPoint {
+  lat: number;
+  lon: number;
+}
+/**
+ * Chuỗi số liệu trên một lưới thời gian chung. `t` tính bằng giây từ `window_start`;
+ * mọi cột dài bằng `t`, `None` = không có dữ liệu lúc đó (khác 0).
+ */
+export interface FlightSeries {
+  t: number[];
+  lat: (number | null)[];
+  lon: (number | null)[];
+  alt: (number | null)[];
+  speed: (number | null)[];
+  heading: (number | null)[];
+  roll: (number | null)[];
+  pitch: (number | null)[];
+  volt: (number | null)[];
+  curr: (number | null)[];
+  mah: (number | null)[];
+  sats: (number | null)[];
+  hdop: (number | null)[];
+  rangefinder: (number | null)[];
+  vibe: (number | null)[];
+  rssi: (number | null)[];
+  dist_home: (number | null)[];
+  link_loss: (number | null)[];
+  cam_fps: (number | null)[];
+}
+export interface FlightModeSpan {
+  t0: number;
+  t1: number;
+  mode: string;
+}
+export interface FlightEvent {
+  t: number;
+  level: "info" | "warning" | "error";
+  source: "fc" | "link" | "camera" | "arm";
+  text: string;
+}
+/**
+ * Khung video thuộc chuyến. Khung thứ i: `GET /api/flights/frame?rec=…&n=row0+i`.
+ */
+export interface FlightVideoClip {
+  rec: string;
+  row0: number;
+  width: number;
+  height: number;
+  times: number[];
+}
+/**
+ * `GET /api/flights` — mọi chuyến, cũ trước mới sau.
+ */
+export interface FlightListPayload {
+  flights: FlightSummary[];
+  skipped: FlightSkippedFile[];
+}
+export interface FlightSkippedFile {
+  file: string;
+  reason: string;
+}
+/**
  * `GET /api/mission`. `waypoints` chỉ đáng tin khi `source == "readback"`.
  */
 export interface MissionPayload {
@@ -198,6 +305,26 @@ export interface MissionUploadResult {
 }
 export interface PongPayload {
   server_ts: number;
+}
+/**
+ * `GET/POST /api/recording…` — bộ ghi video camera về laptop (01/11/2026).
+ *
+ * Không nằm trong WebSocket: trang web hỏi REST mỗi vài giây là đủ cho đèn REC.
+ */
+export interface RecordingStatus {
+  auto: boolean;
+  running: boolean;
+  writing: boolean;
+  session_dir?: string | null;
+  segment_file?: string | null;
+  segments?: number;
+  frames_written?: number;
+  bad_frames?: number;
+  dropped_frames?: number;
+  bytes_written?: number;
+  started_at?: number | null;
+  last_frame_at?: number | null;
+  reason?: string | null;
 }
 /**
  * Trạng thái quyền lái. Dựng từ `SafetyState` + chủ sở hữu do hub giữ.
@@ -338,6 +465,11 @@ export interface RestResponses {
   "GET /api/events": EventsPayload;
   "GET /api/telemetry/history": TelemetryHistoryPayload;
   "GET /api/system": SystemPayload;
+  "GET /api/recording": RecordingStatus;
+  "POST /api/recording/start": RecordingStatus;
+  "POST /api/recording/stop": RecordingStatus;
+  "GET /api/flights": FlightListPayload;
+  "GET /api/flight": FlightDetail;
 }
 
 export const DOWNLINK_TYPES = [
