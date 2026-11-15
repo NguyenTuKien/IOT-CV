@@ -82,6 +82,21 @@
     },
     "GET /api/system": {
       "$ref": "#/$defs/SystemPayload"
+    },
+    "GET /api/recording": {
+      "$ref": "#/$defs/RecordingStatus"
+    },
+    "POST /api/recording/start": {
+      "$ref": "#/$defs/RecordingStatus"
+    },
+    "POST /api/recording/stop": {
+      "$ref": "#/$defs/RecordingStatus"
+    },
+    "GET /api/flights": {
+      "$ref": "#/$defs/FlightListPayload"
+    },
+    "GET /api/flight": {
+      "$ref": "#/$defs/FlightDetail"
     }
   },
   "uplink_rate_limits": {
@@ -592,6 +607,727 @@
       "title": "EventsPayload",
       "type": "object"
     },
+    "FlightDetail": {
+      "description": "`GET /api/flight?id=…` — đủ để phát lại một chuyến.",
+      "properties": {
+        "summary": {
+          "$ref": "#/$defs/FlightSummary"
+        },
+        "window_start": {
+          "title": "Window Start",
+          "type": "number"
+        },
+        "window_end": {
+          "title": "Window End",
+          "type": "number"
+        },
+        "home": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FlightPoint"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "series": {
+          "$ref": "#/$defs/FlightSeries"
+        },
+        "column_sources": {
+          "additionalProperties": {
+            "enum": [
+              "dataflash",
+              "tlog"
+            ],
+            "type": "string"
+          },
+          "title": "Column Sources",
+          "type": "object"
+        },
+        "modes": {
+          "items": {
+            "$ref": "#/$defs/FlightModeSpan"
+          },
+          "title": "Modes",
+          "type": "array"
+        },
+        "events": {
+          "items": {
+            "$ref": "#/$defs/FlightEvent"
+          },
+          "title": "Events",
+          "type": "array"
+        },
+        "video": {
+          "items": {
+            "$ref": "#/$defs/FlightVideoClip"
+          },
+          "title": "Video",
+          "type": "array"
+        },
+        "files": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "clock_offset_s": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clock Offset S"
+        },
+        "clock_note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clock Note"
+        }
+      },
+      "required": [
+        "summary",
+        "window_start",
+        "window_end",
+        "series",
+        "column_sources",
+        "modes",
+        "events",
+        "video",
+        "files"
+      ],
+      "title": "FlightDetail",
+      "type": "object"
+    },
+    "FlightEvent": {
+      "properties": {
+        "t": {
+          "title": "T",
+          "type": "number"
+        },
+        "level": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "fc",
+            "link",
+            "camera",
+            "arm"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t",
+        "level",
+        "source",
+        "text"
+      ],
+      "title": "FlightEvent",
+      "type": "object"
+    },
+    "FlightListPayload": {
+      "description": "`GET /api/flights` — mọi chuyến, cũ trước mới sau.",
+      "properties": {
+        "flights": {
+          "items": {
+            "$ref": "#/$defs/FlightSummary"
+          },
+          "title": "Flights",
+          "type": "array"
+        },
+        "skipped": {
+          "items": {
+            "$ref": "#/$defs/FlightSkippedFile"
+          },
+          "title": "Skipped",
+          "type": "array"
+        }
+      },
+      "required": [
+        "flights",
+        "skipped"
+      ],
+      "title": "FlightListPayload",
+      "type": "object"
+    },
+    "FlightModeSpan": {
+      "properties": {
+        "t0": {
+          "title": "T0",
+          "type": "number"
+        },
+        "t1": {
+          "title": "T1",
+          "type": "number"
+        },
+        "mode": {
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "t0",
+        "t1",
+        "mode"
+      ],
+      "title": "FlightModeSpan",
+      "type": "object"
+    },
+    "FlightPoint": {
+      "properties": {
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "FlightPoint",
+      "type": "object"
+    },
+    "FlightSeries": {
+      "description": "Chuỗi số liệu trên một lưới thời gian chung. `t` tính bằng giây từ `window_start`;\nmọi cột dài bằng `t`, `None` = không có dữ liệu lúc đó (khác 0).",
+      "properties": {
+        "t": {
+          "items": {
+            "type": "number"
+          },
+          "title": "T",
+          "type": "array"
+        },
+        "lat": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Lat",
+          "type": "array"
+        },
+        "lon": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Lon",
+          "type": "array"
+        },
+        "alt": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Alt",
+          "type": "array"
+        },
+        "speed": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Speed",
+          "type": "array"
+        },
+        "heading": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Heading",
+          "type": "array"
+        },
+        "roll": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Roll",
+          "type": "array"
+        },
+        "pitch": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Pitch",
+          "type": "array"
+        },
+        "volt": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Volt",
+          "type": "array"
+        },
+        "curr": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Curr",
+          "type": "array"
+        },
+        "mah": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Mah",
+          "type": "array"
+        },
+        "sats": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Sats",
+          "type": "array"
+        },
+        "hdop": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Hdop",
+          "type": "array"
+        },
+        "rangefinder": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Rangefinder",
+          "type": "array"
+        },
+        "vibe": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Vibe",
+          "type": "array"
+        },
+        "rssi": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Rssi",
+          "type": "array"
+        },
+        "dist_home": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Dist Home",
+          "type": "array"
+        },
+        "link_loss": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Link Loss",
+          "type": "array"
+        },
+        "cam_fps": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Cam Fps",
+          "type": "array"
+        }
+      },
+      "required": [
+        "t",
+        "lat",
+        "lon",
+        "alt",
+        "speed",
+        "heading",
+        "roll",
+        "pitch",
+        "volt",
+        "curr",
+        "mah",
+        "sats",
+        "hdop",
+        "rangefinder",
+        "vibe",
+        "rssi",
+        "dist_home",
+        "link_loss",
+        "cam_fps"
+      ],
+      "title": "FlightSeries",
+      "type": "object"
+    },
+    "FlightSkippedFile": {
+      "properties": {
+        "file": {
+          "title": "File",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "reason"
+      ],
+      "title": "FlightSkippedFile",
+      "type": "object"
+    },
+    "FlightSummary": {
+      "description": "Một dòng của danh sách chuyến. Số liệu tính trong khoảng ARM → DISARM.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "title": "Start",
+          "type": "number"
+        },
+        "end": {
+          "title": "End",
+          "type": "number"
+        },
+        "duration_s": {
+          "title": "Duration S",
+          "type": "number"
+        },
+        "took_off": {
+          "title": "Took Off",
+          "type": "boolean"
+        },
+        "sources": {
+          "items": {
+            "enum": [
+              "dataflash",
+              "tlog",
+              "video"
+            ],
+            "type": "string"
+          },
+          "title": "Sources",
+          "type": "array"
+        },
+        "modes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Modes",
+          "type": "array"
+        },
+        "max_alt_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Alt M"
+        },
+        "max_dist_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Dist M"
+        },
+        "path_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path M"
+        },
+        "battery_start_v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Battery Start V"
+        },
+        "battery_min_v": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Battery Min V"
+        },
+        "used_mah": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Used Mah"
+        },
+        "link_loss_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Link Loss Pct"
+        },
+        "video_fps": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Video Fps"
+        },
+        "video_coverage_pct": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Video Coverage Pct"
+        },
+        "warnings": {
+          "default": 0,
+          "title": "Warnings",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "duration_s",
+        "took_off",
+        "sources",
+        "modes"
+      ],
+      "title": "FlightSummary",
+      "type": "object"
+    },
+    "FlightVideoClip": {
+      "description": "Khung video thuộc chuyến. Khung thứ i: `GET /api/flights/frame?rec=…&n=row0+i`.",
+      "properties": {
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "row0": {
+          "title": "Row0",
+          "type": "integer"
+        },
+        "width": {
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "title": "Height",
+          "type": "integer"
+        },
+        "times": {
+          "items": {
+            "type": "number"
+          },
+          "title": "Times",
+          "type": "array"
+        }
+      },
+      "required": [
+        "rec",
+        "row0",
+        "width",
+        "height",
+        "times"
+      ],
+      "title": "FlightVideoClip",
+      "type": "object"
+    },
     "LimitsPayload": {
       "description": "Mọi ngưỡng UI cần. Phase 08/09/10 KHÔNG được hardcode số nào.",
       "properties": {
@@ -776,7 +1512,7 @@
       "type": "object"
     },
     "MissionWaypoint": {
-      "description": "`command` thêm ở Phase 07, mặc định NAV_WAYPOINT để client Phase 05\n(chưa biết trường này) vẫn gửi được. Lệnh ngoài `MISSION_COMMANDS` thì\n`validate_mission` từ chối, không phải pydantic — để lỗi về đúng mã\n`validation_failed` kèm số thứ tự item, thay vì `bad_payload` chung chung.",
+      "description": "`command` thêm ở Phase 07, mặc định NAV_WAYPOINT để client Phase 05\n(chưa biết trường này) vẫn gửi được. Lệnh ngoài `MISSION_COMMANDS` thì\n`validate_mission` từ chối, không phải pydantic — để lỗi về đúng mã\n`validation_failed` kèm số thứ tự item, thay vì `bad_payload` chung chung.\n\n`hold_s` (01/11/2026): số giây dừng tại điểm, chỉ NAV_WAYPOINT. 0 = bay lướt\nqua — ArduCopter vào cua trước khi tới điểm, chặng đi–về 8 m quay đầu sớm ~1,5 m.\nKiểu `float` cùng lý do với `command`: số lẻ về `validation_failed` có số item.",
       "properties": {
         "seq": {
           "title": "Seq",
@@ -798,6 +1534,11 @@
           "default": 16,
           "title": "Command",
           "type": "integer"
+        },
+        "hold_s": {
+          "default": 0.0,
+          "title": "Hold S",
+          "type": "number"
         }
       },
       "required": [
@@ -820,6 +1561,115 @@
         "server_ts"
       ],
       "title": "PongPayload",
+      "type": "object"
+    },
+    "RecordingStatus": {
+      "description": "`GET/POST /api/recording…` — bộ ghi video camera về laptop (01/11/2026).\n\nKhông nằm trong WebSocket: trang web hỏi REST mỗi vài giây là đủ cho đèn REC.",
+      "properties": {
+        "auto": {
+          "title": "Auto",
+          "type": "boolean"
+        },
+        "running": {
+          "title": "Running",
+          "type": "boolean"
+        },
+        "writing": {
+          "title": "Writing",
+          "type": "boolean"
+        },
+        "session_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Dir"
+        },
+        "segment_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment File"
+        },
+        "segments": {
+          "default": 0,
+          "title": "Segments",
+          "type": "integer"
+        },
+        "frames_written": {
+          "default": 0,
+          "title": "Frames Written",
+          "type": "integer"
+        },
+        "bad_frames": {
+          "default": 0,
+          "title": "Bad Frames",
+          "type": "integer"
+        },
+        "dropped_frames": {
+          "default": 0,
+          "title": "Dropped Frames",
+          "type": "integer"
+        },
+        "bytes_written": {
+          "default": 0,
+          "title": "Bytes Written",
+          "type": "integer"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "last_frame_at": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Frame At"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "auto",
+        "running",
+        "writing"
+      ],
+      "title": "RecordingStatus",
       "type": "object"
     },
     "SafetyStatus": {
