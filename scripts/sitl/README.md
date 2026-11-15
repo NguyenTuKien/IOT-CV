@@ -24,8 +24,11 @@ cd /mnt/d/Coding/IOT-CV
 | `run_log_dump.py` | Rút độ cao + các lần đổi mode từ `.BIN` ra CSV. Mặc định lấy log của `run_mode_chain.py`; FAIL nếu log không có lần đổi mode | 03.6 |
 | `run_param_load.py` | Param nào của dự án SITL nhận, param nào từ chối, param nào FC tự đổi sau reboot? Ghi snapshot `00`/`01`. So kết quả với mốc trong `params/sitl/README.md` theo tên, hai chiều | 04.1–04.3 |
 | `run_avoid_brake.py` | TFmini Plus ảo + file avoid của dự án có làm drone phanh trước cột không (có đối chứng AVOID tắt)? Ghi snapshot `02` + đồ thị | 04.4–04.5 |
+| `run_ngoai_troi.py` | Cấu hình bay ngoài trời (01/11/2026) có giữ được drone không khi người lái lỡ tay? Mission đi–về 8 m (RTL cuối không leo), trần 20 m ở Loiter/Stabilize, rào 50 m ở Loiter/AltHold, mất sóng tay cầm, pin yếu. `--chi S1,S6` chạy vài bài, `--bo-nap` giữ tham số đã nạp lần trước; ~11,5 phút cả bộ | 19.10, 20 |
+| `run_nap_khi_bay.py` | Nạp mission mới qua backend thật (`POST /api/mission`) lúc drone đang bay AUTO mission khác (02/11/2026): backend có cho drone đứng giữ chỗ GUIDED trước khi nạp không, đứng có yên không, FC có về item 1 không, bấm AUTO thì bay B1 hay nhảy sang item 3? **Cần backend chạy kèm** (`MAVLINK_ENDPOINT=tcp:127.0.0.1:5763`, bật khi runner in `PHASE ready`), nên không nằm trong `run-all.sh` | 07, 21 |
 
-**Chạy cả bộ một lần:** `bash scripts/sitl/run-all.sh` — tuần tự, ~6 phút, in bảng
+**Chạy cả bộ một lần:** `bash scripts/sitl/run-all.sh` — tuần tự, ~17 phút (riêng
+`run_ngoai_troi.py` ~11,5 phút), in bảng
 tổng, mã thoát khác 0 nếu có runner hỏng hoặc để sót tiến trình SITL. Chỉ vài
 runner: `--chi run_mode_chain,run_log_dump`. Lưu ý `run_param_load.py` và
 `run_avoid_brake.py` ghi đè các file đã commit (snapshot param, đồ thị); xem

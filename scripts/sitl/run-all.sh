@@ -7,8 +7,8 @@
 #   ... run-all.sh --chi run_mode_chain,run_log_dump   # chỉ chạy vài runner
 #
 # Tuần tự, không song song: mỗi runner tự bật một phiên SITL riêng và harness
-# TỪ CHỐI chạy khi đã có phiên khác sống. Trọn bộ mất khoảng 6 phút (đo 25/09/2026:
-# 5,5 phút, 7/7 PASS).
+# TỪ CHỐI chạy khi đã có phiên khác sống. Trọn bộ mất khoảng 17 phút: 7 runner đầu
+# 5,5 phút (đo 25/09/2026, 7/7 PASS), run_ngoai_troi thêm ~11,5 phút (01/11/2026).
 #
 # Chú ý: run_param_load.py và run_avoid_brake.py GHI ĐÈ các file đã commit
 # (firmware/ardupilot/params/sitl/0*.param, docs/so-tay/anh/04-avoid-phanh.png).
@@ -20,7 +20,7 @@ PY="${SITL_PYTHON:-$HOME/venv-ardupilot/bin/python3}"
 OUT="${SITL_RUN_DIR:-$HOME/.cache/iot-cv-sitl}/run-all"
 # run_log_dump.py phải chạy SAU run_mode_chain.py: nó đọc log của runner đó.
 RUNNERS=(run_mode_chain run_log_dump run_rtl_alt run_mission_auto run_mission_low_alt
-         run_param_load run_avoid_brake)
+         run_param_load run_avoid_brake run_ngoai_troi)
 
 if [[ "${1:-}" == "--chi" && -n "${2:-}" ]]; then
   IFS=',' read -r -a RUNNERS <<< "$2"

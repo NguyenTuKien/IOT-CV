@@ -11,7 +11,9 @@
 #
 # Dau day (mau day theo datasheet Benewake, bang 5.1):
 #   Do    PIN-1  +5V   -> pad 5V cua stack (KHONG dung chung UBEC voi ESP32-CAM)
-#   Trang PIN-2  RXD   -> de trong (driver ArduPilot khong gui lenh ra cam bien)
+#   Trang PIN-2  RXD   -> chan TX cua SERIAL3 (pad T3). Driver ArduPilot chi doc, nhung
+#                         co day nay thi chinh lai cam bien qua FC duoc, khong can USB-TTL:
+#                         scripts/fc/tfmini_qua_fc.py (da dung 26/10/2026 de chua 1 khung/s + mm).
 #   Xanh  PIN-3  TXD   -> chan RX cua SERIAL3 (UART3 = PC11)
 #   Den   PIN-4  GND   -> GND chung
 #
@@ -68,7 +70,39 @@ RNGFND1_MAX,6
 PRX1_TYPE,4
 
 # --- avoidance khi bay tay (Loiter / PosHold / AltHold) ---
+# Tranh vat can bang TFmini KHONG can fence: AC_Avoid 4.7.1 chi xet bit 2 cua
+# AVOID_ENABLE (proximity_avoidance_enabled). FENCE_ENABLE 1 la cau hinh bay ngoai
+# troi (fence can GPS moi arm duoc); bay trong nha thi de 0.
+# Stabilize KHONG tranh. AltHold: vat can gan hon AVOID_DIST_MAX thi FC tu nghieng
+# nguoc toi AVOID_ANG_MAX (khong phanh dung). Loiter/PosHold: dung o AVOID_MARGIN.
+# Bay thu trong nha 26/10/2026 FC tam de AVOID_MARGIN 0.5 / AVOID_DIST_MAX 0.5;
+# 01/11/2026 da tra ve 2 / 5 nhu duoi day (nguoi dung thoi bay trong nha).
+#
+# --- geofence ngoai troi (nguoi dung chon 01/11/2026) ---
+# FENCE_TYPE 3 = tran do cao (bit 0) + vong tron quanh home (bit 1). Khong bat
+# polygon (bit 2) vi chua ve hang rao da giac nao.
+# FENCE_ALT_MAX 20 m (so voi home) - nguoi dung khong muon bay cao qua 20 m.
+# FENCE_RADIUS 100 m (nguoi dung noi tu 50 m ngay 15/11/2026, tran giu 20 m).
+#   Wi-Fi do 02/11: MAVLink con dung toi ~49 m (mat goi 2-12 %, RSSI -90 dBm),
+#   camera VGA chi on trong ~15 m. Ngoai ~50 m co the mat web/telemetry: tay cam
+#   (FS-i6X) van la duong lai chinh; FS_GCS_ENABLE 0 nen mat Wi-Fi khong RTL.
+# FENCE_MARGIN 2: khi lai tay (Loiter/AltHold) AVOID_ENABLE bit 0 chan leo qua
+# 20 - 2 = 18 m, nen nguoi lai khong cham fence; cham fence (vd mission sai) thi
+# FENCE_ACTION 1 = RTL (khong co GPS thi Land). Fence vong tron can GPS moi ARM.
+# Backend chay drone that: MAX_ALT=18, MAX_DISTANCE_HOME=95 (lop phu, FC moi la chinh;
+# chay-drone-that.bat, cach rao 5 m).
+# SITL 01/11/2026 voi rao 50 m (scripts/sitl/run_ngoai_troi.py doc rao tu file nay):
+#   Loiter ga het co -> dung o 18.1 m; Loiter tien het co -> dung o 48 m.
+#   AltHold KHONG dung truoc vong 50 m (AC_Avoid cua AltHold chi xet TFmini):
+#   cham rao -> RTL, vot ~3.5 m ra ngoai khi dang bay 4 m/s.
+#   Stabilize khong co tran mem: leo 7 m/s cham 20 m -> RTL, vot len ~23.5 m.
+#   Ca hai truong hop deu tu bay ve ha canh dung cho cat canh.
 FENCE_ENABLE,1
+FENCE_TYPE,3
+FENCE_ALT_MAX,20
+FENCE_RADIUS,100
+FENCE_MARGIN,2
+FENCE_ACTION,1
 AVOID_ENABLE,3
 AVOID_BEHAVE,1
 AVOID_MARGIN,2
@@ -84,4 +118,6 @@ AVOID_ANG_MAX,10
 # De 0 LUC DAU: BendyRuler can biet duong vong, ma ta chi co 1 tia 3.6 do nhin
 # thang truoc - no se lech sang huong CHUA CO DU LIEU. Bay AUTO o bai trong da.
 # Khi da quen, ra bai rong dat vat can gia roi doi OA_TYPE,1 (BendyRuler) de thu.
+# 01/11/2026 nguoi dung chon GIU 0: mission bay 5-10 m tren bai trong, AUTO khong
+# tu tranh; TFmini chi tranh o Loiter/AltHold va khi lai tu web (Guided van toc).
 OA_TYPE,0
