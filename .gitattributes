@@ -16,6 +16,10 @@
 *.jpg binary
 *.jpeg binary
 *.mp4 binary
+*.avi binary
+*.hex binary
+*.apj binary
+*.elf binary
 
 # Parameter file của ArduPilot là text nhưng không nên bị "smart" merge
 *.param text eol=lf -merge

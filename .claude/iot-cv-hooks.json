@@ -1,0 +1,10 @@
+{
+  "_ghi_chu": "Cấu hình hook riêng của IOT-CV. Sửa thoải mái; xoá cả khối = tắt. Tắt tạm cả phiên: đặt biến IOT_CV_SKIP_HOOKS=1. onFail: remind = nhắc Claude MỘT lần ở cuối lượt (Claude tự quyết sửa hay để đó) | notify = chỉ báo bạn, không làm phiền Claude | off = tắt.",
+  "backendTests": {
+    "enabled": true,
+    "watch": ["backend/**/*.py"],
+    "command": "uv run pytest -q -x -p no:warnings",
+    "timeoutSec": 240,
+    "onFail": "remind"
+  }
+}
