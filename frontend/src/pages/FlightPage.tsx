@@ -1,12 +1,17 @@
 /**
  * Trang BAY — buồng lái. Mọi thứ cần khi drone đang trên không nằm trên MỘT màn
- * hình, không phải cuộn tìm:
+ * hình, không phải cuộn tìm (≥ 1280 px):
  *
  *   ┌ màn hình bay ┐┌──── khung chính: Bản đồ ⇄ 3D ────┐┌ chế độ bay ┐
  *   │ PFD + ô số   ││                                    ││ HOLD, mode │
- *   ├── nhật ký ───┤│                                    ││ ARM, TKOFF │
- *   │              │├────── video ──────┬── radar ───────┤├─ lái tay ──┤
+ *   │              ││                                    ││ ARM, TKOFF │
+ *   ├── vật cản ───┤├────── video ──────┬── nhật ký ─────┤├─ lái tay ──┤
  *   └──────────────┘└───────────────────┴────────────────┘└────────────┘
+ *
+ * Nhật ký KHÔNG nằm dưới màn hình bay nữa (15/11/2026): hai thứ cùng cần nhìn liên
+ * tục mà chung một cột thì cái nào cũng bị bóp. Nhật ký sang cạnh video, đủ rộng
+ * để đọc nguyên câu; dưới màn hình bay là radar vật cản — cũng là một đồng hồ đo.
+ * Lưới chi tiết từng cỡ màn hình: `.cockpit` trong `styles/effects.css`.
  *
  * Soạn mission ở trang Nhiệm vụ — ở đây bấm bản đồ KHÔNG thêm điểm (một cú bấm
  * nhầm lúc đang bay không được đổi bản nháp). Bản nháp và mission đã nạp vẫn
@@ -41,7 +46,7 @@ function Loading3D() {
   );
 }
 
-function MainView() {
+function MainView({ className }: { className?: string }) {
   const view = useSettings((s) => s.cockpitView);
   const quality = useSettings((s) => s.twinQuality);
   const ground = useSettings((s) => s.twinGround);
@@ -51,11 +56,12 @@ function MainView() {
   return (
     <Panel
       title={view === "map" ? "Bản đồ" : "Không gian 3D"}
-      subtitle={view === "map" ? "Drone, vệt bay, home, rào ảo, mission" : "Góc máy bám đuôi · kéo sang trang 3D để đổi góc"}
+      subtitle={view === "map" ? "Drone, vệt bay, home, rào ảo, mission" : "Góc máy bám đuôi · sang trang 3D để đổi góc"}
       icon={view === "map" ? MapIcon : IconTwin}
+      accent="teal"
       variant="instrument"
       testId="map-panel"
-      className="min-h-[420px] flex-1"
+      className={className}
       actions={
         <>
           <Segmented<CockpitView>
@@ -70,7 +76,7 @@ function MainView() {
           />
           <Link
             to={view === "map" ? "/mission" : "/3d"}
-            className="hidden h-7 items-center gap-1 rounded-md px-2 text-[11px] text-muted-foreground transition-colors hover:bg-foreground/6 hover:text-foreground lg:flex"
+            className="hidden h-7 items-center gap-1 rounded-md px-2 text-[11px] whitespace-nowrap text-muted-foreground transition-colors hover:bg-foreground/6 hover:text-foreground sm:flex"
           >
             {view === "map" ? "Soạn mission" : "Mở trang 3D"} <ArrowUpRight className="size-3" />
           </Link>
@@ -90,28 +96,27 @@ function MainView() {
 
 export default function FlightPage() {
   return (
-    <div className="grid gap-3 p-3 xl:h-[calc(100dvh-5.75rem)] xl:min-h-[760px] xl:grid-cols-[minmax(360px,400px)_minmax(0,1fr)_minmax(330px,370px)]">
-      {/* Cột trái: màn hình bay + nhật ký (cuộn riêng khi màn thấp) */}
-      <div className="flex min-h-0 flex-col gap-3 xl:overflow-y-auto">
-        <Hud className="shrink-0" />
-        <EventLog className="min-h-[220px] flex-1" />
+    <div className="cockpit">
+      {/* Cột trái: đồng hồ đo — màn hình bay + radar vật cản */}
+      <div className="cockpit-col">
+        {/* Màn hình bay co lại được (xem Hud.tsx), nhưng không dưới ~490 px: ô số không bị cắt. */}
+        <Hud className="ck-hud xl:min-h-[490px]" />
+        <ObstaclePanel className="shrink-0 ck-obs" />
       </div>
 
-      {/* Giữa: khung chính + hàng dưới (video, radar) */}
-      <div className="flex min-h-0 flex-col gap-3">
-        <div className="flex min-h-[420px] flex-1 flex-col">
-          <MainView />
-        </div>
-        <div className="grid shrink-0 gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] xl:h-[300px]">
-          <VideoPanel className="min-h-[260px]" />
-          <ObstaclePanel />
+      {/* Giữa: khung chính + hàng dưới (video | nhật ký) */}
+      <div className="cockpit-col cockpit-center">
+        <MainView className="min-h-[420px] ck-map xl:min-h-[360px] xl:flex-1" />
+        <div className="cockpit-col cockpit-row">
+          <VideoPanel className="min-h-[280px] ck-video xl:min-h-0" />
+          <EventLog showLink className="h-[340px] ck-log lg:h-auto lg:min-h-[320px] xl:h-auto xl:min-h-0" />
         </div>
       </div>
 
       {/* Cột phải: chế độ bay + lái tay */}
-      <div className="flex min-h-0 flex-col gap-3 xl:overflow-y-auto xl:pr-0.5">
-        <ModePanel className="shrink-0" />
-        <ManualControl className="shrink-0" />
+      <div className="cockpit-col">
+        <ModePanel className="shrink-0 ck-mode" />
+        <ManualControl className="shrink-0 ck-manual" />
       </div>
     </div>
   );

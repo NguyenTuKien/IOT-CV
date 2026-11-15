@@ -8,6 +8,8 @@
  */
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 
+import { ACCENT_LINE, ACCENT_TILE } from "@/lib/tone";
+import type { Accent } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 
 export type PanelIcon = ComponentType<{ className?: string }>;
@@ -21,6 +23,11 @@ interface PanelProps {
   actions?: ReactNode;
   children: ReactNode;
   variant?: "default" | "instrument";
+  /**
+   * Màu PHÂN LOẠI của panel (ô icon + vạch dưới đầu panel): mỗi loại thông tin
+   * một màu, để mắt tìm panel nhanh hơn đọc tên. Không mang nghĩa an toàn.
+   */
+  accent?: Accent;
   className?: string;
   bodyClassName?: string;
   style?: CSSProperties;
@@ -34,6 +41,7 @@ export function Panel({
   actions,
   children,
   variant = "default",
+  accent = "cyan",
   className,
   bodyClassName,
   style,
@@ -44,20 +52,24 @@ export function Panel({
       className={cn("panel flex min-h-0 flex-col overflow-hidden", variant === "instrument" && "panel-instrument", className)}
       style={style}
       data-testid={testId}
+      data-accent={accent}
     >
-      <header className="relative flex min-h-11 shrink-0 items-center gap-2.5 px-3.5 py-2">
-        <span className="grid size-7 shrink-0 place-items-center rounded-[0.45rem] bg-hud-cyan/10 text-hud-cyan ring-1 ring-hud-cyan/25 ring-inset">
-          <Icon className="size-4" />
-        </span>
-        <div className="min-w-0 leading-tight">
-          <h2 className="truncate font-display text-[0.9rem] font-semibold tracking-[0.02em] text-foreground/95">{title}</h2>
-          {subtitle ? <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p> : null}
+      {/* Đầu panel tự xuống dòng khi hẹp: nút/badge xuống hàng dưới thay vì cắt tên panel thành "…". */}
+      <header className="relative flex min-h-11 shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1.5 px-3.5 py-2">
+        <div className="flex min-w-[9rem] flex-1 items-center gap-2.5">
+          <span className={cn("grid size-7 shrink-0 place-items-center rounded-lg bg-linear-to-br ring-1 ring-inset", ACCENT_TILE[accent])}>
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0 leading-tight">
+            <h2 className="font-display text-[0.9rem] font-semibold tracking-[0.02em] text-foreground/95">{title}</h2>
+            {subtitle ? <p className="line-clamp-2 text-[11px] text-muted-foreground">{subtitle}</p> : null}
+          </div>
         </div>
-        {actions ? <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div> : null}
-        {/* Đường kẻ dưới đầu panel: sáng ở trái, mờ dần sang phải. */}
+        {actions ? <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5">{actions}</div> : null}
+        {/* Đường kẻ dưới đầu panel: sáng ở trái (màu của panel), mờ dần sang phải. */}
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-x-3 bottom-0 h-px bg-linear-to-r from-hud-cyan/35 via-border to-transparent"
+          className={cn("pointer-events-none absolute inset-x-3 bottom-0 h-px bg-linear-to-r via-border to-transparent", ACCENT_LINE[accent])}
         />
       </header>
       <div className={cn("relative min-h-0 flex-1", bodyClassName)}>{children}</div>

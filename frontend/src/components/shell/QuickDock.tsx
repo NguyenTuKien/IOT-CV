@@ -1,17 +1,23 @@
 /**
- * Thanh lệnh thoát hiểm nổi ở góc phải dưới — có ở MỌI trang trừ trang Bay
- * (trang Bay đã có đủ nút trong panel Chế độ bay; hai bộ nút cùng chỗ là thừa).
+ * Ba lệnh thoát hiểm HOLD / RTL / LAND — có ở MỌI trang trừ trang Bay (trang Bay
+ * đã có đủ nút trong panel Chế độ bay; hai bộ nút cùng chỗ là thừa).
  *
  * Người vận hành đang xem biểu đồ hay nhật ký vẫn phải dừng được drone bằng MỘT
- * cú bấm. Chỉ ba lệnh DỪNG: HOLD, RTL, LAND — không hỏi xác nhận.
- * `data-testid` khác trang Bay (`dock-*`) để locator E2E không trùng.
+ * cú bấm. Chỉ ba lệnh DỪNG, không hỏi xác nhận.
+ *
+ * Hai chỗ đặt, chỉ một chỗ được render (`useMediaQuery`):
+ *  - màn ≥ md: nằm trong dải trạng thái của header (`EmergencyActions inline`) —
+ *    luôn thấy, không bao giờ đè lên nội dung trang như thanh nổi cũ;
+ *  - màn hẹp: thanh nổi giữa đáy màn hình (`QuickDock`).
+ * `data-testid` (`dock-*`) khác trang Bay (`cmd-*`) để locator E2E không trùng.
  */
 import { Loader2 } from "lucide-react";
-import { useLocation } from "react-router";
 
 import { IconHold, IconLand, IconReturnHome } from "@/components/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { sendHold, sendLand, sendRtl } from "@/hooks/flightCommands";
+import { DESKTOP_QUERY, useMediaQuery } from "@/hooks/useMediaQuery";
+import { useShowsEmergency } from "@/hooks/useShowsEmergency";
 import { cn } from "@/lib/utils";
 import { useControlStore } from "@/store/control";
 import { useTelemetryStore } from "@/store/telemetry";
@@ -22,24 +28,30 @@ const ACTIONS = [
   { key: "land", label: "LAND", hint: "Hạ cánh thẳng xuống tại chỗ", icon: IconLand, run: sendLand },
 ] as const;
 
-export function QuickDock() {
-  const { pathname } = useLocation();
+export function EmergencyActions({ inline = false }: { inline?: boolean }) {
   const pending = useControlStore((s) => s.pending);
   const armed = useTelemetryStore((s) => s.telemetry?.armed === true);
-  if (pathname === "/") return null;
   const waiting = new Set(Object.values(pending).map((p) => p.target));
 
   return (
     <div
       className={cn(
-        "glass-fixed fixed right-4 bottom-4 z-30 flex items-center gap-1 rounded-2xl p-1.5 shadow-[0_18px_40px_-18px] shadow-(color:--shadow-tint)",
-        armed && "ring-1 ring-hud-red/40",
+        "flex items-center gap-1",
+        inline
+          ? "shrink-0 rounded-xl border border-border bg-foreground/[0.03] p-0.5"
+          : "glass-fixed rounded-2xl p-1.5 shadow-[0_18px_40px_-18px] shadow-(color:--shadow-tint)",
+        armed && "border-hud-red/45 ring-1 ring-hud-red/30",
       )}
       role="toolbar"
       aria-label="Lệnh thoát hiểm"
       data-testid="quick-dock"
     >
-      <span className="eyebrow hidden px-2 text-[9.5px] sm:block">{armed ? "Đang bay" : "Thoát hiểm"}</span>
+      <span
+        className={cn("eyebrow px-1.5 text-[9.5px]", armed ? "text-hud-red" : "", inline ? "hidden xl:block" : "hidden min-[420px]:block")}
+        title={armed ? "Drone đang ARMED" : undefined}
+      >
+        {armed ? "Đang bay" : "Thoát hiểm"}
+      </span>
       {ACTIONS.map((a) => {
         const Icon = a.icon;
         return (
@@ -49,16 +61,31 @@ export function QuickDock() {
                 type="button"
                 onClick={() => a.run()}
                 data-testid={`dock-${a.key}`}
-                className="flex h-9 items-center gap-1.5 rounded-xl border border-hud-cyan/30 bg-hud-cyan/10 px-3 font-mono text-xs font-semibold text-hud-cyan transition-colors hover:bg-hud-cyan/20 active:translate-y-px"
+                className={cn(
+                  "btn-raised flex items-center gap-1.5 rounded-lg border border-hud-cyan/35 bg-linear-to-b from-hud-cyan/18 to-hud-cyan/8 font-mono font-semibold text-hud-cyan transition-colors hover:from-hud-cyan/28 hover:to-hud-cyan/14 active:translate-y-px",
+                  inline ? "h-7 px-2 text-[11px]" : "h-10 px-3.5 text-xs",
+                )}
               >
-                {waiting.has(a.key) ? <Loader2 className="size-4 animate-spin" aria-label="Đang chờ FC" /> : <Icon className="size-4" />}
+                {waiting.has(a.key) ? <Loader2 className="size-3.5 animate-spin" aria-label="Đang chờ FC" /> : <Icon className="size-3.5" />}
                 {a.label}
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">{a.hint}</TooltipContent>
+            <TooltipContent side={inline ? "bottom" : "top"}>{a.hint}</TooltipContent>
           </Tooltip>
         );
       })}
+    </div>
+  );
+}
+
+/** Thanh nổi — CHỈ ở màn hẹp; màn rộng thì `AppHeader` đặt `EmergencyActions` trong header. */
+export function QuickDock() {
+  const shows = useShowsEmergency();
+  const desktop = useMediaQuery(DESKTOP_QUERY);
+  if (!shows || desktop) return null;
+  return (
+    <div className="fixed inset-x-0 bottom-3 z-30 flex justify-center px-3">
+      <EmergencyActions />
     </div>
   );
 }

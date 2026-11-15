@@ -9,7 +9,8 @@ import { BatteryFull, BatteryLow, BatteryMedium } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { IconSatellite } from "@/components/icons";
-import { NO_VALUE, batteryTone, formatNumber, hasValue, modeTone } from "@/lib/format";
+import { ModeBadge } from "@/components/kit";
+import { NO_VALUE, batteryTone, formatNumber, hasValue } from "@/lib/format";
 import { GPS_FIX_3D, GPS_FIX_LABEL } from "@/lib/protocol";
 import { TONE_CHIP } from "@/lib/tone";
 import type { Tone } from "@/lib/tone";
@@ -31,11 +32,8 @@ function Chip({ tone, title, children, className, testId }: { tone: Tone; title:
 
 export function ModeChip() {
   const mode = useTelemetryStore((s) => s.telemetry?.mode);
-  return (
-    <Chip tone={mode ? modeTone(mode) : "neutral"} title="Chế độ bay hiện tại (từ telemetry)" testId="chip-mode">
-      {mode ?? NO_VALUE}
-    </Chip>
-  );
+  // Màu riêng từng mode (`lib/modes.ts`) — cùng màu với nút mode và trang Lịch sử bay.
+  return <ModeBadge mode={mode} size="md" title="Chế độ bay hiện tại (từ telemetry)" testId="chip-mode" />;
 }
 
 export function ArmedChip() {
@@ -45,10 +43,11 @@ export function ArmedChip() {
     <Chip
       tone={known && armed ? "danger" : "neutral"}
       title={armed ? "Motor đã được phép quay — đang nguy hiểm" : "Motor bị khoá"}
-      className={armed ? "caution-pulse" : undefined}
+      // ARMED là thứ phải nổi nhất dải trạng thái: nền đỏ đặc, nhấp nháy.
+      className={cn(armed && "border-hud-red bg-hud-red text-background caution-pulse")}
       testId="chip-armed"
     >
-      <span className={cn("size-1.5 rounded-full", armed ? "bg-hud-red" : "bg-muted-foreground/60")} aria-hidden />
+      <span className={cn("size-1.5 rounded-full", armed ? "bg-background" : "bg-muted-foreground/60")} aria-hidden />
       {known ? (armed ? "ARMED" : "DISARMED") : NO_VALUE}
     </Chip>
   );

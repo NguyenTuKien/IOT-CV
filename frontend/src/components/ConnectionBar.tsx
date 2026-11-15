@@ -70,9 +70,10 @@ function Segment({ name, light, text, hint, testId }: SegmentProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <div className="flex w-32 flex-col items-center px-1 xl:w-40" data-testid={testId} data-light={light}>
+        <div className="flex w-24 flex-col items-center px-1 sm:w-32 xl:w-40" data-testid={testId} data-light={light}>
           <span className="sr-only">{name}</span>
-          <span className={cn("max-w-full truncate font-mono text-[10.5px] leading-4 font-medium", LIGHT_TEXT[light])}>{text}</span>
+          {/* Không cắt "…": máy hẹp thì xuống dòng (ô vẫn đủ chỗ cho hai dòng). */}
+          <span className={cn("max-w-full text-center font-mono text-[10.5px] leading-[13px] font-medium wrap-anywhere", LIGHT_TEXT[light])}>{text}</span>
           <svg viewBox="0 0 160 6" className="h-1.5 w-full" preserveAspectRatio="none" aria-hidden>
             <line x1="2" y1="3" x2="158" y2="3" className="stroke-foreground/10" strokeWidth="3" strokeLinecap="round" />
             <line

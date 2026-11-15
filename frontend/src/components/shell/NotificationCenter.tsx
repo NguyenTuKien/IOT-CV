@@ -3,12 +3,15 @@
  * Mở ra = đánh dấu đã xem tới sự kiện mới nhất → chấm trên chuông tắt.
  * Toàn bộ nhật ký (kể cả `info`, lọc, xuất file) ở trang Nhật ký.
  */
-import { BellOff, OctagonX, TriangleAlert } from "lucide-react";
+import { BellOff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 
-import { EmptyState } from "@/components/kit";
+import { Chip, EmptyState } from "@/components/kit";
 import { DialogDescription, DialogTitle, Dialog, SheetContent } from "@/components/ui/dialog";
+import { groupRepeats, hintFor } from "@/lib/eventGroups";
+import { LEVEL_STYLE, sourceAccent, sourceLabel } from "@/lib/eventStyle";
+import { ACCENT_SOFT } from "@/lib/tone";
 import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useTelemetryStore } from "@/store/telemetry";
@@ -20,7 +23,7 @@ export function NotificationCenter() {
   const markSeen = useUiStore((s) => s.markSeen);
   const seenUntil = useUiStore((s) => s.seenUntil);
   const events = useTelemetryStore((s) => s.events);
-  const alerts = useMemo(() => events.filter((e) => e.level !== "info").slice(0, 60), [events]);
+  const alerts = useMemo(() => groupRepeats(events.filter((e) => e.level !== "info")).slice(0, 60), [events]);
   // Mốc đã xem TRƯỚC khi mở lần này — để tô dòng mới. Chụp đúng lượt render
   // mở hộp (mẫu "điều chỉnh state khi prop đổi"), trước khi effect đánh dấu đã xem.
   const [opened, setOpened] = useState({ open, seen: seenUntil });
@@ -45,19 +48,26 @@ export function NotificationCenter() {
             </EmptyState>
           ) : (
             <ul className="flex flex-col gap-1">
-              {alerts.map((e) => {
-                const Icon = e.level === "error" ? OctagonX : TriangleAlert;
+              {alerts.map(({ entry: e, count, firstTs }) => {
+                const { icon: Icon, accent } = LEVEL_STYLE[e.level];
                 const fresh = e.ts > seenBefore;
+                const hint = hintFor(e.message);
                 return (
                   <li
                     key={e.key}
-                    className={cn("flex gap-3 rounded-lg px-3 py-2.5", fresh ? "bg-foreground/5" : "")}
+                    className={cn("relative flex gap-3 rounded-lg border px-3 py-2.5", fresh ? "border-foreground/10 bg-foreground/5" : "border-transparent")}
                   >
-                    <Icon className={cn("mt-0.5 size-4 shrink-0", e.level === "error" ? "text-hud-red" : "text-hud-amber")} aria-label={e.level} />
+                    <span className={cn("grid size-7 shrink-0 place-items-center rounded-lg", ACCENT_SOFT[accent])}>
+                      <Icon className="size-4" aria-label={e.level} />
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] leading-snug">{e.message}</p>
-                      <p className="mt-0.5 font-mono text-[10.5px] text-muted-foreground">
-                        {formatClock(e.ts)} · {e.source} · {e.code}
+                      <p className="text-[13px] leading-snug font-medium">{e.message}</p>
+                      {hint ? <p className="mt-0.5 text-[12px] leading-snug text-muted-foreground">{hint}</p> : null}
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[10.5px] text-muted-foreground">
+                        <Chip tone={sourceAccent(e.source)} size="xs" title={`nguồn: ${e.source} · code: ${e.code}`}>
+                          {sourceLabel(e.source)}
+                        </Chip>
+                        {count > 1 ? `×${count} · ${formatClock(firstTs)}–${formatClock(e.ts)}` : formatClock(e.ts)}
                       </p>
                     </div>
                     {fresh ? <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-hud-cyan" aria-label="mới" /> : null}

@@ -10,8 +10,9 @@
  */
 import { CircleCheck, Circle, RotateCcw, ShieldCheck } from "lucide-react";
 
+import { pageMeta } from "@/app/routes";
 import { IconPreflight } from "@/components/icons";
-import { PageHeader } from "@/components/kit";
+import { Chip, PageHeader } from "@/components/kit";
 import { Panel } from "@/components/Panel";
 import { CheckRows, VerdictBanner } from "@/components/preflight/Checks";
 import { Button } from "@/components/ui/button";
@@ -39,13 +40,14 @@ export default function PreflightPage() {
   return (
     <div className="space-y-3 p-3 lg:p-4">
       <PageHeader
+        {...pageMeta("/preflight")}
         eyebrow="An toàn"
         title="Kiểm tra trước bay"
         description="Ô tự động đọc từ drone; danh sách thủ công là việc chỉ người vận hành xác nhận được. Trang này không thay pre-arm check của ArduPilot."
       />
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(300px,380px)]">
-        <Panel title="Tự động" subtitle="Cập nhật liên tục từ telemetry" icon={IconPreflight} bodyClassName="flex flex-col gap-3 p-3" testId="preflight-auto">
-          <VerdictBanner verdict={verdict} />
+        <Panel title="Tự động" subtitle="Cập nhật liên tục từ telemetry" icon={IconPreflight} accent="cyan" bodyClassName="flex flex-col gap-3 p-3" testId="preflight-auto">
+          <VerdictBanner verdict={verdict} checks={checks} />
           <CheckRows checks={checks} />
         </Panel>
 
@@ -53,19 +55,25 @@ export default function PreflightPage() {
           title="Người vận hành tự xác nhận"
           subtitle={`${done}/${MANUAL_CHECKS.length} · tick tự hết hạn sau ${CHECKLIST_TTL_MS / 3_600_000} giờ`}
           icon={ShieldCheck}
+          accent="green"
           bodyClassName="p-3"
           testId="preflight-manual"
           actions={
-            <Button size="xs" variant="ghost" onClick={reset} disabled={done === 0}>
-              <RotateCcw aria-hidden /> Làm lại
-            </Button>
+            <>
+              <Chip tone={done === MANUAL_CHECKS.length ? "ok" : done ? "warn" : "neutral"} size="xs" mono>
+                {done}/{MANUAL_CHECKS.length}
+              </Chip>
+              <Button size="xs" variant="ghost" onClick={reset} disabled={done === 0}>
+                <RotateCcw aria-hidden /> Làm lại
+              </Button>
+            </>
           }
         >
           <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-foreground/8">
             <div className="h-full rounded-full bg-hud-green transition-[width] duration-500" style={{ width: `${(done / MANUAL_CHECKS.length) * 100}%` }} />
           </div>
           <ul className="space-y-1.5">
-            {MANUAL_CHECKS.map((c) => {
+            {MANUAL_CHECKS.map((c, i) => {
               const on = isTicked(ticks, c.id);
               const Icon = on ? CircleCheck : Circle;
               return (
@@ -82,8 +90,11 @@ export default function PreflightPage() {
                     )}
                   >
                     <Icon className={cn("mt-0.5 size-4.5 shrink-0", on ? "text-hud-green" : "text-muted-foreground")} />
-                    <span className="min-w-0">
-                      <span className="block text-[13.5px] leading-snug">{c.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13.5px] leading-snug">
+                        <span className="num mr-1.5 text-[11px] text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+                        {c.label}
+                      </span>
                       <span className="block text-xs text-muted-foreground">
                         {c.detail}
                         {on ? ` · đã tick lúc ${formatClock(ticks[c.id] / 1000)}` : ""}
@@ -96,7 +107,7 @@ export default function PreflightPage() {
           </ul>
         </Panel>
 
-        <Panel title="Năm luật không thương lượng" subtitle="Tóm tắt SAFETY.md" icon={ShieldCheck} bodyClassName="p-3">
+        <Panel title="Năm luật không thương lượng" subtitle="Tóm tắt SAFETY.md" icon={ShieldCheck} accent="red" bodyClassName="p-3">
           <ol className="space-y-3">
             {SAFETY_RULES.map(([title, body], i) => (
               <li key={title} className="flex gap-3">

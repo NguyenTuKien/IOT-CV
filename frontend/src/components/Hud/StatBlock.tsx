@@ -64,23 +64,28 @@ export function StatBlock({ label, icon: Icon, value, hint, tone = "neutral", su
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "well group relative flex min-w-0 flex-col gap-1 px-2.5 py-2 transition-colors hover:border-hud-cyan/35",
+            "well group relative flex min-w-0 flex-col gap-1 overflow-hidden px-2.5 pt-1.5 pb-2 transition-colors hover:border-hud-cyan/35",
             className,
           )}
           data-testid={`stat-${label}`}
           data-tone={tone}
         >
-          <div className="flex items-center gap-1.5 font-display text-[10.5px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          {/* Vạch màu bên trái: đọc được trạng thái ô từ khoé mắt, không cần đọc số. */}
+          <span aria-hidden className={cn("absolute inset-y-2 left-0 w-[3px] rounded-r-full", TONE_BAR[tone], tone === "neutral" && "opacity-0")} />
+          <div className="flex items-center gap-1.5 font-display text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
             <Icon className="size-3.5 shrink-0 opacity-80" aria-hidden />
-            <span className="truncate">{label}</span>
-            {aside ? <span className="ml-auto">{aside}</span> : null}
+            <span className="min-w-0 wrap-anywhere">{label}</span>
+            {aside ? <span className="ml-auto shrink-0">{aside}</span> : null}
           </div>
-          <div className={cn("truncate font-mono text-[1.2rem] leading-none font-semibold tabular-nums", TONE_TEXT[tone])}>
-            {typeof value === "string" ? <ValueText text={value} /> : value}
+          {/* Số và đường xu hướng chung một hàng: ô thấp, cả lưới vừa khung không phải cuộn. */}
+          <div className="flex items-end justify-between gap-2">
+            <div className={cn("min-w-0 font-mono text-[1.15rem] leading-none font-semibold whitespace-nowrap tabular-nums", TONE_TEXT[tone])}>
+              {typeof value === "string" ? <ValueText text={value} /> : value}
+            </div>
+            {trend ? <div className="w-[4.5rem] shrink-0 opacity-90">{trend}</div> : null}
           </div>
-          {trend ? <div className="-mx-0.5 -mb-0.5">{trend}</div> : null}
           {meter !== undefined ? (
-            <div className="h-1 overflow-hidden rounded-full bg-foreground/8">
+            <div className="h-[3px] overflow-hidden rounded-full bg-foreground/8">
               {meter !== null ? (
                 <div
                   className={cn("h-full rounded-full transition-[width] duration-300", TONE_BAR[tone])}
@@ -89,7 +94,7 @@ export function StatBlock({ label, icon: Icon, value, hint, tone = "neutral", su
               ) : null}
             </div>
           ) : null}
-          {sub ? <div className="text-[11px] leading-tight text-muted-foreground">{sub}</div> : null}
+          {sub ? <div className="text-[10.5px] leading-tight text-muted-foreground">{sub}</div> : null}
         </div>
       </TooltipTrigger>
       <TooltipContent side="right" className="max-w-64">
