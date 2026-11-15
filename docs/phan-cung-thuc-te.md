@@ -2,6 +2,10 @@
 
 Cập nhật **25/10/2026** sau khi lắp ráp và kiểm bằng máy (`plans/reports/261025-kiem-tra-phan-cung-that.md`),
 rồi hiệu chỉnh + bay thử trong nhà + chốt tay cầm (`plans/reports/261025-hieu-chinh-bay-trong-nha.md`);
+**01/11/2026** thôi bay trong nhà, FC chuyển sang cấu hình ngoài trời — trần 20 m, vòng 50 m, mất sóng
+tay cầm hay pin yếu thì RTL, tốc độ 3 m/s (`plans/reports/261101-cau-hinh-bay-ngoai-troi.md`);
+**15/11/2026** vòng nới lên **100 m** (trần giữ 20 m), backend giới hạn mission 95 m
+(`plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md` mục 11);
 danh sách linh kiện do người dùng xác nhận trực tiếp ngày 12/10/2026. Chỗ nào trong plan, sổ tay, code hay báo
 cáo khác với file này thì **file này đúng**. Các báo cáo nghiên cứu ngày 21/09/2026 trong
 `plans/reports/` được giữ nguyên như bản ghi lịch sử — đọc chúng để hiểu lý do, đừng lấy chúng làm
@@ -12,7 +16,7 @@ danh sách linh kiện.
 | Vai trò | Món thật | Trạng thái | Điều phải nhớ |
 |---|---|---|---|
 | Bo bay + ESC | Stack **SpeedyBee F405 V5 OX32 55A**, bản **"Model Aircraft"** (FC F405 V5 + ESC 4in1 OX32 55A) | Đã có; **FC đã chạy ArduPilot từ 13/10/2026** (bản `d450a747` + `01-base.param`, lên COM6 trên máy dự án); đã lắp lên khung, người dùng bay thử 24/10/2026 | ArduPilot board `speedybeef4v5`, nạp DFU không cần kích hoạt app; `FRAME_TYPE 12` (trên bo đang là `FRAME_TYPE 1` + `SERVO1..4_FUNCTION 36/33/34/35`, cùng thứ tự motor); hệ số dòng 370,4 A/V. **Cài đặt ESC đã đổi 25/10/2026** (`firmware/esc-ox32/`). `MOT_SPIN_ARM 0,13` (25/10/2026, giảm khởi động hụt ở M1). Accel + Level hiệu chỉnh lại 25/10/2026. Chi tiết ở mục dưới |
-| Cảm biến tránh vật cản | **Benewake TFmini Plus** | Đã hàn lên FC: xanh → R3, đỏ/đen → 5V/G cụm LED1, **dây trắng chưa hàn**. 25/10/2026: cảm biến **sai cấu hình** (1 khung/giây, đơn vị mm), ArduPilot báo `Rangefinder 1: No Data`. Tối 25/10/2026 **tạm tắt trên FC** (`RNGFND1_TYPE 0`, `PRX1_TYPE 0`, kèm `FENCE_ENABLE 0`) để arm được; bật lại `20 / 4 / 1` sau khi sửa | `SERIAL3` = pad T3/R3; **chỉ cấp 5 V**. Hàn dây trắng vào T3 thì cấu hình lại được qua FC (hướng dẫn lắp ráp bước E7) |
+| Cảm biến tránh vật cản | **Benewake TFmini Plus** (firmware v1.7.0) | Đã hàn lên FC: xanh → R3, trắng → T3 (26/10/2026), đỏ/đen → 5V/G cụm LED1. **Chạy, 26/10/2026**: đã về cài đặt gốc qua FC (trước đó 1 khung/giây, đơn vị mm) → ~100 khung/giây, đơn vị cm; đo vật 20 cm → 13 cm, ~1 m → 98–104 cm. FC (**01/11/2026, cấu hình ngoài trời**): `RNGFND1_TYPE 20`, `PRX1_TYPE 4`, `AVOID_MARGIN 2` / `AVOID_DIST_MAX 5` (bỏ mốc 0,5 m của bay trong nhà), `FENCE_ENABLE 1` — trần 20 m, vòng 100 m quanh home (50 m tới 15/11/2026). Báo cáo `plans/reports/261026-tfmini-va-receiver.md`, `plans/reports/261101-cau-hinh-bay-ngoai-troi.md` | `SERIAL3` = pad T3/R3; **chỉ cấp 5 V**. Chỉnh/đọc cảm biến qua FC: `scripts/fc/tfmini_qua_fc.py` (cần `RNGFND1_TYPE 0` lúc chạy) |
 | Cầu MAVLink qua Wi-Fi | **ESP32 DevKit có chip USB-UART CP2102** (ESP32-D0WD-V3, flash 4 MB) | Đã nạp DroneBridge v2.4.1 ngày 12/10/2026 | Lên COM4 trên máy dự án. STA vào hotspot laptop `IOTCV-HOTSPOT` (13/10/2026): ESP32 tên `DroneBridgeESP32.mshome.net` (IP DHCP, đổi mỗi lần hotspot khởi động lại), laptop `192.168.137.1`, UDP 14550. UART TX = GPIO17, RX = GPIO16, 115200, nối `SERIAL2` (pad T2/R2) của FC. Xem `firmware/dronebridge/README.md`. 25/10/2026 trên drone: web GCS nhận đủ telemetry qua Wi-Fi khi đã rút USB, nhưng mất 19–32% gói theo từng đợt |
 | Camera trên drone | **ESP32-S3 N16R8** (16 MB flash, 8 MB PSRAM octal) + module **OV3660** (3 MP) | Đã có; **kiểm trên bo 13/10/2026**: OV3660 ra ảnh, bảng chân `ESP32S3_EYE` đúng, PSRAM 8 MB chạy | Thay hẳn ESP32-CAM / XIAO ESP32S3 Sense trong tài liệu cũ. Cổng `USB-UART` (CH343P) lên COM7. Có tem bảo hành "không được xé". Chi tiết ở mục dưới |
 | USB-TTL | Mạch chuyển **USB to TTL UART CP2102** | Đã mua | Đọc TFmini Plus trên máy tính trước khi cắm vào bo bay (Phase 12.7 / 17). Không còn cần để nạp camera — ESP32-S3 có cổng USB |
@@ -98,7 +102,10 @@ ArduPilot 4.7.1; cấu hình Betaflight `SPEEDYBEEF405V5`.
   gán các chân đó việc khác.
 - Firmware gốc của shop đã sao lưu ra `D:\IOT_Tools\downloads\esp32-backup\`. **13/10/2026 trên bo là
   firmware camera thật** (`firmware/camera/`): tên mạng `iotcv-camera.mshome.net`, `/stream` cổng 81,
-  VGA ~7,5 fps.
+  VGA ~7,5 fps. Lúc bay (02/11/2026) tụt theo khoảng cách: trong 15 m 7,6–7,8 khung/s, 15–25 m 3,1,
+  quá 25 m 1,8 — Wi-Fi hết băng thông. Từ 15/11/2026 backend tự hạ chất lượng JPEG (12 → tối đa 40)
+  khi dưới 4 khung/s và tự nâng lại khi về gần (`backend/vision/auto_quality.py`, tắt bằng
+  `CAMERA_AUTO_QUALITY=0`); khung chỉ nhỏ đi tối đa ~37 % (đo 15/11: 15,2 → 9,5 KB).
 - **XCLK phải là 10 MHz, không phải 20 MHz như ví dụ gốc:** ở 20 MHz Wi-Fi của chính bo tụt từ ~295
   xuống ~60 KB/s và có khung JPEG hỏng. Số đo ở `docs/test-log.md` mục Phase 12.
 
