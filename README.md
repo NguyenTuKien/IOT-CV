@@ -33,7 +33,7 @@ docker compose up -d mosquitto           # MQTT broker cho phần IoT
 backend/     FastAPI + MAVLink + MQTT + vision — chạy native, không đóng gói Docker
 frontend/    Vite + React + TypeScript; build ra frontend/dist, FastAPI phục vụ
 firmware/    ArduPilot custom build + param, sketch camera ESP32, DroneBridge
-ml/          Pipeline AI: dataset, huấn luyện, đánh giá (dự án uv riêng)
+ml/          Khung sườn AI cũ, không dùng: phần AI nay ở repo XLA (ml/README.md)
 plans/       Kế hoạch 25 phase chính + 4 phase AI, và PROGRESS.md
 docs/        so-tay/ giải thích cho người mới · archive/ tài liệu đã thay thế
 deploy/      Cấu hình mosquitto

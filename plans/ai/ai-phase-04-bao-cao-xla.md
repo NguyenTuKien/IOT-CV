@@ -1,5 +1,7 @@
 # AI Phase 4: Báo cáo môn Xử lý ảnh
 
+> **Đã thay thế (18/11/2026, con trỏ thêm 19/11/2026):** luồng AI nay ở repo XLA (`D:\XLA`, GitHub Localhost218/XLA), plan `plans/261118-ai-anh-chat-luong-thap/`; hợp đồng model `docs/hop-dong-model.md` của XLA; IOT-CV chỉ nhận bundle ONNX qua `scripts/vision/lay_model.py` vào `models/vision/`. Camera thật là **OV3660** (ESP32-S3 N16R8), không phải OV2640 như file này giả định. Phần còn đúng của file (VisDrone §2.1–2.3, Label Studio A1.7, SAHI A2.3, ONNX A2.4) đã được dẫn trong plan XLA. Thân file dưới đây giữ nguyên làm bản ghi, đừng làm theo.
+
 | Trạng thái | Phụ thuộc | Ước lượng | Cần phần cứng |
 |---|---|---|---|
 | chưa bắt đầu | **AI Phase 3** (toàn bộ). Đọc thêm `phase-24` nếu đề tài chốt hướng D (số liệu IoT nằm ở đó) | ~28 giờ người + ~2 giờ GPU (chạy lại để kiểm tái lập) | Không |

@@ -169,14 +169,44 @@ BATTERY_WARN_PCT = _env_int("BATTERY_WARN_PCT", 25)
 # Vision (GIAI ĐOẠN 19, 74, 75)
 # ---------------------------------------------------------------------------
 CAMERA_STREAM_URL = _env_str("CAMERA_STREAM_URL", "http://192.168.4.1:81/stream")
-YOLO_WEIGHTS = _env_str("YOLO_WEIGHTS", "ml/weights/yolo11n.pt")
-DETECTION_CONFIDENCE = _env_float("DETECTION_CONFIDENCE", 0.6)
+VISION_ENABLED = _env_bool("VISION_ENABLED", True)  # tắt hẳn vision khi test bay
+
+# Model AI từ repo XLA (D:\XLA, docs/hop-dong-model.md §5, 19/11/2026). Bundle chép bằng
+# `scripts/vision/lay_model.py --from <bundle XLA>` vào models/vision/ (file .onnx đã gitignore).
+# sha256 phải đặt: thiếu hay lệch là model KHÔNG nạp, backend bay vẫn chạy (SAFETY.md mục 9).
+DETECTOR_ONNX = str(
+    (
+        PROJECT_ROOT / _env_str("DETECTOR_ONNX", "models/vision/detector-v1.0.0/detector.onnx")
+    ).resolve()
+)
+DETECTOR_SHA256 = _env_str("DETECTOR_SHA256", "").strip().lower()
+ENHANCER_ONNX = str(
+    (
+        PROJECT_ROOT / _env_str("ENHANCER_ONNX", "models/vision/enhancer-v1.0.0/enhancer.onnx")
+    ).resolve()
+)
+ENHANCER_SHA256 = _env_str("ENHANCER_SHA256", "").strip().lower()
+VISION_ORT_PROVIDERS = tuple(
+    p.strip()
+    for p in _env_str("VISION_ORT_PROVIDERS", "CUDAExecutionProvider,CPUExecutionProvider").split(
+        ","
+    )
+    if p.strip()
+)
+# Tuỳ chọn CUDA EP dạng "khoá=giá trị;…". prefer_nhwc=1: conv theo NHWC, detector nhanh hơn ~17 %
+# trên RTX 4060 Laptop (28,6 so với 34,3 ms p50, 19/11/2026), golden vẫn đạt. Rỗng = mặc định ORT.
+VISION_CUDA_OPTIONS = dict(
+    kv.split("=", 1)
+    for kv in _env_str("VISION_CUDA_OPTIONS", "prefer_nhwc=1").split(";")
+    if "=" in kv
+)
+# Ngưỡng hộp: rỗng = dùng `conf_threshold` trong meta.json của bundle (chọn trên tập dev ở XLA).
+_conf_raw = _env_str("DETECTION_CONFIDENCE", "").strip()
+DETECTION_CONFIDENCE: float | None = float(_conf_raw) if _conf_raw else None
 DETECTION_MIN_FRAMES = _env_int("DETECTION_MIN_FRAMES", 3)
 DETECTION_COOLDOWN_S = _env_float("DETECTION_COOLDOWN_S", 4.0)
-# Ba khoá dưới là "việc trả về" cho AI Phase 1 §A1.9 và Phase 07 §7.6/§7.8.
-YOLO_DEVICE = _env_str("YOLO_DEVICE", "0")  # "0" = GPU 0, "cpu" để ép CPU
-DETECTION_IMGSZ = _env_int("DETECTION_IMGSZ", 640)
-VISION_ENABLED = _env_bool("VISION_ENABLED", True)  # tắt hẳn vision khi test bay
+# Chất lượng JPEG (thang OpenCV 0–100) của luồng `variant=enhanced` nén lại sau enhancer.
+ENHANCED_JPEG_QUALITY = _env_int("ENHANCED_JPEG_QUALITY", 85)
 
 # Nguồn video GIẢ (Phase 07 §7.8.3) — camera thật chỉ có từ Phase 17. Bật thì
 # backend tự phục vụ một luồng MJPEG lặp video mẫu ở `/api/video/fake-source`
@@ -192,9 +222,9 @@ CAMERA_FAKE_FPS = _env_float("CAMERA_FAKE_FPS", 15.0)
 # thì bé và vỡ (người dùng thấy thật 25/09/2026). QVGA vẫn là mốc THIẾT KẾ cho
 # ESP32 (44 fps so với 14 fps ở VGA) — đặt QVGA để thử đúng cỡ đó.
 CAMERA_FAKE_FRAMESIZE = _env_str("CAMERA_FAKE_FRAMESIZE", "VGA").upper()
-# Chất lượng JPEG theo thang esp32-camera 0–63, SỐ NHỎ = NÉT HƠN. 10 là mức nét
-# người ta hay đặt cho ESP32 khi băng thông cho phép.
-CAMERA_FAKE_JPEG_QUALITY = _env_int("CAMERA_FAKE_JPEG_QUALITY", 10)
+# Chất lượng JPEG theo thang esp32-camera 0–63, SỐ NHỎ = NÉT HƠN. 12 = mức camera thật tự
+# đặt lúc khởi động: khung giả nén bằng ĐÚNG bảng DQT + 4:2:2 đo từ camera (19/11/2026).
+CAMERA_FAKE_JPEG_QUALITY = _env_int("CAMERA_FAKE_JPEG_QUALITY", 12)
 # Box giả gửi mỗi chừng này ms (§7.8.3: 300 ms).
 FAKE_DETECTION_INTERVAL_MS = _env_int("FAKE_DETECTION_INTERVAL_MS", 300)
 # Khung mới nhất cũ hơn chừng này thì camera coi như MẤT (`camera.available`).

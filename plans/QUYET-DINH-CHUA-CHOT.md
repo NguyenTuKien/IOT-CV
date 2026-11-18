@@ -1,7 +1,7 @@
 # Quyết định chưa chốt (mang sang phiên khác để trao đổi)
 
 > **Cập nhật 12/10/2026:** Quyết định 1 (camera) **đã chốt** — ESP32-S3 N16R8 + module OV3660, xem
-> mục dưới và `docs/phan-cung-thuc-te.md`. Chỉ còn **Quyết định 2** (đề tài Xử lý ảnh) đang mở.
+> mục dưới và `docs/phan-cung-thuc-te.md`. Quyết định 2 (đề tài Xử lý ảnh) đã chốt 18/11/2026, xem mục đó.
 >
 > **Cập nhật 25/10/2026:** sau khi lắp ráp và bay thử, có thêm 5 quyết định **đã chốt** và 2 quyết
 > định **đang mở** về drone thật — xem mục "Drone thật" ngay dưới.
@@ -90,6 +90,9 @@ Nếu tiền là vấn đề: chỉ mua XIAO S3. Nếu muốn rẻ nhất và ch
 ---
 
 ## Quyết định 2: Đề tài môn Xử lý ảnh là gì
+
+> **ĐÃ CHỐT 18/11/2026:** đề tài = AI cho ảnh chất lượng thấp của chính camera này (ảnh rõ cho người xem + phát hiện người), làm ở repo XLA (`D:\XLA`). Thiết kế: `D:\XLA\plans
+eports±118-brainstorm-ai-anh-chat-luong-thap.md`; plan: `D:\XLA\plans±118-ai-anh-chat-luong-thap\plan.md`. Phần dưới giữ làm bản ghi lúc còn mở.
 
 ### Vấn đề bằng lời thường
 

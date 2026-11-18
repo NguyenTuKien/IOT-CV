@@ -1,3 +1,4 @@
+# KHÔNG DÙNG: khung sườn AI cũ; phần AI nay ở repo XLA, xem ml/README.md (19/11/2026).
 [project]
 name = "iot-cv-ml"
 version = "0.1.0"

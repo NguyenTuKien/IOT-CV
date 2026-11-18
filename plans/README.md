@@ -44,7 +44,9 @@ Ba quy tắc khi làm:
 
 **Luồng chính (Phase 00 → 24)** — mục tiêu: UAV bay được, đầy đủ tính năng, web GCS hoạt động, IoT chạy. Chạy tuần tự theo cột "Phụ thuộc".
 
-**Luồng AI (`plans/ai/`, ai-01 → ai-04)** — mục tiêu: model nhận diện người từ trên cao và các thí nghiệm cho môn Xử lý ảnh. Đây là **luồng phụ**: nó không chặn luồng chính, và luồng chính không chờ nó.
+> **Đã thay thế (18/11/2026, con trỏ thêm 19/11/2026):** luồng AI nay ở repo XLA (`D:\XLA`, GitHub Localhost218/XLA), plan `plans/261118-ai-anh-chat-luong-thap/`; hợp đồng model `docs/hop-dong-model.md` của XLA; IOT-CV chỉ nhận bundle ONNX qua `scripts/vision/lay_model.py` vào `models/vision/`.
+
+**Luồng AI (`plans/ai/`, ai-01 → ai-04, bản cũ 21/09/2026)** — mục tiêu: model nhận diện người từ trên cao và các thí nghiệm cho môn Xử lý ảnh. Đây là **luồng phụ**: nó không chặn luồng chính, và luồng chính không chờ nó.
 
 Về mặt kỹ thuật `ai-01` chỉ cần Phase 01 (repo đã có `uv`), nên chạy được rất sớm. Nhưng về mặt **thứ tự ưu tiên**: chỉ nên bắt tay vào luồng AI khi luồng chính đã qua **Phase 21** (drone bay tự động và từ web ổn) hoặc khi bạn có thời gian rảnh xen kẽ. Lý do: luồng AI tốn nhiều giờ GPU và không giúp con drone bay sớm hơn một ngày nào. Riêng `ai-03` (thu dữ liệu bay thật) **bắt buộc** chờ Phase 21 vì cần drone bay được từ web.
 
@@ -86,7 +88,7 @@ Nguồn: `plans/_phase-index.md`. Cột "Giờ" là **ước lượng cho ngư�
 
 Tổng luồng chính: **~281 giờ**.
 
-### Luồng AI (`plans/ai/`)
+### Luồng AI (`plans/ai/`) — đã thay thế bằng repo XLA, xem khối đầu mục trên
 
 | # | File | Tên | Phần cứng | Phụ thuộc | Giờ |
 |---|---|---|---|---|---|

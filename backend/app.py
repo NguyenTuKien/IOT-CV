@@ -16,7 +16,8 @@ Endpoint:
     GET  /api/mission             - mission hiện tại (+ nguồn: readback/local/none)
     POST /api/mission             - nạp mission (chung đường với cmd.mission.upload)
     GET  /api/events?limit=100    - lịch sử sự kiện
-    GET  /api/video/stream        - MJPEG, fan-out từ MỘT kết nối tới nguồn
+    GET  /api/video/stream        - MJPEG, fan-out từ MỘT kết nối tới nguồn;
+                                    ?variant=enhanced = luồng "Ảnh rõ" (503 khi chưa có enhancer)
     GET  /api/video/fake-source   - nguồn MJPEG giả (CAMERA_FAKE=1)
     GET  /api/telemetry/history   - lịch sử telemetry backend giữ (biểu đồ web)
     GET  /api/system              - thông tin vận hành (trang Hệ thống)
@@ -111,6 +112,20 @@ def _make_auto_quality():
 AUTO_QUALITY = _make_auto_quality()
 
 
+def _make_vision():
+    """Hai model AI của repo XLA (detector, enhancer) trên luồng camera, hoặc None khi tắt vision.
+    Nạp ở lifespan, không phải lúc import: test dựng app hàng trăm lần."""
+    if CAMERA is None:
+        return None
+    from backend.vision.runtime import VisionRuntime
+
+    return VisionRuntime(CAMERA, position=lambda: (STATE.lat, STATE.lon, STATE.relative_alt))
+
+
+VISION = _make_vision()
+HUB.vision = VISION
+
+
 def _autostart_enabled() -> bool:
     """Đặt TELEMETRY_AUTOSTART=0 để không tự mở MAVLink (hữu ích khi test)."""
     return os.environ.get("TELEMETRY_AUTOSTART", "1") not in ("0", "false", "False")
@@ -119,6 +134,11 @@ def _autostart_enabled() -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    # Nạp model TRƯỚC start_background: vòng `detection` chọn box thật hay box giả theo nó.
+    # Cùng cờ autostart với camera: test không nạp model GPU mỗi lần dựng app.
+    if VISION is not None and _autostart_enabled():
+        VISION.load()
+        VISION.start()
     HUB.start_background()
     if _autostart_enabled():
         READER.start()
@@ -147,6 +167,8 @@ async def lifespan(app: FastAPI):
             RECORDER.stop()
         if AUTO_QUALITY is not None:
             AUTO_QUALITY.stop()
+        if VISION is not None:
+            VISION.stop()
         if CAMERA is not None:
             CAMERA.stop()
         DEADMAN.stop()

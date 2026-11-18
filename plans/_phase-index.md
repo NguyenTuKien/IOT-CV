@@ -30,4 +30,4 @@ Luồng chính `plans/phase-NN-<slug>.md` (UAV bay được + đầy đủ tính
 | 23 | phase-23-iot-mqtt-su-kien-dashboard.md | mosquitto, topic/payload, publisher, detection event pipeline (detector bất kỳ), geo-projection, marker map, IoT panel | 21 | Có |
 | 24 | phase-24-iot-qos-hong-hoc-bao-cao.md | QoS loop jpeg_quality + thí nghiệm IoT, 5 bài test hỏng hóc, logging convention, 07-final.param, báo cáo IoT + demo + định nghĩa hoàn thành | 22, 23 | Có |
 
-Luồng AI `plans/ai/`: ai-phase-01-chuan-bi (phụ thuộc 01) · ai-phase-02-huan-luyen-thi-nghiem (ai-01) · ai-phase-03-du-lieu-that (21 + ai-02) · ai-phase-04-bao-cao-xla (ai-03).
+Luồng AI `plans/ai/` (ĐÃ THAY THẾ 18/11/2026 bằng repo XLA `D:\XLA`, plan `plans/261118-ai-anh-chat-luong-thap/`; phase 01–14 xong 19/11, IOT-CV tích hợp ở phase 15–16 của plan đó): ai-phase-01-chuan-bi (phụ thuộc 01) · ai-phase-02-huan-luyen-thi-nghiem (ai-01) · ai-phase-03-du-lieu-that (21 + ai-02) · ai-phase-04-bao-cao-xla (ai-03).

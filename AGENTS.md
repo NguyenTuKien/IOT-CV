@@ -18,6 +18,7 @@ cản bằng TFmini Plus, camera ESP32-S3 + AI nhận diện người.
 | Luật an toàn | `SAFETY.md` |
 | Quyết định còn mở | `plans/QUYET-DINH-CHUA-CHOT.md` |
 | BOM gốc + lý do chọn | `docs/archive/plan-nhap-92-giai-doan.md` (bản ghi quyết định, không phải tài liệu chết) |
+| Phần AI xử lý ảnh chất lượng thấp (thiết kế, plan, thí nghiệm, bằng chứng) | `D:\XLA\plans\` trên nhánh `main` của XLA (phase 01–14 xong 19/11/2026, PR #2): plan `plans\261118-ai-anh-chat-luong-thap\plan.md`, trạng thái + kết quả `thuc-thi-phase-10-14.md` §7, báo cáo gốc `plans\reports\261118-brainstorm-ai-anh-chat-luong-thap.md`; bundle ONNX `models\release\detector-v1.0.0`, `enhancer-v1.0.0` (enhancer chưa đạt A/B, chưa làm ảnh rõ mặc định); `plans/ai/` của repo này là bản cũ 21/09. Hợp đồng model `D:\XLA\docs\hop-dong-model.md`; IOT-CV đặt bundle ở `models/vision/<bundle>/` (chép bằng `scripts/vision/lay_model.py`, kiểm bằng `scripts/vision/kiem_bundle.py`), nạp ở `backend/vision/` (phase 15–16 của plan XLA) |
 | Các chuyến đã bay (log FC + tlog + video ghép theo giờ GPS) | trang **Lịch sử bay** của web (`/flights`, Alt+L); dòng lệnh `uv run python -m backend.flights --events` |
 
 `plans/reports/260921-*` là báo cáo nghiên cứu ngày 21/09/2026, giữ nguyên như bản ghi lịch sử —
@@ -32,10 +33,10 @@ phần cứng trong đó có thể đã đổi.
    được bảo commit thì dùng dạng pathspec `git commit -m "..." -- <file>`, không `git add -A`.
 3. Không publish Artifact lên tài khoản claude.ai; mọi tài liệu là file trong repo.
 4. Không đưa dự án lên Plane, không hỏi về Plane.
-5. **Không spawn sub-agent, tự làm đơn luồng** (người dùng đặt lại ngày 01/11/2026: "tự làm toàn bộ
-   đơn luồng, không được phép spawn subagent"; thay quyết định 23/10/2026). Không gọi
-   Agent/Task/Workflow/TeamCreate, kể cả khi rule của kit khuyên fan-out. Tiến trình dài (SITL,
-   backend, build) vẫn chạy nền được — đó là công cụ, không phải agent.
+5. **Được spawn sub-agent** (người dùng cho phép lại ngày 18/11/2026: "được phép spawn subagent, dự
+   án giờ không cấm nữa"; thay lệnh cấm 01/11/2026). Mỗi sub-agent chạy Opus, cùng mức effort với
+   phiên chính. Việc song song mà ghi file thì chia file rõ ràng cho từng agent, không để hai agent
+   cùng sửa một file.
 6. **Tự chạy nghiệm thu**, đừng đẩy cho người dùng: SITL (`scripts/run_sitl.sh`,
    `scripts/sitl/harness.py`, `bash scripts/sitl/run-all.sh`), `scripts/ws_probe.py`, và MCP
    `cua-driver` cho phần mềm có giao diện. Ngoại lệ **duy nhất**: thao tác làm motor THẬT quay (ARM,
@@ -45,6 +46,11 @@ phần cứng trong đó có thể đã đổi.
 8. Tự động hoá (hook, skill, script) phải cấu hình được và có công tắc tắt, không hà khắc.
 9. **Ghi nhớ liên tục.** Có sự thật, quyết định hay lời dặn mới → ghi ngay vào memory của agent;
    luật chung cho mọi phiên → ghi thêm vào file này. Người dùng không muốn phải nhắc lại.
+10. **Phần AI xử lý ảnh chất lượng thấp** (chốt 18/11/2026): nghiên cứu, làm xấu ảnh, huấn luyện,
+    báo cáo ở `D:\XLA` (repo chung của nhóm, GitHub Localhost218/XLA). Ở đó được toàn quyền
+    commit/push, kể cả dữ liệu bay, và được sửa lại tuỳ ý phần nhóm làm sai — luật 2 không áp cho XLA. IOT-CV chỉ nhận model đã xuất (ONNX) và
+    lớp gọi trong `backend/vision`, không chép code hai nơi. Mục tiêu kép: ảnh rõ cho người xem và
+    phát hiện người. Điểm số chấm trên khung bay THẬT, không chấm trên ảnh tự sinh.
 
 ## Khi có nhiều phiên chạy song song
 
@@ -131,6 +137,11 @@ bản sau đè bản trước mà không báo gì.
 - Nạp mission khi đang bay AUTO: backend tự chuyển GUIDED đứng giữ chỗ → nạp → đọc lại →
   `DO_SET_MISSION_CURRENT 1`; người lái gạt/bấm AUTO để bay mission mới từ điểm 1. Đừng thêm chặn "không
   nạp khi armed". Đã chạy đúng trên drone thật (02/11, chuyến 10:40).
+- Model AI (ONNX Runtime GPU trên Windows): `preload_dlls()` chưa đủ, thư mục `site-packages/nvidia/*/bin` phải có trong
+  PATH, và chỉ đọc `get_providers()` SAU một lần chạy thử: thiếu DLL cuDNN thì ORT vẫn báo CUDA nhưng lặng lẽ chạy CPU
+  (`backend/vision/model_bundle.py` lo cả hai). Số ms của bench phụ thuộc GPU có đang hạ xung không: đọc khối `machine` trong
+  file bench trước khi so (19/11/2026). Subprocess `uv` gọi sang repo khác (XLA) phải bỏ `UV_PROJECT_ENVIRONMENT`/`VIRTUAL_ENV`,
+  không thì uv xoá venv của repo kia.
 - Web: build `frontend/` (`pnpm build`) bằng **PowerShell**, đừng bằng Git Bash — build từ Git Bash ghi URL font
   `../../../../../D:/Coding/...` vào CSS, backend trả 404 font (15/11/2026). Màu, chip, nhãn mode/nguồn sự kiện
   lấy từ `lib/tone.ts`, `lib/eventStyle.ts`, `lib/modes.ts` và `components/kit` — đừng tô màu tại chỗ.

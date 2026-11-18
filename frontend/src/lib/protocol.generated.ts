@@ -352,6 +352,30 @@ export interface StatusPayload {
   limits: LimitsPayload;
   mission?: MissionStatus;
   camera?: CameraStatus;
+  vision?: VisionStatus | null;
+}
+export interface VisionStatus {
+  detector: VisionModelStatus;
+  enhancer: VisionModelStatus;
+  ms?: {
+    [k: string]: {
+      [k: string]: number;
+    };
+  };
+  frames_processed?: number;
+  frames_dropped?: number;
+  errors?: number;
+}
+/**
+ * Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý
+ * do, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.
+ */
+export interface VisionModelStatus {
+  state: "loaded" | "rejected" | "disabled";
+  reason?: string | null;
+  version?: string | null;
+  providers?: string[];
+  cpu_only?: boolean;
 }
 /**
  * `GET /api/system` — thông tin vận hành cho trang Hệ thống của web.

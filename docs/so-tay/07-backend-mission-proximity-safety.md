@@ -243,7 +243,7 @@ takeoff không cần nó).
 ## 13. Vì sao có video giả
 
 Tách việc dựng giao diện khỏi việc có camera. Camera thật chỉ có ở Phase 17, bộ nhận
-diện thật ở `plans/ai/`, nhưng Phase 10 cần một luồng để dựng panel video và canvas
+diện thật ở `plans/ai/` (19/11/2026: nay ở repo XLA), nhưng Phase 10 cần một luồng để dựng panel video và canvas
 vẽ box ngay bây giờ. Nguyên tắc chung: dựng sẵn cái khuôn để khi hàng thật về chỉ
 việc cắm vào.
 

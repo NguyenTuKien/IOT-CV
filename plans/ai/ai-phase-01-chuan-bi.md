@@ -1,5 +1,7 @@
 # AI Phase 1: Chuẩn bị (không phụ thuộc phần cứng)
 
+> **Đã thay thế (18/11/2026, con trỏ thêm 19/11/2026):** luồng AI nay ở repo XLA (`D:\XLA`, GitHub Localhost218/XLA), plan `plans/261118-ai-anh-chat-luong-thap/`; hợp đồng model `docs/hop-dong-model.md` của XLA; IOT-CV chỉ nhận bundle ONNX qua `scripts/vision/lay_model.py` vào `models/vision/`. Camera thật là **OV3660** (ESP32-S3 N16R8), không phải OV2640 như file này giả định. Phần còn đúng của file (VisDrone §2.1–2.3, Label Studio A1.7, SAHI A2.3, ONNX A2.4) đã được dẫn trong plan XLA. Thân file dưới đây giữ nguyên làm bản ghi, đừng làm theo.
+
 | Trạng thái | Phụ thuộc | Ước lượng | Cần phần cứng |
 |---|---|---|---|
 | chưa bắt đầu | `phase-01` (tái cấu trúc repo + uv) là ràng buộc **kỹ thuật** duy nhất. Khuyến nghị **bắt đầu sau `phase-19`/`phase-21`** theo ưu tiên của người dùng (UAV bay được trước), nhưng **không bị chặn kỹ thuật** — làm sớm lúc nào cũng được | ~30,5 giờ người + ~1 giờ GPU | Không (chỉ laptop RTX 4060) |

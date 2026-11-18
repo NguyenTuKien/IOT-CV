@@ -1,5 +1,7 @@
 # AI Phase 3: Dữ liệu thật từ camera của nhóm
 
+> **Đã thay thế (18/11/2026, con trỏ thêm 19/11/2026):** luồng AI nay ở repo XLA (`D:\XLA`, GitHub Localhost218/XLA), plan `plans/261118-ai-anh-chat-luong-thap/`; hợp đồng model `docs/hop-dong-model.md` của XLA; IOT-CV chỉ nhận bundle ONNX qua `scripts/vision/lay_model.py` vào `models/vision/`. Camera thật là **OV3660** (ESP32-S3 N16R8), không phải OV2640 như file này giả định. Phần còn đúng của file (VisDrone §2.1–2.3, Label Studio A1.7, SAHI A2.3, ONNX A2.4) đã được dẫn trong plan XLA. Thân file dưới đây giữ nguyên làm bản ghi, đừng làm theo.
+
 | Trạng thái | Phụ thuộc | Ước lượng | Cần phần cứng |
 |---|---|---|---|
 | chưa bắt đầu | **AI Phase 2** (toàn bộ) + **`phase-21`** (drone bay tự động và bay từ web được) cho phần bay. Các bước thu bằng sào (A3.1, A3.5, A3.7) chỉ cần **`phase-17`** (camera lên được web) | ~52 giờ người + **20–45 giờ GPU** *(chưa xác minh)* | **Có** — drone đã bay được, camera đã gắn, pin, sào 2–3 m, điện thoại, vài tấm bìa in bảng chuẩn |

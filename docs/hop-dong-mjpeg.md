@@ -3,7 +3,7 @@
 Mọi nguồn video của dự án (nguồn giả `backend/vision/fake_stream.py` ở Phase 07,
 camera ESP32-S3 + OV3660 thật ở Phase 17) phát theo đúng hợp đồng này, và `backend/vision/stream.py`
 đọc theo đúng hợp đồng này. `plans/phase-12-firmware-esp32-camera.md` và
-`plans/ai/ai-phase-01-chuan-bi.md` chỉ **trích dẫn** file này; không nơi nào khác
+`plans/ai/ai-phase-01-chuan-bi.md` (bản cũ, phần AI nay ở repo XLA) chỉ **trích dẫn** file này; không nơi nào khác
 được định nghĩa lại tên header.
 
 ## 1. Vận chuyển

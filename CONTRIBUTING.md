@@ -63,7 +63,7 @@ Cả hai phải xanh. CI sẽ chạy lại đúng hai lệnh này.
 
 ## Những gì không commit
 
-`.gitignore` đã chặn sẵn, nhưng nhắc lại: không commit dataset (`ml/datasets/`),
+`.gitignore` đã chặn sẵn, nhưng nhắc lại: không commit dataset (`ml/datasets/`; phần AI nay ở repo XLA, xem `ml/README.md`),
 weights (`*.pt`), flight log nhị phân (`*.BIN`, `*.tlog`), ảnh snapshot detection,
 `.env`, và **không commit source ArduPilot** (`ardupilot/` — clone vào `~/ardupilot`
 **trong WSL**, xem [plans/phase-02-wsl2-sitl.md](plans/phase-02-wsl2-sitl.md) việc 02.2).

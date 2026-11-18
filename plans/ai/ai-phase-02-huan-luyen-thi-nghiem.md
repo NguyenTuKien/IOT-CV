@@ -1,5 +1,7 @@
 # AI Phase 2: Huấn luyện và thí nghiệm (VisDrone + ảnh suy giảm tổng hợp)
 
+> **Đã thay thế (18/11/2026, con trỏ thêm 19/11/2026):** luồng AI nay ở repo XLA (`D:\XLA`, GitHub Localhost218/XLA), plan `plans/261118-ai-anh-chat-luong-thap/`; hợp đồng model `docs/hop-dong-model.md` của XLA; IOT-CV chỉ nhận bundle ONNX qua `scripts/vision/lay_model.py` vào `models/vision/`. Camera thật là **OV3660** (ESP32-S3 N16R8), không phải OV2640 như file này giả định. Phần còn đúng của file (VisDrone §2.1–2.3, Label Studio A1.7, SAHI A2.3, ONNX A2.4) đã được dẫn trong plan XLA. Thân file dưới đây giữ nguyên làm bản ghi, đừng làm theo.
+
 | Trạng thái | Phụ thuộc | Ước lượng | Cần phần cứng |
 |---|---|---|---|
 | chưa bắt đầu | **AI Phase 1** (bắt buộc, toàn bộ). Không phụ thuộc luồng chính. Khuyến nghị chạy sau `phase-19`/`phase-21` theo ưu tiên của người dùng, nhưng **không bị chặn kỹ thuật** | ~45 giờ người (nhánh mặc định B+A; 41,5–46 tuỳ nhánh chốt, xem Timeline) + **30–60 giờ GPU chạy nền** *(chưa xác minh — lấy số thật từ `ml/results/smoke_report.md` của A1.10)* | Không |

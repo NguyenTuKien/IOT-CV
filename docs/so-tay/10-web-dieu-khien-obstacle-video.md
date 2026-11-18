@@ -179,7 +179,7 @@ không toast đỏ, không khoá nút, không đụng trạng thái kết nối 
 
 ## 10. Vì sao dùng nguồn video giả
 
-Camera thật vào ở Phase 17, bộ nhận diện thật ở `plans/ai/`. Nguồn giả của Phase 07
+Camera thật vào ở Phase 17, bộ nhận diện thật ở `plans/ai/` (19/11/2026: nay ở repo XLA, nạp bằng `backend/vision/detector.py`). Nguồn giả của Phase 07
 (một đoạn video mẫu lặp lại, và một box vuông chạy vòng quanh hình chữ nhật lùi vào
 1/16 khung) cho dựng và kiểm panel ngay bây giờ. Box giả không khớp nội dung video —
 nó chỉ để kiểm **quy đổi toạ độ**: box phải rộng đúng 19% khung và nằm trong lề 1/16,

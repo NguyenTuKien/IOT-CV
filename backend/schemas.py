@@ -197,6 +197,27 @@ class CameraStatus(BaseModel):
     fake: bool = True
 
 
+class VisionModelStatus(BaseModel):
+    """Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý
+    do, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU."""
+
+    state: Literal["loaded", "rejected", "disabled"]
+    reason: str | None = None
+    version: str | None = None
+    providers: list[str] = Field(default_factory=list)
+    cpu_only: bool = False
+
+
+class VisionStatus(BaseModel):
+    detector: VisionModelStatus
+    enhancer: VisionModelStatus
+    # p50/p95 ms từng bước của pipeline (decode, detector, enhancer, encode, total).
+    ms: dict[str, dict[str, float]] = Field(default_factory=dict)
+    frames_processed: int = 0
+    frames_dropped: int = 0
+    errors: int = 0
+
+
 class StatusPayload(BaseModel):
     """`status.data` — gửi 1 lần lúc mở socket, và mỗi lần có gì đổi."""
 
@@ -207,6 +228,8 @@ class StatusPayload(BaseModel):
     limits: LimitsPayload
     mission: MissionStatus = Field(default_factory=MissionStatus)
     camera: CameraStatus = Field(default_factory=CameraStatus)
+    # None khi khối vision tắt (VISION_ENABLED=0).
+    vision: VisionStatus | None = None
 
 
 # ---------------------------------------------------------------------------
