@@ -15,9 +15,12 @@ from pathlib import Path
 
 import websockets
 
+# Cloudflare chặn User-Agent mặc định "Python-urllib" (403), nên mọi probe phải gửi UA riêng.
+USER_AGENT = "iotcv-deployment-probe"
+
 
 def fetch(url: str) -> tuple[int, str, bytes]:
-    request = urllib.request.Request(url, headers={"User-Agent": "iotcv-deployment-probe"})
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
             return response.status, response.headers.get_content_type(), response.read(8_000_000)
@@ -31,7 +34,8 @@ def require(condition: bool, message: str) -> None:
 
 
 def video_frame(base: str) -> dict:
-    with urllib.request.urlopen(base + "/api/video/stream", timeout=10) as response:
+    request = urllib.request.Request(base + "/api/video/stream", headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=10) as response:
         require(response.status == 200, "Raw MJPEG stream is unavailable")
         buffer = b""
         while b"\r\n\r\n" not in buffer:
@@ -59,7 +63,7 @@ async def websocket_probe(base: str, demo: bool) -> list[str]:
     uri = urllib.parse.urlunsplit((scheme, parts.netloc, "/ws", "", ""))
     received: set[str] = set()
     async with asyncio.timeout(15):
-        async with websockets.connect(uri, open_timeout=10) as socket:
+        async with websockets.connect(uri, open_timeout=10, user_agent_header=USER_AGENT) as socket:
             await socket.send(json.dumps({"v": 1, "type": "ping", "data": {}}))
             while not {"status", "telemetry", "pong"}.issubset(received):
                 frame = json.loads(await socket.recv())

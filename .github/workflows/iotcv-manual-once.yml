@@ -1,4 +1,5 @@
 # TẠM THỜI: deploy một lần từ feat/aws-ec2 trước khi merge PR #56. Xoá sau khi chạy.
+# Lần 2: sau khi sửa User-Agent của verify.py.
 name: iotcv manual deploy (temporary)
 
 on:
