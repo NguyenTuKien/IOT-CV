@@ -20,13 +20,6 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 
-def inside_repo(path: Path) -> Path:
-    """Đường ghi ra phải nằm trong repo (chặn ghi đè file ngoài repo qua tham số dòng lệnh)."""
-    resolved = (path if path.is_absolute() else ROOT / path).resolve()
-    if not resolved.is_relative_to(ROOT):
-        raise SystemExit(f"đường ghi {resolved} phải nằm trong {ROOT}")
-    return resolved
-
 from backend.flights.video import Recording  # noqa: E402
 from backend.vision.jpeg_tables import DQT_ASSET, parse_jpeg_tables  # noqa: E402
 
@@ -35,7 +28,6 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--recording", type=Path, required=True)
     ap.add_argument("--frame", type=int, default=500, help="số thứ tự dòng trong frames.csv")
-    ap.add_argument("--out", type=Path, default=DQT_ASSET)
     ap.add_argument("--json", action="store_true", help="in kết quả JSON ra stdout")
     args = ap.parse_args(argv)
     rec_dir = args.recording if args.recording.is_absolute() else ROOT / args.recording
@@ -69,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
             "sha256": hashlib.sha256(jpeg).hexdigest(),
         },
     }
-    out_path = inside_repo(args.out)
+    out_path = DQT_ASSET  # chỉ ghi đúng asset của backend; không nhận đường ghi từ dòng lệnh
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8", newline="\n")
     if args.json:
