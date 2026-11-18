@@ -1,5 +1,5 @@
 # TẠM THỜI: deploy một lần từ feat/aws-ec2 trước khi merge PR #56. Xoá sau khi chạy.
-# Lần 3: sau khi sửa User-Agent và uv venv --clear.
+# Lần 4: sau khi sửa User-Agent và dọn venv cũ.
 name: iotcv manual deploy (temporary)
 
 on:
@@ -72,7 +72,8 @@ jobs:
         with:
           enable-cache: false
       - run: |
-          uv venv --clear --python 3.13 "${RUNNER_TEMP}/iotcv-tools"
+          rm -rf "${RUNNER_TEMP}/iotcv-tools"  # runner self-hosted có lúc để lại venv dở từ job trước
+          uv venv --python 3.13 "${RUNNER_TEMP}/iotcv-tools"
           uv pip sync --only-binary :all: --require-hashes \
             --python "${RUNNER_TEMP}/iotcv-tools/bin/python" infra/requirements.lock
       - env:

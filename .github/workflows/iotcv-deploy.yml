@@ -158,7 +158,8 @@ jobs:
           enable-cache: false
       - name: Install isolated locked deployment tools
         run: |
-          uv venv --clear --python 3.13 "${RUNNER_TEMP}/iotcv-tools"
+          rm -rf "${RUNNER_TEMP}/iotcv-tools"  # runner self-hosted có lúc để lại venv dở từ job trước
+          uv venv --python 3.13 "${RUNNER_TEMP}/iotcv-tools"
           uv pip sync --only-binary :all: --require-hashes \
             --python "${RUNNER_TEMP}/iotcv-tools/bin/python" infra/requirements.lock
       - name: Deploy and verify internal and public endpoints
