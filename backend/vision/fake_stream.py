@@ -1,7 +1,7 @@
 """Nguồn MJPEG GIẢ + box nhận diện giả — Phase 07 §7.8.3.
 
-Camera thật chỉ có ở Phase 17, bộ nhận diện thật ở repo XLA (`backend/vision/detector.py`). Phase 10 cần một
-luồng video để dựng panel video + canvas overlay ngay bây giờ. File này là MỘT
+Camera thật chỉ có ở Phase 17, bộ nhận diện thật ở repo XLA (`backend/vision/detector.py`).
+Phase 10 cần một luồng video để dựng panel video + canvas overlay ngay bây giờ. File này là MỘT
 NGUỒN hợp lệ cho `stream.py` đọc — không phải một đường phục vụ video song song.
 Chiều phụ thuộc chỉ một chiều: file này được nhập kiểu `MjpegFrame` từ
 `stream.py`; `stream.py` không bao giờ biết file này tồn tại.
