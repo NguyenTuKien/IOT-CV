@@ -158,7 +158,7 @@ jobs:
           enable-cache: false
       - name: Install isolated locked deployment tools
         run: |
-          rm -rf "${RUNNER_TEMP}/iotcv-tools"  # runner self-hosted có lúc để lại venv dở từ job trước
+          rm -rf "${RUNNER_TEMP}/iotcv-tools"  # -B ở bước deploy để root không ghi .pyc vào venv này
           uv venv --python 3.13 "${RUNNER_TEMP}/iotcv-tools"
           uv pip sync --only-binary :all: --require-hashes \
             --python "${RUNNER_TEMP}/iotcv-tools/bin/python" infra/requirements.lock
@@ -179,4 +179,4 @@ jobs:
           DATA_VOLUME_ID: ${{ vars.DATA_VOLUME_ID }}
         run: |
           sudo --preserve-env=CLOUDFLARE_TUNNEL_TOKEN,REGISTRY_USERNAME,REGISTRY_PASSWORD,REGISTRY_IMAGE,TUNNEL_REGISTRY_IMAGE,IOTCV_IMAGE,CLOUDFLARED_IMAGE,RELEASE_SHA,DEPLOY_OPERATION,ROLLBACK_SHA,ENVIRONMENT,PUBLIC_HOSTNAME,DATA_VOLUME_ID \
-            "${RUNNER_TEMP}/iotcv-tools/bin/python" infra/scripts/deploy.py
+            "${RUNNER_TEMP}/iotcv-tools/bin/python" -B infra/scripts/deploy.py
