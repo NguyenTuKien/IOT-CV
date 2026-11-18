@@ -90,7 +90,7 @@ def start_and_verify(target: Path, environment: str, hostname: str, docker_env: 
         env=docker_env, check=True,
     )
     subprocess.run(
-        [sys.executable, str(target / "scripts/verify.py"), "--demo",
+        [sys.executable, "-B", str(target / "scripts/verify.py"), "--demo",
          "--base-url", "https://" + hostname],
         env=docker_env, check=True,
     )
