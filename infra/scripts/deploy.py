@@ -187,7 +187,9 @@ def deploy() -> dict:
 
 def main() -> int:
     try:
-        with open("/run/lock/iotcv-deploy.lock", "a") as lock:
+        # Khoá nằm trong ROOT (root sở hữu, không ai khác ghi được), không ở /run/lock dùng chung.
+        ROOT.mkdir(mode=0o755, parents=True, exist_ok=True)
+        with open(ROOT / ".deploy.lock", "a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             result = deploy()
         print(json.dumps(result))

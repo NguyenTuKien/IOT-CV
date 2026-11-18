@@ -6,7 +6,7 @@ ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02
 
 FROM ${NODE_IMAGE} AS frontend-builder
 WORKDIR /build/frontend
-RUN npm install --global pnpm@11.10.0
+RUN npm install --global --ignore-scripts pnpm@11.10.0
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 # Frontend protocol validation imports this file outside frontend/.

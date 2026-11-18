@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import re
 import sys
 import urllib.error
@@ -17,9 +18,37 @@ import websockets
 
 # Cloudflare chặn User-Agent mặc định "Python-urllib" (403), nên mọi probe phải gửi UA riêng.
 USER_AGENT = "iotcv-deployment-probe"
+# Probe chỉ được gọi tới các host này (chặn SSRF qua --base-url): container nội bộ, máy
+# chạy, và tên công khai của bản triển khai (PUBLIC_HOSTNAME, mặc định giống deploy.py).
+# Thêm host bằng IOTCV_PROBE_HOSTS="a,b".
+DEFAULT_PUBLIC_HOSTNAME = "uav.ngtukien.id.vn"
+TUNNEL_READY_URL = "http://cloudflared:2000/ready"
+
+
+def allowed_hosts() -> frozenset[str]:
+    raw = os.environ.get("IOTCV_PROBE_HOSTS", "")
+    extra = {h.strip().lower() for h in raw.split(",") if h.strip()}
+    public = os.environ.get("PUBLIC_HOSTNAME", DEFAULT_PUBLIC_HOSTNAME).lower()
+    return frozenset({"127.0.0.1", "localhost", "iotcv", "cloudflared", public, *extra})
+
+
+def safe_base_url(url: str) -> str:
+    """Dựng lại URL từ phần đã kiểm: http/https, host được phép, không kèm mật khẩu."""
+    parts = urllib.parse.urlsplit(url)
+    require(parts.scheme in ("http", "https"), "Invalid probe URL scheme")
+    require(
+        parts.username is None and parts.password is None,
+        "Credentials must not appear in URLs",
+    )
+    host = (parts.hostname or "").lower()
+    require(host in allowed_hosts(), "Probe host is not allowed: " + host)
+    port = parts.port
+    netloc = host if port is None else f"{host}:{int(port)}"
+    return urllib.parse.urlunsplit((parts.scheme, netloc, parts.path.rstrip("/"), "", ""))
 
 
 def fetch(url: str) -> tuple[int, str, bytes]:
+    url = safe_base_url(url)
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(request, timeout=10) as response:
@@ -34,7 +63,8 @@ def require(condition: bool, message: str) -> None:
 
 
 def video_frame(base: str) -> dict:
-    request = urllib.request.Request(base + "/api/video/stream", headers={"User-Agent": USER_AGENT})
+    url = safe_base_url(base + "/api/video/stream")
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=10) as response:
         require(response.status == 200, "Raw MJPEG stream is unavailable")
         buffer = b""
@@ -75,13 +105,7 @@ async def websocket_probe(base: str, demo: bool) -> list[str]:
 
 
 def run_checks(base: str, assets: Path | None, demo: bool, tunnel: bool) -> dict:
-    parts = urllib.parse.urlsplit(base)
-    require(parts.scheme in ("http", "https") and bool(parts.hostname), "Invalid probe URL")
-    require(
-        parts.username is None and parts.password is None,
-        "Credentials must not appear in URLs",
-    )
-    base = base.rstrip("/")
+    base = safe_base_url(base)
     code, _, body = fetch(base + "/api/health")
     require(code == 200 and json.loads(body).get("status") == "ok", "Health endpoint failed")
     code, _, body = fetch(base + "/api/status")
@@ -120,7 +144,7 @@ def run_checks(base: str, assets: Path | None, demo: bool, tunnel: bool) -> dict
     frame = video_frame(base)
     ws_types = asyncio.run(websocket_probe(base, demo))
     if tunnel:
-        code, _, _ = fetch("http://cloudflared:2000/ready")
+        code, _, _ = fetch(TUNNEL_READY_URL)
         require(code == 200, "Tunnel has no ready edge connection")
     return {
         "health": "ok", "connected": status.get("connected"), "spa_routes": routes,

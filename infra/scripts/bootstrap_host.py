@@ -21,9 +21,16 @@ def main() -> int:
     parser.add_argument("--volume-id", required=True)
     args = parser.parse_args()
     try:
-        ipaddress.IPv4Address(args.host)
-        if not re.fullmatch(r"vol-[0-9a-f]+", args.volume_id):
+        # Chỉ dùng giá trị ĐÃ chuẩn hoá cho lệnh ssh (chặn chèn tham số qua
+        # --host/--key/--volume-id).
+        host = str(ipaddress.IPv4Address(args.host))
+        volume = re.fullmatch(r"vol-[0-9a-f]+", args.volume_id)
+        if volume is None:
             raise ValueError("Invalid data volume ID")
+        volume_id = volume.group(0)
+        key, known_hosts = args.key.resolve(strict=True), args.known_hosts.resolve(strict=True)
+        if not (key.is_file() and known_hosts.is_file()):
+            raise ValueError("SSH key/known_hosts must be files")
         response = subprocess.run(
             ["gh", "api", "--method", "POST",
              "repos/ngtukien/IOT-CV/actions/runners/registration-token"],
@@ -32,7 +39,7 @@ def main() -> int:
         token = json.loads(response.stdout)["token"]
         payload = json.dumps({
             "script": Path(__file__).with_name("provision.sh").read_text(),
-            "env": {"DATA_VOLUME_ID": args.volume_id, "ACTIONS_RUNNER_INPUT_TOKEN": token},
+            "env": {"DATA_VOLUME_ID": volume_id, "ACTIONS_RUNNER_INPUT_TOKEN": token},
         })
         remote = (
             "sudo -n python3 -c 'import json,os,subprocess,sys; "
@@ -43,8 +50,8 @@ def main() -> int:
         result = subprocess.run(
             ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
              "-o", "UpdateHostKeys=no", "-o", "ControlMaster=no",
-             "-o", "UserKnownHostsFile=" + str(args.known_hosts),
-             "-i", str(args.key), "ubuntu@" + args.host, remote],
+             "-o", "UserKnownHostsFile=" + str(known_hosts),
+             "-i", str(key), "--", "ubuntu@" + host, remote],
             input=payload, text=True, env=os.environ.copy(),
         )
         return result.returncode
