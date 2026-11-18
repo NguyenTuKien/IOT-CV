@@ -108,13 +108,15 @@ resource "aws_iam_instance_profile" "application" {
 }
 
 resource "aws_instance" "application" {
-  ami                         = data.aws_ami.application.id
-  instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.application.id
-  vpc_security_group_ids      = [aws_security_group.application.id]
-  key_name                    = aws_key_pair.deployment.key_name
-  iam_instance_profile        = aws_iam_instance_profile.application.name
-  associate_public_ip_address = true
+  ami                    = data.aws_ami.application.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.application.id
+  vpc_security_group_ids = [aws_security_group.application.id]
+  key_name               = aws_key_pair.deployment.key_name
+  iam_instance_profile   = aws_iam_instance_profile.application.name
+  # Không có NAT gateway nên máy cần IP công khai để ra internet; SG chỉ mở SSH cho
+  # var.ssh_allowed_cidr, web đi qua Cloudflare Tunnel (không mở HTTP/HTTPS vào).
+  associate_public_ip_address = true # NOSONAR
   user_data                   = file("${path.module}/user-data.sh")
   user_data_replace_on_change = true
 

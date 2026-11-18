@@ -9,7 +9,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -y -qq ca-certificates curl python3-venv python3-packaging \
   libicu74 libssl3t64 libkrb5-3 zlib1g libunwind8 sudo
-curl --fail --silent --show-error --location \
+curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
   https://download.docker.com/linux/ubuntu/gpg \
   --output /usr/share/keyrings/iotcv-docker.asc
 cat > /etc/apt/sources.list.d/iotcv-docker.sources <<'REPO'
@@ -86,7 +86,7 @@ install -d -m 0750 -o 10002 -g 10002 /srv/iotcv/data/runner-work /opt/iotcv-runn
 install -d -m 0700 /etc/iotcv/secrets
 
 if [[ ! -x /opt/iotcv-runner/bin/Runner.Listener ]]; then
-  curl --fail --silent --show-error --location --retry 3 \
+  curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --retry 3 \
     https://github.com/actions/runner/releases/download/v2.338.2/actions-runner-linux-x64-2.338.2.tar.gz \
     --output /tmp/iotcv-runner-2.338.2.tar.gz
   printf '%s  %s\n' \

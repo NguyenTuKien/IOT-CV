@@ -12,7 +12,9 @@ variable "state_bucket_name" {
   type        = string
 }
 
-resource "aws_s3_bucket" "state" {
+# Bucket state riêng tư (chặn public, versioning, S3 tự mã hoá SSE-S3); không bật access log vì cần
+# thêm một bucket log chỉ cho một người triển khai. Lịch sử thay đổi state nằm ở versioning.
+resource "aws_s3_bucket" "state" { # NOSONAR
   bucket        = var.state_bucket_name
   force_destroy = false
   lifecycle {
