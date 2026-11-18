@@ -13,10 +13,12 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+RECORDINGS = ROOT / "logs" / "recordings"
 sys.path.insert(0, str(ROOT))
 
 
@@ -26,11 +28,17 @@ from backend.vision.jpeg_tables import DQT_ASSET, parse_jpeg_tables  # noqa: E40
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--recording", type=Path, required=True)
+    ap.add_argument("--recording", required=True,
+                    help="tên bản ghi trong logs/recordings, vd. 20261102-100941")
     ap.add_argument("--frame", type=int, default=500, help="số thứ tự dòng trong frames.csv")
     ap.add_argument("--json", action="store_true", help="in kết quả JSON ra stdout")
     args = ap.parse_args(argv)
-    rec_dir = args.recording if args.recording.is_absolute() else ROOT / args.recording
+    # Chỉ nhận TÊN bản ghi dạng YYYYMMDD-HHMMSS trong logs/recordings (không nhận đường tuỳ ý).
+    name = re.fullmatch(r"\d{8}-\d{6}", Path(args.recording).name)
+    if name is None:
+        print(f"tên bản ghi không hợp lệ: {args.recording}", file=sys.stderr)
+        return 2
+    rec_dir = RECORDINGS / name.group(0)
     if not (rec_dir / "frames.csv").is_file():
         print(f"không thấy {rec_dir / 'frames.csv'}", file=sys.stderr)
         return 2
