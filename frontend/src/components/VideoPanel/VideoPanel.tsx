@@ -11,11 +11,15 @@
  * KHÔNG làm gì khác — không toast đỏ, không khoá nút, không đụng vào store kết
  * nối. Mọi trạng thái của camera nằm gọn trong component này.
  *
- * Nguồn hiện tại là MJPEG GIẢ của Phase 07 (video mẫu lặp + box chạy vòng quanh
- * một hình chữ nhật lùi vào 1/16 khung). Camera thật vào ở Phase 17, bộ nhận
- * diện thật ở `plans/ai/`; panel này không phải sửa khi đổi nguồn.
+ * Nguồn: camera thật hoặc MJPEG GIẢ (CAMERA_FAKE=1). Box đến từ message `detection`: model
+ * detector của repo XLA khi đã nạp, box giả chạy vòng khi không có model và nguồn giả.
+ *
+ * Nút "Ảnh rõ" (hợp đồng model XLA §8): chỉ đổi `src` giữa `variant=raw` và
+ * `variant=enhanced`; box vẫn vẽ bằng `DetectionOverlay` (enhancer giữ nguyên toạ độ).
+ * Mặc định TẮT — `enhancer-v1.0.0` chưa đạt A/B ngày 19/11/2026. Lựa chọn nhớ trong
+ * `localStorage`; enhancer chưa nạp (backend trả 503) thì nút tắt + chip lý do.
  */
-import { Camera, CameraOff, Expand } from "lucide-react";
+import { Camera, CameraOff, Expand, Sparkles } from "lucide-react";
 
 import { IconVision } from "@/components/icons";
 import { useEffect, useRef, useState } from "react";
@@ -23,6 +27,7 @@ import type { CSSProperties } from "react";
 
 import { Chip } from "@/components/kit";
 import { Panel } from "@/components/Panel";
+import { ACCENT_SOFT } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 import { useTelemetryStore } from "@/store/telemetry";
 
@@ -33,8 +38,22 @@ const VIDEO_STREAM_PATH = "/api/video/stream";
 /** Hỏng rồi thì chừng này ms sau thử mở lại. */
 const CAMERA_RETRY_MS = 5000;
 
-function streamSrc(attempt: number): string {
-  return attempt === 0 ? VIDEO_STREAM_PATH : `${VIDEO_STREAM_PATH}?retry=${attempt}`;
+const ENHANCED_KEY = "iot-cv.video-enhanced";
+
+function streamSrc(attempt: number, enhanced: boolean): string {
+  const params = new URLSearchParams();
+  if (enhanced) params.set("variant", "enhanced");
+  if (attempt > 0) params.set("retry", String(attempt));
+  const q = params.toString();
+  return q ? `${VIDEO_STREAM_PATH}?${q}` : VIDEO_STREAM_PATH;
+}
+
+function readEnhanced(): boolean {
+  try {
+    return localStorage.getItem(ENHANCED_KEY) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function VideoPanel({
@@ -58,6 +77,23 @@ export function VideoPanel({
   const fake = useTelemetryStore((s) => s.status?.camera?.fake);
   const frame = useTelemetryStore((s) => (s.detection ? `${s.detection.width}×${s.detection.height}` : null));
   const boxes = useTelemetryStore((s) => s.detection?.boxes?.length ?? null);
+  const enhancerState = useTelemetryStore((s) => s.status?.vision?.enhancer?.state ?? null);
+  const enhancerReason = useTelemetryStore((s) => s.status?.vision?.enhancer?.reason ?? null);
+  const [wantEnhanced, setWantEnhanced] = useState(readEnhanced);
+  // Luồng enhanced vừa hỏng (503 hay đứt) thì quay về raw cho tới khi người xem bật lại.
+  const [enhancedFailed, setEnhancedFailed] = useState(false);
+  const enhancerReady = enhancerState === "loaded" && !enhancedFailed;
+  const enhanced = wantEnhanced && enhancerReady;
+  const toggleEnhanced = () => {
+    const next = !wantEnhanced;
+    setWantEnhanced(next);
+    setEnhancedFailed(false);
+    try {
+      localStorage.setItem(ENHANCED_KEY, next ? "1" : "0");
+    } catch {
+      /* chặn lưu trữ: chỉ không nhớ được, nút vẫn chạy */
+    }
+  };
 
   // Hỏng → chờ rồi thử lại. Chỉ component này biết; không báo ra ngoài.
   useEffect(() => {
@@ -143,16 +179,45 @@ export function VideoPanel({
       <div ref={frameRef} className="relative flex h-full w-full items-center justify-center bg-[oklch(0.1_0.015_262)]">
       <img
         ref={imgRef}
-        src={streamSrc(attempt)}
+        src={streamSrc(attempt, enhanced)}
         alt="Hình từ camera trên drone"
         data-testid="video-img"
         data-attempt={attempt}
+        data-variant={enhanced ? "enhanced" : "raw"}
         className={offline ? "invisible block max-h-full max-w-full" : "block max-h-full max-w-full"}
         // KHÔNG dựa vào `onLoad`: với luồng multipart, trình duyệt không hứa
         // bắn `load` cho từng khung. Chỉ `onError` là tín hiệu tin được.
-        onError={() => setFailed(true)}
+        onError={() => (enhanced ? setEnhancedFailed(true) : setFailed(true))}
       />
       {offline ? null : <DetectionOverlay imgRef={imgRef} />}
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
+          {wantEnhanced && !enhancerReady ? (
+            <Chip tone="warn" size="xs" mono title={enhancerReason ?? "Enhancer chưa nạp"} testId="video-enhanced-unavailable">
+              ẢNH RÕ: KHÔNG CÓ
+            </Chip>
+          ) : null}
+          <button
+            type="button"
+            onClick={toggleEnhanced}
+            disabled={!enhancerReady && !wantEnhanced}
+            aria-pressed={enhanced}
+            title={
+              enhancerReady
+                ? enhanced
+                  ? "Tắt ảnh rõ (về khung gốc của camera)"
+                  : "Bật ảnh rõ (enhancer của XLA, chưa đạt A/B — xem thử)"
+                : `Ảnh rõ không dùng được: ${enhancerReason ?? "enhancer chưa nạp"}`
+            }
+            data-testid="video-enhanced-toggle"
+            className={cn(
+              "flex h-6 items-center gap-1 rounded-md border px-1.5 font-mono text-[11px] font-semibold transition-all disabled:opacity-40",
+              enhanced ? ACCENT_SOFT.violet : "border-border bg-background/80 text-muted-foreground backdrop-blur-sm hover:text-foreground",
+            )}
+          >
+            <Sparkles className="size-3" aria-hidden />
+            Ảnh rõ
+          </button>
+      </div>
       </div>
       {offline ? (
         <div className="absolute inset-0 grid place-items-center" data-testid="camera-offline">

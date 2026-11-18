@@ -31,12 +31,28 @@ dev = [
     "pytest-cov>=7.0",
     # Cùng lý do với nhóm `vision` bên dưới: test của nguồn video giả cần cv2.
     "opencv-python-headless>=4.12",
+    # Test AI (backend/tests/test_vision_ai.py) tự dựng bundle ONNX giả bằng onnx.helper
+    # và chạy nó bằng ORT; camera giả nén đúng bảng DQT thật bằng Pillow.
+    "onnx>=1.20",
+    "pillow>=11.0",
+    "onnxruntime-gpu==1.24.4; sys_platform == 'win32'",
+    "onnxruntime>=1.24; sys_platform != 'win32'",
 ]
 # Khối vision tách riêng khỏi dependency chính: backend BAY (MAVLink, WebSocket)
 # phải chạy được trên máy không cài OpenCV — SAFETY.md mục 9, mất camera không
 # được kéo telemetry chết theo. Bản "headless" vì backend không mở cửa sổ nào.
 vision = [
     "opencv-python-headless>=4.12",
+    "pillow>=11.0",
+    # Model AI từ repo XLA (docs/hop-dong-model.md §5). Laptop Windows có RTX 4060: bản GPU,
+    # kèm CUDA 12 + cuDNN 9 dạng gói pip ([cuda,cudnn]) vì backend không có torch để mượn DLL.
+    # 1.24.4 chứ không mới hơn: 1.25+ đòi CUDA 13 (đo ở XLA 18/11/2026). Linux (CI, Docker
+    # EC2 của infra/) không có GPU: bản CPU, nhẹ. Hai gói cùng module `onnxruntime` nên chia
+    # theo hệ điều hành, không bao giờ cài chồng.
+    "onnxruntime-gpu[cuda,cudnn]==1.24.4; sys_platform == 'win32'",
+    "onnxruntime>=1.24; sys_platform != 'win32'",
+    # nvidia-cublas-cu12 12.9.3.13 chỉ có wheel Linux (19/11/2026): ghim bản cuối có win_amd64.
+    "nvidia-cublas-cu12<12.9.3; sys_platform == 'win32'",
 ]
 
 # Day la ung dung, khong phai thu vien de publish -> uv khong can build no.

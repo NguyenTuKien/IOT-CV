@@ -116,3 +116,28 @@ def test_detection_gan_voi_khung_that():
     d2 = build_fake_detection(MjpegFrame(b"x", 1, 0, 10, "VGA", 0.0), 1.0)
     assert (d2.width, d2.height) == (640, 480)
     assert d2.boxes[0].x2 <= 640
+
+
+# -- Camera giả nén đúng bảng DQT thật (plan XLA phase 15 bước 10, 19/11/2026) ----------------
+def test_khung_gia_q12_co_dqt_va_sof_cua_camera_that(clip):
+    """Khung giả ở q12 phải mang ĐÚNG bảng lượng tử và lấy mẫu 4:2:2 của camera thật,
+    đọc từ `assets/camera_dqt.json` (trích từ một khung thật của bản ghi 02/11/2026)."""
+    from backend.vision.jpeg_tables import load_camera_dqt, parse_jpeg_tables
+
+    that = load_camera_dqt()
+    assert that["subsampling"] == "4:2:2" and len(that["source"]["sha256"]) == 64
+    gia = parse_jpeg_tables(FakeMjpegSource(str(clip), jpeg_quality=12).next_jpeg())
+    luma_id, chroma_id = gia.components[0][3], gia.components[1][3]
+    assert gia.qtables[luma_id] == that["qtable_luma"]
+    assert gia.qtables[chroma_id] == that["qtable_chroma"]
+    assert gia.subsampling == "4:2:2"
+    assert [list(c) for c in gia.components] == that["components"]
+    assert (gia.width, gia.height) == (that["source"]["width"], that["source"]["height"])
+
+
+def test_khung_gia_q_khac_12_van_nen_bang_opencv(clip):
+    """q ≠ 12 giữ hành vi cũ (OpenCV, ước lượng chưa đo): bảng KHÔNG phải bảng camera."""
+    from backend.vision.jpeg_tables import load_camera_dqt, parse_jpeg_tables
+
+    gia = parse_jpeg_tables(FakeMjpegSource(str(clip), jpeg_quality=30).next_jpeg())
+    assert gia.qtables[gia.components[0][3]] != load_camera_dqt()["qtable_luma"]

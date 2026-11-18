@@ -2,7 +2,7 @@
 
 YOLO chạy 10 FPS có thể tạo hàng trăm event cho cùng một người. Luật:
 
-    confidence > DETECTION_CONFIDENCE
+    confidence >= ngưỡng (DETECTION_CONFIDENCE, rỗng = conf_threshold của bundle)
     -> detected >= DETECTION_MIN_FRAMES frame liên tiếp
     -> tạo event
     -> cooldown DETECTION_COOLDOWN_S giây
@@ -31,10 +31,12 @@ class DetectionEvent:
 
 
 class EventThrottle:
-    """Đếm frame liên tiếp và giữ cooldown giữa hai event.
+    """Đếm frame liên tiếp và giữ cooldown giữa hai event. Logic thuần, test ở
+    `backend/tests/test_vision_ai.py`.
 
-    TODO GIAI ĐOẠN 75: implement `should_emit(confidence, now)` — đây là logic
-    thuần, nên viết kèm unit test trong backend/tests/.
+    `confidence` là điểm cao nhất của khung (0 khi khung không có người). Khung dưới
+    ngưỡng đặt lại bộ đếm. Đủ `min_frames` khung liên tiếp thì phát, rồi im ít nhất
+    `cooldown_s` giây; người vẫn đứng đó thì hết cooldown phát tiếp.
     """
 
     def __init__(
@@ -45,11 +47,26 @@ class EventThrottle:
     ) -> None:
         self.min_frames = config.DETECTION_MIN_FRAMES if min_frames is None else min_frames
         self.cooldown_s = config.DETECTION_COOLDOWN_S if cooldown_s is None else cooldown_s
-        self.confidence_threshold = (
+        threshold = (
             config.DETECTION_CONFIDENCE if confidence_threshold is None else confidence_threshold
         )
+        if threshold is None:
+            raise ValueError(
+                "EventThrottle cần ngưỡng: truyền conf_threshold của detector hoặc đặt "
+                "DETECTION_CONFIDENCE"
+            )
+        self.confidence_threshold = float(threshold)
         self.consecutive_frames = 0
         self.last_event_time: float | None = None
 
     def should_emit(self, confidence: float, now: float) -> bool:
-        raise NotImplementedError("GIAI ĐOẠN 75: chưa implement chống spam detection")
+        if confidence < self.confidence_threshold:
+            self.consecutive_frames = 0
+            return False
+        self.consecutive_frames += 1
+        if self.consecutive_frames < self.min_frames:
+            return False
+        if self.last_event_time is not None and now - self.last_event_time < self.cooldown_s:
+            return False
+        self.last_event_time = now
+        return True

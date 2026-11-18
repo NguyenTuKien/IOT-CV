@@ -1,3 +1,0 @@
-import{at as e}from"./segmented-CS3IGZry.js";var t={name:`download`,size:24,node:[[`path`,{d:`M12 15V3`,key:`m9g1x1`}],[`path`,{d:`M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4`,key:`ih7n3h`}],[`path`,{d:`m7 10 5 5 5-5`,key:`brsn70`}]]};t.node;var n=e(t);function r(e,t){let n=e=>{if(e==null)return``;let t=typeof e==`number`?Number.isFinite(e)?String(e):``:String(e);return/[",\n\r]/.test(t)?`"${t.replace(/"/g,`""`)}"`:t};return`﻿${[e,...t].map(e=>e.map(n).join(`,`)).join(`\r
-`)}\r\n`}function i(e,t,n=`text/plain`){let r=URL.createObjectURL(new Blob([t],{type:n})),i=document.createElement(`a`);i.href=r,i.download=e,i.click(),setTimeout(()=>URL.revokeObjectURL(r),1e3)}export{r as n,n as r,i as t};
-//# sourceMappingURL=csv-BE-wQG__.js.map

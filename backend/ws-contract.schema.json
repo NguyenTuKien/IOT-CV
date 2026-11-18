@@ -1749,6 +1749,17 @@
         },
         "camera": {
           "$ref": "#/$defs/CameraStatus"
+        },
+        "vision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VisionStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -2209,6 +2220,102 @@
         "contract"
       ],
       "title": "VersionsPayload",
+      "type": "object"
+    },
+    "VisionModelStatus": {
+      "description": "Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý\ndo, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.",
+      "properties": {
+        "state": {
+          "enum": [
+            "loaded",
+            "rejected",
+            "disabled"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "providers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Providers",
+          "type": "array"
+        },
+        "cpu_only": {
+          "default": false,
+          "title": "Cpu Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "title": "VisionModelStatus",
+      "type": "object"
+    },
+    "VisionStatus": {
+      "properties": {
+        "detector": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
+        "enhancer": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
+        "ms": {
+          "additionalProperties": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "title": "Ms",
+          "type": "object"
+        },
+        "frames_processed": {
+          "default": 0,
+          "title": "Frames Processed",
+          "type": "integer"
+        },
+        "frames_dropped": {
+          "default": 0,
+          "title": "Frames Dropped",
+          "type": "integer"
+        },
+        "errors": {
+          "default": 0,
+          "title": "Errors",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "detector",
+        "enhancer"
+      ],
+      "title": "VisionStatus",
       "type": "object"
     }
   }

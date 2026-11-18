@@ -1,6 +1,6 @@
 """Nguồn MJPEG GIẢ + box nhận diện giả — Phase 07 §7.8.3.
 
-Camera thật chỉ có ở Phase 17, bộ nhận diện thật ở `plans/ai/`. Phase 10 cần một
+Camera thật chỉ có ở Phase 17, bộ nhận diện thật ở repo XLA (`backend/vision/detector.py`). Phase 10 cần một
 luồng video để dựng panel video + canvas overlay ngay bây giờ. File này là MỘT
 NGUỒN hợp lệ cho `stream.py` đọc — không phải một đường phục vụ video song song.
 Chiều phụ thuộc chỉ một chiều: file này được nhập kiểu `MjpegFrame` từ
@@ -50,12 +50,38 @@ def _framesize(name: str | None = None) -> tuple[str, int, int]:
     return (ten, *FRAMESIZES[ten])
 
 
+REAL_DQT_QUALITY = 12
+
+
+def real_dqt_jpeg(img_bgr) -> bytes:
+    """Nén như camera thật ở q12: bảng DQT đo từ khung thật (`assets/camera_dqt.json`,
+    `scripts/vision/trich_dqt.py`) + lấy mẫu màu 4:2:2, bằng Pillow `qtables`."""
+    import io
+
+    from PIL import Image
+
+    from backend.vision.jpeg_tables import load_camera_dqt
+
+    dqt = load_camera_dqt()
+    buf = io.BytesIO()
+    Image.fromarray(img_bgr[:, :, ::-1]).save(
+        buf,
+        "JPEG",
+        qtables=[dqt["qtable_luma"], dqt["qtable_chroma"]],
+        subsampling=dqt["subsampling"],
+    )
+    return buf.getvalue()
+
+
 def cv2_quality(esp32_quality: int) -> int:
     """Thang esp32-camera (0–63, số NHỎ = nét) -> thang OpenCV (0–100, số LỚN = nét).
 
     Đổi tuyến tính 100 - q*100/63 (q=10 -> 84, q=30 -> 52). Không có công thức
     chuẩn nào giữa hai thang; header vẫn ghi số theo thang ESP32 vì đó là cái
     thiết bị thật sẽ gửi.
+
+    CHỈ dùng cho q ≠ 12, và là ước lượng CHƯA ĐO. Ở q12 (mức camera thật tự đặt) khung giả
+    nén bằng đúng bảng DQT + 4:2:2 đo được từ camera (`real_dqt_jpeg`).
     """
     return max(1, min(100, round(100 - esp32_quality * 100 / 63)))
 
@@ -148,6 +174,8 @@ class FakeMjpegSource:
         thu_nho = img.shape[1] >= self.width
         cach = cv2.INTER_AREA if thu_nho else cv2.INTER_CUBIC
         img = cv2.resize(img, (self.width, self.height), interpolation=cach)
+        if self.jpeg_quality == REAL_DQT_QUALITY:
+            return real_dqt_jpeg(img)
         ok, buf = cv2.imencode(
             ".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, cv2_quality(self.jpeg_quality)]
         )

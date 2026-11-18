@@ -155,6 +155,8 @@ class WebSocketHub:
         # bay không phụ thuộc khối vision.
         self.mission = mission
         self.camera = camera
+        # `VisionRuntime` (backend/vision/runtime.py) — app.py gán sau khi dựng hub, như recorder.
+        self.vision = None
         self.monitor = SafetyMonitor()
         # Lịch sử gói telemetry đã gửi — chỉ để ĐỌC lại qua REST, không ảnh hưởng
         # gì tới đường điều khiển.
@@ -315,6 +317,7 @@ class WebSocketHub:
                 available=self._camera_available(),
                 fake=config.CAMERA_FAKE,
             ),
+            vision=self.vision.status() if self.vision is not None else None,
         )
 
     def _mission_status(self) -> MissionStatus:
@@ -480,7 +483,7 @@ class WebSocketHub:
             asyncio.create_task(self.telemetry_loop(), name="ws-telemetry"),
             asyncio.create_task(self.event_loop(), name="ws-events"),
         ]
-        if self.camera is not None and config.CAMERA_FAKE:
+        if self.camera is not None and (config.CAMERA_FAKE or self._real_detector() is not None):
             self._tasks.append(asyncio.create_task(self.detection_loop(), name="ws-detection"))
 
     async def stop_background(self) -> None:
@@ -584,14 +587,35 @@ class WebSocketHub:
                 cho = 0
             await asyncio.sleep(cho)
 
-    async def detection_loop(self) -> None:
-        """Box GIẢ mỗi `FAKE_DETECTION_INTERVAL_MS` (Phase 07 §7.8.3).
+    def _real_detector(self):
+        """Pipeline AI có detector đã nạp, hoặc None."""
+        pipeline = getattr(self.vision, "pipeline", None)
+        if pipeline is None or pipeline.detector is None:
+            return None
+        return pipeline
 
-        Chỉ chạy khi nguồn là giả. Gắn với khung THẬT đang phát (frame_id của
-        reader) để Phase 10 kiểm được canh chỉnh overlay theo đúng khung. Không
-        có khung (camera mất) thì không gửi gì — không bịa box cho khung không
-        tồn tại.
+    async def detection_loop(self) -> None:
+        """Gửi message `detection`.
+
+        Có detector thật (model XLA đã nạp): gửi kết quả MỚI của pipeline, kiểm mỗi 50 ms.
+        Không có detector, nguồn giả: box GIẢ mỗi `FAKE_DETECTION_INTERVAL_MS` (Phase 07
+        §7.8.3) gắn với khung THẬT đang phát (frame_id của reader) để kiểm canh chỉnh
+        overlay. Không có khung (camera mất) thì không gửi gì — không bịa box cho khung
+        không tồn tại.
         """
+        pipeline = self._real_detector()
+        if pipeline is not None:
+            last = None
+            while True:
+                try:
+                    payload = pipeline.latest_detection()
+                    if payload is not None and payload is not last and self._camera_available():
+                        last = payload
+                        await self.broadcast("detection", payload)
+                except Exception:  # noqa: BLE001
+                    self._khong_duoc_chet_lang_le("detection_loop")
+                await asyncio.sleep(0.05)
+
         from backend.vision.fake_stream import build_fake_detection
 
         interval = config.FAKE_DETECTION_INTERVAL_MS / 1000.0

@@ -118,3 +118,7 @@ copter-speedybeef4v5-d450a747.tar.gz
 
 # Bài tập môn học, không thuộc dự án
 assignment/
+
+# Bundle model AI chép từ XLA (scripts/vision/lay_model.py) và số đo bench (scripts/vision/replay_bench.py)
+/models/vision/
+/logs/vision-bench/

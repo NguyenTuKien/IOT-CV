@@ -19,6 +19,7 @@ import platform
 import sys
 import time
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -158,13 +159,37 @@ def build_router(hub) -> APIRouter:
             events_buffered=len(hub.bus.recent(limit=_EVENTS_MAX)),
         )
 
-    @router.get("/video/stream")
-    async def video_stream() -> StreamingResponse:
+    @router.get("/video/stream", response_model=None)
+    async def video_stream(
+        variant: Literal["raw", "enhanced"] = Query("raw"),
+    ) -> StreamingResponse | JSONResponse:
+        """`raw` = khung camera nguyên vẹn (hành vi cũ). `enhanced` = khung qua enhancer của
+        XLA (hợp đồng §8); enhancer chưa nạp -> 503 `{error, reason}`."""
         reader = hub.camera
         if reader is None:
             raise HTTPException(503, "Khối vision đang tắt (VISION_ENABLED=0)")
+        if variant == "raw":
+            reader.start()
+            return StreamingResponse(mjpeg_multipart(reader), media_type=MJPEG_MEDIA_TYPE)
+        vision = getattr(hub, "vision", None)
+        pipeline = vision.pipeline if vision is not None else None
+        if pipeline is None or pipeline.enhancer is None:
+            reason = vision.enhancer_status.reason if vision is not None else None
+            return JSONResponse(
+                {"error": "enhancer_unavailable", "reason": reason or "enhancer chưa nạp"},
+                status_code=503,
+            )
         reader.start()
-        return StreamingResponse(mjpeg_multipart(reader), media_type=MJPEG_MEDIA_TYPE)
+
+        async def enhanced():
+            pipeline.acquire_enhanced()
+            try:
+                async for part in mjpeg_multipart(pipeline.enhanced_view):
+                    yield part
+            finally:
+                pipeline.release_enhanced()
+
+        return StreamingResponse(enhanced(), media_type=MJPEG_MEDIA_TYPE)
 
     def _recording(action: str | None = None) -> RecordingStatus:
         """Đèn REC của web. Không có bộ ghi (vision tắt) thì trả trạng thái 'không ghi'
