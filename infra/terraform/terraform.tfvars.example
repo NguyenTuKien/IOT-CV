@@ -1,0 +1,14 @@
+# Public settings only. Keep actual local tfvars and all state outside the repo.
+aws_account_id    = "REPLACE_WITH_ACCOUNT_ID"
+aws_region        = "ap-southeast-2"
+availability_zone = "ap-southeast-2a"
+environment       = "demo"
+hostname          = "uav.ngtukien.id.vn"
+instance_type     = "m7i-flex.large"
+ami_id            = "REPLACE_WITH_REVIEWED_FREE_TIER_UBUNTU_AMI"
+key_pair_name     = "iotcv-demo"
+ssh_public_key    = "REPLACE_WITH_OPENSSH_PUBLIC_KEY"
+ssh_allowed_cidr  = "REPLACE_WITH_OPERATOR_IPV4/32"
+root_volume_gib   = 30
+data_volume_gib   = 30
+enable_elastic_ip = true

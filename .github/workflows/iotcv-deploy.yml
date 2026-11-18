@@ -1,0 +1,181 @@
+name: iotcv ec2 deployment
+
+on:
+  push:
+    branches: [main]
+    # Automatic deployment is application-only. Infrastructure changes use
+    # manual dispatch on main for bootstrap/maintenance.
+    paths:
+      - backend/**
+      - frontend/**
+      - ml/**
+      - models/**
+      - '**/*.onnx'
+      - pyproject.toml
+      - uv.lock
+      - .env.example
+      - docs/hop-dong-mjpeg.md
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy current main or roll back to a stored release
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      rollback_sha:
+        description: Full SHA of a previously deployed release; blank uses previous
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: iotcv-deploy-${{ vars.DEPLOY_ENVIRONMENT || 'demo' }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED != '0'
+    uses: ./.github/workflows/iotcv-ci.yml
+
+  images:
+    needs: checks
+    if: github.ref == 'refs/heads/main' && inputs.operation != 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      application: ${{ steps.digests.outputs.application }}
+      tunnel: ${{ steps.digests.outputs.tunnel }}
+    env:
+      REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE || 'ghcr.io/ngtukien/iot-cv' }}
+      TUNNEL_IMAGE: ${{ vars.TUNNEL_REGISTRY_IMAGE || 'ghcr.io/ngtukien/iot-cv-tunnel' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Preserve immutable existing SHA tags
+        id: existing
+        run: |
+          if docker buildx imagetools inspect "${REGISTRY_IMAGE}:${GITHUB_SHA}" >/dev/null 2>&1; then
+            echo 'application=true' >> "$GITHUB_OUTPUT"
+          fi
+          if docker buildx imagetools inspect "${TUNNEL_IMAGE}:${GITHUB_SHA}" >/dev/null 2>&1; then
+            echo 'tunnel=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Build and publish application
+        if: steps.existing.outputs.application != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infra/docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.REGISTRY_IMAGE }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+      - name: Build and publish tunnel sidecar
+        if: steps.existing.outputs.tunnel != 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: infra/docker/cloudflared.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.TUNNEL_IMAGE }}:${{ github.sha }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+      - name: Resolve registry digests for deployment
+        id: digests
+        run: |
+          app=$(docker buildx imagetools inspect "${REGISTRY_IMAGE}:${GITHUB_SHA}" --format '{{.Manifest.Digest}}')
+          tunnel=$(docker buildx imagetools inspect "${TUNNEL_IMAGE}:${GITHUB_SHA}" --format '{{.Manifest.Digest}}')
+          echo "application=${REGISTRY_IMAGE}@${app}" >> "$GITHUB_OUTPUT"
+          echo "tunnel=${TUNNEL_IMAGE}@${tunnel}" >> "$GITHUB_OUTPUT"
+
+  terraform:
+    needs: checks
+    # Explicit opt-in only after SCP permits GitHub OIDC bootstrap.
+    if: github.ref == 'refs/heads/main' && vars.TERRAFORM_APPLY_ENABLED == '1' && inputs.operation != 'rollback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ vars.DEPLOY_ENVIRONMENT || 'demo' }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_DATA_DIR: ${{ runner.temp }}/terraform-deployment
+      TF_VAR_aws_account_id: ${{ vars.AWS_ACCOUNT_ID }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+      TF_VAR_availability_zone: ${{ vars.AWS_AVAILABILITY_ZONE || 'ap-southeast-2a' }}
+      TF_VAR_ami_id: ${{ vars.EC2_AMI_ID }}
+      TF_VAR_ssh_public_key: ${{ vars.EC2_SSH_PUBLIC_KEY }}
+      TF_VAR_ssh_allowed_cidr: ${{ vars.SSH_ALLOWED_CIDR }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.1
+          terraform_wrapper: false
+      - name: Apply the saved validated infrastructure plan
+        env:
+          STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          umask 077
+          terraform -chdir=infra/terraform init -input=false -lockfile=readonly \
+            -backend-config="bucket=${STATE_BUCKET}" \
+            -backend-config="key=demo/ec2/terraform.tfstate" \
+            -backend-config="region=${TF_VAR_aws_region}" \
+            -backend-config=encrypt=true -backend-config=use_lockfile=true
+          terraform -chdir=infra/terraform plan -input=false -out="${RUNNER_TEMP}/iotcv.plan"
+          terraform -chdir=infra/terraform apply -input=false "${RUNNER_TEMP}/iotcv.plan"
+
+  deploy:
+    needs: [checks, images, terraform]
+    if: >-
+      always() && github.ref == 'refs/heads/main' && needs.checks.result == 'success' &&
+      (needs.images.result == 'success' || inputs.operation == 'rollback') &&
+      (needs.terraform.result == 'success' || needs.terraform.result == 'skipped')
+    runs-on: [self-hosted, linux, X64, iotcv-demo]
+    timeout-minutes: 20
+    environment: ${{ vars.DEPLOY_ENVIRONMENT || 'demo' }}
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: false
+      - name: Install isolated locked deployment tools
+        run: |
+          uv venv --python 3.13 "${RUNNER_TEMP}/iotcv-tools"
+          uv pip sync --only-binary :all: --require-hashes \
+            --python "${RUNNER_TEMP}/iotcv-tools/bin/python" infra/requirements.lock
+      - name: Deploy and verify internal and public endpoints
+        env:
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          REGISTRY_USERNAME: ${{ github.actor }}
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_IMAGE: ${{ vars.REGISTRY_IMAGE || 'ghcr.io/ngtukien/iot-cv' }}
+          TUNNEL_REGISTRY_IMAGE: ${{ vars.TUNNEL_REGISTRY_IMAGE || 'ghcr.io/ngtukien/iot-cv-tunnel' }}
+          IOTCV_IMAGE: ${{ needs.images.outputs.application }}
+          CLOUDFLARED_IMAGE: ${{ needs.images.outputs.tunnel }}
+          RELEASE_SHA: ${{ github.sha }}
+          DEPLOY_OPERATION: ${{ inputs.operation || 'deploy' }}
+          ROLLBACK_SHA: ${{ inputs.rollback_sha }}
+          ENVIRONMENT: ${{ vars.DEPLOY_ENVIRONMENT || 'demo' }}
+          PUBLIC_HOSTNAME: ${{ vars.PUBLIC_HOSTNAME || 'uav.ngtukien.id.vn' }}
+          DATA_VOLUME_ID: ${{ vars.DATA_VOLUME_ID }}
+        run: |
+          sudo --preserve-env=CLOUDFLARE_TUNNEL_TOKEN,REGISTRY_USERNAME,REGISTRY_PASSWORD,REGISTRY_IMAGE,TUNNEL_REGISTRY_IMAGE,IOTCV_IMAGE,CLOUDFLARED_IMAGE,RELEASE_SHA,DEPLOY_OPERATION,ROLLBACK_SHA,ENVIRONMENT,PUBLIC_HOSTNAME,DATA_VOLUME_ID \
+            "${RUNNER_TEMP}/iotcv-tools/bin/python" infra/scripts/deploy.py

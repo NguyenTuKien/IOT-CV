@@ -1,0 +1,133 @@
+name: iotcv-${ENVIRONMENT:-demo}
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  iotcv:
+    image: ${IOTCV_IMAGE:?Set IOTCV_IMAGE to the release image digest}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+    environment:
+      BACKEND_HOST: "0.0.0.0"
+      BACKEND_PORT: "8000"
+      TELEMETRY_AUTOSTART: "${TELEMETRY_AUTOSTART:-0}"
+      MAVLINK_ENDPOINT: "${MAVLINK_ENDPOINT:-udpin:127.0.0.1:14550}"
+      MAVLINK_UDP_HELLO: ""
+      CAMERA_FAKE: "${CAMERA_FAKE:-1}"
+      # In the existing source this flag enables the camera and fake boxes.
+      # It does not load a real detector; Phase 15 is outside deployment scope.
+      VISION_ENABLED: "${VISION_ENABLED:-1}"
+      RECORD_VIDEO: "${RECORD_VIDEO:-0}"
+      TLOG_ENABLE: "1"
+      TLOG_DIR: "/app/logs/tlog"
+      RECORD_DIR: "/app/logs/recordings"
+      DEADMAN_LOG_PATH: "/app/logs/deadman.jsonl"
+      FLIGHT_LOGS_DIR: "/app/logs"
+      FLIGHT_CACHE_DIR: "/app/logs/.cache/flights"
+      MQTT_BROKER: "mosquitto"
+      MQTT_PORT: "1883"
+      PYTHONDONTWRITEBYTECODE: "1"
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    volumes:
+      - logs:/app/logs
+      - models:/app/models:ro
+      - ./scripts/verify.py:/usr/local/bin/iotcv-verify.py:ro
+    networks: [application]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3); raise SystemExit(0 if r.status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    logging: *logging
+
+  cloudflared:
+    image: ${CLOUDFLARED_IMAGE:?Set CLOUDFLARED_IMAGE to the tunnel-sidecar image digest}
+    profiles: [tunnel]
+    restart: unless-stopped
+    read_only: true
+    user: "65532:65532"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 35s
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --metrics
+      - 0.0.0.0:2000
+      - --disable-path-normalization=false
+      - run
+      - --token-file
+      - /run/secrets/tunnel_token
+    secrets: [tunnel_token]
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    networks:
+      application: {}
+      tunnel_egress:
+        gw_priority: 1
+    depends_on:
+      iotcv:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:2000/ready', timeout=3); raise SystemExit(0 if r.status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    logging: *logging
+
+  mosquitto:
+    image: eclipse-mosquitto:2.1.4@sha256:fa12172a051310efe5bcb7a6a11b77bd5faacb82cbacd7742aa758bf024fd8e4
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ./docker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+    networks: [application]
+    healthcheck:
+      test: [CMD, mosquitto_sub, -h, "127.0.0.1", -t, "$$SYS/broker/version", -C, "1", -W, "5"]
+      interval: 15s
+      timeout: 7s
+      retries: 8
+      start_period: 15s
+    logging: *logging
+
+networks:
+  application:
+    internal: true
+  tunnel_egress: {}
+
+volumes:
+  logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${IOTCV_DATA_DIR:-/srv/iotcv/data}/logs
+  models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${IOTCV_DATA_DIR:-/srv/iotcv/data}/models
+  mosquitto_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${IOTCV_DATA_DIR:-/srv/iotcv/data}/mosquitto
+
+secrets:
+  tunnel_token:
+    file: ${CLOUDFLARED_TOKEN_FILE:-/etc/iotcv/secrets/tunnel_token}
