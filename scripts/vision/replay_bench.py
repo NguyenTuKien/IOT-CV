@@ -28,6 +28,14 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts" / "vision"))
 
+
+def inside_repo(path: Path) -> Path:
+    """Đường ghi ra phải nằm trong repo (chặn ghi đè file ngoài repo qua tham số dòng lệnh)."""
+    resolved = (path if path.is_absolute() else ROOT / path).resolve()
+    if not resolved.is_relative_to(ROOT):
+        raise SystemExit(f"đường ghi {resolved} phải nằm trong {ROOT}")
+    return resolved
+
 from kiem_bundle import check as check_bundle  # noqa: E402
 
 from backend import config  # noqa: E402
@@ -234,8 +242,9 @@ def main(argv: list[str] | None = None) -> int:
         and gpu
         and res["realtime"]["errors"] == 0
     )
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    out = args.out_dir / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
+    out_dir = inside_repo(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{dt.datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
     out.write_text(json.dumps(res, indent=1), encoding="utf-8")
     res["file"] = str(out)
     print(json.dumps(res) if args.json else f"{'ĐẠT' if res['pass'] else 'KHÔNG ĐẠT'} -> {out}")

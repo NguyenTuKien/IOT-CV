@@ -19,6 +19,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+
+def inside_repo(path: Path) -> Path:
+    """Đường ghi ra phải nằm trong repo (chặn ghi đè file ngoài repo qua tham số dòng lệnh)."""
+    resolved = (path if path.is_absolute() else ROOT / path).resolve()
+    if not resolved.is_relative_to(ROOT):
+        raise SystemExit(f"đường ghi {resolved} phải nằm trong {ROOT}")
+    return resolved
+
 from backend.flights.video import Recording  # noqa: E402
 from backend.vision.jpeg_tables import DQT_ASSET, parse_jpeg_tables  # noqa: E402
 
@@ -61,12 +69,13 @@ def main(argv: list[str] | None = None) -> int:
             "sha256": hashlib.sha256(jpeg).hexdigest(),
         },
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8", newline="\n")
+    out_path = inside_repo(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8", newline="\n")
     if args.json:
         print(json.dumps(out))
     else:
-        print(f"đã ghi {args.out} ({tables.subsampling}, Y[0]={out['qtable_luma'][0]})")
+        print(f"đã ghi {out_path} ({tables.subsampling}, Y[0]={out['qtable_luma'][0]})")
     return 0
 
 
