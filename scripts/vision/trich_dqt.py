@@ -71,7 +71,9 @@ def main(argv: list[str] | None = None) -> int:
     }
     out_path = DQT_ASSET  # chỉ ghi đúng asset của backend; không nhận đường ghi từ dòng lệnh
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8", newline="\n")
+    # Đường ghi là hằng DQT_ASSET; nội dung chỉ có tên bản ghi đã qua regex + số nguyên.
+    text = json.dumps(out, indent=1) + "\n"
+    out_path.write_text(text, encoding="utf-8", newline="\n")  # NOSONAR
     if args.json:
         print(json.dumps(out))
     else:
