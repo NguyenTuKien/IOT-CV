@@ -14,7 +14,6 @@ import tempfile
 import uuid
 from pathlib import Path
 
-
 ROOT = Path("/srv/iotcv")
 TOKEN_PATH = Path("/etc/iotcv/secrets/tunnel_token")
 SOURCE = Path(__file__).resolve().parents[1]
@@ -157,7 +156,8 @@ def deploy() -> dict:
             "CAMERA_FAKE": "1", "VISION_ENABLED": "1", "RECORD_VIDEO": "0",
         }
         # This file contains only public settings and a token FILE PATH.
-        (target / ".env").write_text("".join(key + "=" + value + "\n" for key, value in settings.items()))
+        env_text = "".join(key + "=" + value + "\n" for key, value in settings.items())
+        (target / ".env").write_text(env_text)
         (target / ".env").chmod(0o640)
         existing.write_text(json.dumps(manifest, indent=2) + "\n")
 
