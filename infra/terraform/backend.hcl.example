@@ -1,0 +1,5 @@
+bucket       = "REPLACE_WITH_PRIVATE_STATE_BUCKET"
+key          = "demo/ec2/terraform.tfstate"
+region       = "ap-southeast-2"
+encrypt      = true
+use_lockfile = true

@@ -1,0 +1,64 @@
+name: iotcv deployment checks
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Locked Python 3.13 dependencies, Ruff and all backend tests
+        run: docker build --target backend-checks --file infra/docker/Dockerfile .
+
+  frontend:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Frozen pnpm install, lint, tests, typecheck and build
+        run: docker build --target frontend-checks --file infra/docker/Dockerfile .
+
+  infrastructure:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.1
+          terraform_wrapper: false
+      - name: Terraform formatting
+        run: terraform fmt -check -recursive infra/terraform
+      - name: Validate all independent Terraform roots without AWS credentials
+        run: |
+          for root in infra/terraform infra/terraform/bootstrap infra/terraform/oidc; do
+            export TF_DATA_DIR="${RUNNER_TEMP}/terraform-$(basename "$root")"
+            terraform -chdir="$root" init -backend=false -input=false -lockfile=readonly
+            terraform -chdir="$root" validate
+          done
+      - name: Deployment script syntax and security-boundary tests
+        run: |
+          bash -n infra/scripts/provision.sh
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s infra/scripts -p 'test_*.py'
+      - name: Compose configuration has no published application ports
+        env:
+          IOTCV_IMAGE: iotcv:ci
+          CLOUDFLARED_IMAGE: iotcv-tunnel:ci
+        run: docker compose -f infra/docker-compose.prod.yml config --quiet
+
+  docker:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: docker build --file infra/docker/Dockerfile .
+      - run: docker build --file infra/docker/cloudflared.Dockerfile .
