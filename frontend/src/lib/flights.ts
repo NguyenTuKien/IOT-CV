@@ -8,7 +8,7 @@
 import { restGet } from "./api";
 import type { FlightSummary, FlightVideoClip } from "./protocol";
 
-export type { FlightDetail, FlightSummary } from "./protocol";
+export type { FlightDetail, FlightFrameAI, FlightSummary, ImageQuality } from "./protocol";
 
 export const SPEEDS = [1, 2, 4, 8] as const;
 export type Speed = (typeof SPEEDS)[number];
@@ -24,8 +24,90 @@ export async function fetchFlight(id: string, init?: RequestInit) {
   return restGet("GET /api/flight", `?id=${encodeURIComponent(id)}`, init);
 }
 
-export function frameUrl(rec: string, n: number): string {
-  return `/api/flights/frame?rec=${encodeURIComponent(rec)}&n=${n}`;
+/** `raw` = khung camera đã ghi; `enhanced` = khung đó sau enhancer của XLA (chạy trên laptop). */
+export type FrameVariant = "raw" | "enhanced";
+
+export function frameUrl(rec: string, n: number, variant: FrameVariant = "raw"): string {
+  const url = `/api/flights/frame?rec=${encodeURIComponent(rec)}&n=${n}`;
+  return variant === "enhanced" ? `${url}&variant=enhanced` : url;
+}
+
+/**
+ * Hộp người (detector trên khung gốc) + số đo ảnh gốc / ảnh rõ của MỘT khung đã ghi. `detect`
+ * false: backend bỏ detector, chỉ chạy enhancer (người xem tắt hộp người, ảnh rõ theo video nhanh hơn).
+ */
+export async function fetchFrameAi(rec: string, n: number, init?: RequestInit, detect = true) {
+  const more = detect ? "" : "&detect=false";
+  return restGet("GET /api/flights/ai", `?rec=${encodeURIComponent(rec)}&n=${n}${more}`, init);
+}
+
+/** Đếm "AI theo kịp video" trong một lượt phát. */
+export interface KeepUp {
+  /** Khung AI đã hiện kể từ lần bấm Phát gần nhất. */
+  shown: number;
+  /** Khung có trong file ghi nhưng AI bỏ qua vì còn bận khung trước. */
+  skipped: number;
+}
+
+/** Nhảy quá chừng này khung một lần là người xem tua, không phải AI bỏ khung. */
+export const SEEK_GAP = 30;
+
+/**
+ * Cộng một khung vừa hiện vào bộ đếm (chỉ tính khung nhảy cóc trong cùng một lần ghi). Cùng khung
+ * hiện lại (bật/tắt hộp người) thì không đếm.
+ */
+export function countKeepUp(prev: KeepUp, last: { rec: string; n: number } | null, next: { rec: string; n: number }): KeepUp {
+  if (last && last.rec === next.rec && last.n === next.n) return prev;
+  const gap = last && last.rec === next.rec ? next.n - last.n - 1 : 0;
+  const skipped = gap > 0 && gap <= SEEK_GAP ? gap : 0;
+  return { shown: prev.shown + 1, skipped: prev.skipped + skipped };
+}
+
+/** Khung/s của video ĐÃ GHI quanh giây `t`: số khung trong `windowS` giây trước `t` (mọi đoạn ghi). */
+export function videoFpsAt(clips: readonly FlightVideoClip[], t: number, windowS = 3): number {
+  let count = 0;
+  for (const clip of clips) count += Math.max(0, indexAt(clip.times, t) - indexAt(clip.times, t - windowS));
+  return count / windowS;
+}
+
+/**
+ * JPEG của một khung. Lỗi ném `Error` mang lý do backend gửi kèm (503 `enhancer_unavailable` có
+ * `reason`, vd. "enhancer chưa nạp"); thân không phải JSON thì lý do là mã HTTP.
+ */
+export async function fetchFrameBlob(rec: string, n: number, variant: FrameVariant, init?: RequestInit): Promise<Blob> {
+  const res = await fetch(frameUrl(rec, n, variant), init);
+  if (res.ok) return res.blob();
+  let reason = `HTTP ${res.status}`;
+  try {
+    const body: unknown = await res.json();
+    if (body && typeof body === "object" && "reason" in body && typeof body.reason === "string") reason = body.reason;
+  } catch {
+    // Thân lỗi không phải JSON (proxy, 404 của router): giữ lý do là mã HTTP.
+  }
+  throw new Error(reason);
+}
+
+/** Ảnh rõ đổi bao nhiêu phần trăm so với gốc; `null` khi thiếu số hoặc gốc bằng 0. */
+export function qualityDelta(raw: number | null | undefined, enhanced: number | null | undefined): number | null {
+  if (raw == null || enhanced == null || raw === 0) return null;
+  return ((enhanced - raw) / Math.abs(raw)) * 100;
+}
+
+export interface BoxPercent {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** Hộp pixel của khung `w×h` → phần trăm để đặt bằng CSS, cắt về trong khung. */
+export function boxPercent(b: { x1: number; y1: number; x2: number; y2: number }, w: number, h: number): BoxPercent {
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+  const left = clamp((Math.min(b.x1, b.x2) / w) * 100);
+  const top = clamp((Math.min(b.y1, b.y2) / h) * 100);
+  const right = clamp((Math.max(b.x1, b.x2) / w) * 100);
+  const bottom = clamp((Math.max(b.y1, b.y2) / h) * 100);
+  return { left, top, width: right - left, height: bottom - top };
 }
 
 /** Chỉ số mẫu cuối cùng có `xs[i] <= x` (−1 nếu x đứng trước mọi mẫu). `xs` tăng dần. */

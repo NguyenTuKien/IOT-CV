@@ -618,6 +618,37 @@ class FlightDetail(BaseModel):
     clock_note: str | None = None  # đo bằng gì: SYSTEM_TIME / khớp lần ARM / tlog gần nhất
 
 
+class ImageQuality(BaseModel):
+    """Số đo không tham chiếu trên ảnh xám của một khung: `brightness` = trung bình (0–255),
+    `contrast` = độ lệch chuẩn, `sharpness` = phương sai Laplace (nhiễu cũng làm số này tăng)."""
+
+    brightness: float
+    contrast: float
+    sharpness: float
+
+
+class FlightFrameAI(BaseModel):
+    """`GET /api/flights/ai?rec=…&n=…` — AI trên MỘT khung đã ghi (trang Lịch sử bay).
+
+    `boxes` là hộp người của detector chạy trên khung GỐC (D5), toạ độ pixel của khung
+    `width×height`. Ảnh rõ của khung lấy ở `/api/flights/frame?…&variant=enhanced`; trường
+    `enhancer` cho biết có lấy được không. `note` = lý do riêng của khung này (vd. sai cỡ).
+    `quality_enhanced` / `enhancer_ms` chỉ có khi enhancer chạy được trên khung này."""
+
+    rec: str
+    n: int
+    width: int
+    height: int
+    detector: VisionModelStatus
+    enhancer: VisionModelStatus
+    boxes: list[DetectionBox]
+    detector_ms: float | None = None
+    enhancer_ms: float | None = None
+    quality_raw: ImageQuality | None = None
+    quality_enhanced: ImageQuality | None = None
+    note: str | None = None
+
+
 REST_MODELS: dict[str, type[BaseModel]] = {
     "GET /api/status": StatusPayload,
     "GET /api/config": ConfigPayload,
@@ -631,6 +662,7 @@ REST_MODELS: dict[str, type[BaseModel]] = {
     "POST /api/recording/stop": RecordingStatus,
     "GET /api/flights": FlightListPayload,
     "GET /api/flight": FlightDetail,
+    "GET /api/flights/ai": FlightFrameAI,
 }
 
 
