@@ -152,7 +152,7 @@ describe("AiCompare — gốc và ảnh rõ cùng một khung", () => {
     const handle = screen.getByTestId("flight-ai-handle");
     fireEvent.keyDown(handle, { key: "ArrowRight", shiftKey: true });
     expect(handle.getAttribute("aria-valuenow")).toBe("60");
-    expect((screen.getByTestId("flight-ai-enhanced") as HTMLImageElement).style.clipPath).toBe("inset(0 0 0 60%)");
+    expect(screen.getByTestId("flight-ai-enhanced-clip").style.clipPath).toBe("inset(0 0 0 60%)");
     expect(window.localStorage.getItem("iot-cv.flight-ai-mode")).toBe("slider");
   });
 
@@ -173,5 +173,136 @@ describe("AiCompare — gốc và ảnh rõ cùng một khung", () => {
     await waitFor(() => expect(screen.queryByTestId("flight-ai-boxes")).toBeNull());
     expect(screen.getByTestId("flight-ai-keepup").textContent).toContain("2/3");
     expect(screen.queryByTestId("flight-ai-keepup-tip")).toBeNull(); // đã tắt hộp người
+  });
+});
+
+describe("AiCompare — phóng to cả hai bên cùng một chỗ", () => {
+  beforeEach(() => {
+    let urls = 0;
+    vi.stubGlobal("URL", Object.assign(URL, { createObjectURL: vi.fn(() => `blob:test/${urls++}`), revokeObjectURL: vi.fn() }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), "http://localhost");
+        const n = Number(url.searchParams.get("n"));
+        if (url.pathname === "/api/flights/ai") return new Response(JSON.stringify(aiBody(n)), { status: 200 });
+        return jpeg(`${url.searchParams.get("variant") ?? "raw"}-${n}`);
+      }),
+    );
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+    window.localStorage.clear();
+  });
+
+  /** jsdom không dàn trang: cho ô một cỡ thật để đổi pixel con trỏ ra toạ độ khung nhìn. */
+  function sized(testId: string, width = 400, height = 300): HTMLElement {
+    const el = screen.getByTestId(testId);
+    vi.spyOn(el, "getBoundingClientRect").mockReturnValue({ left: 0, top: 0, right: width, bottom: height, width, height, x: 0, y: 0, toJSON: () => ({}) } as DOMRect);
+    return el;
+  }
+
+  /** Transform của mọi lớp ảnh đang hiện; hai bên phải trùng nhau từng ký tự. */
+  function transforms(): string[] {
+    return screen.getAllByTestId("flight-ai-layer").map((l) => l.style.transform);
+  }
+
+  function expectSynced(scale: string): string {
+    const t = transforms();
+    expect(t).toHaveLength(2);
+    expect(t[1]).toBe(t[0]);
+    expect(t[0]).toContain(`scale(${scale}`);
+    return t[0];
+  }
+
+  async function renderAi() {
+    render(<AiCompare flight={flight()} cursor={0.25} playing={false} onPlay={() => {}} />);
+    await screen.findByTestId("flight-ai-enhanced");
+  }
+
+  it("nút phóng to / vừa khung đổi cả gốc lẫn ảnh rõ, có bản đồ nhỏ ở mỗi bên", async () => {
+    await renderAi();
+    expect((screen.getByTestId("flight-ai-zoom-out") as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByTestId("flight-ai-zoom-map")).toBeNull();
+    fireEvent.click(screen.getByTestId("flight-ai-zoom-in"));
+    expect(screen.getByTestId("flight-ai-zoom").textContent).toBe("1.5×");
+    expect(expectSynced("1.5")).toBe("translate(-25%, -25%) scale(1.5)"); // phóng quanh tâm
+    expect(screen.getAllByTestId("flight-ai-zoom-map")).toHaveLength(2);
+    fireEvent.click(screen.getByTestId("flight-ai-zoom-fit"));
+    expect(screen.getByTestId("flight-ai-zoom").textContent).toBe("1.0×");
+    expectSynced("1");
+    expect(screen.queryByTestId("flight-ai-zoom-map")).toBeNull();
+  });
+
+  it("hộp người đi theo zoom ở cả hai bên, viền không dày lên theo độ phóng", async () => {
+    await renderAi();
+    const boxStyles = () =>
+      screen.getAllByTestId("flight-ai-boxes").map((layer) => {
+        const b = layer.firstElementChild as HTMLElement;
+        return { left: b.style.left, top: b.style.top, width: b.style.width, height: b.style.height, thin: b.classList.contains("border-2") };
+      });
+    // Hộp (64,48)–(128,240) trên khung 640×480 = 10 %, 10 %, rộng 10 %, cao 40 %.
+    expect(boxStyles()[0]).toEqual({ left: "10%", top: "10%", width: "10%", height: "40%", thin: true });
+    fireEvent.click(screen.getByTestId("flight-ai-zoom-in")); // 1,5× quanh tâm: dời −25 %
+    const zoomed = boxStyles();
+    expect(zoomed).toHaveLength(2);
+    expect(zoomed[1]).toEqual(zoomed[0]);
+    expect(zoomed[0]).toEqual({ left: "-10%", top: "-10%", width: "15%", height: "60%", thin: true });
+    // Hộp nhô 10 % lên trên khung nhìn: nhãn bám mép trên phần còn thấy (10/60 chiều cao hộp).
+    const label = screen.getAllByTestId("flight-ai-boxes")[0].querySelector("span") as HTMLElement;
+    expect(parseFloat(label.style.top)).toBeCloseTo((10 / 60) * 100);
+    // Hộp không nằm trong lớp phóng (lớp đó chịu transform, viền sẽ phóng theo).
+    for (const layer of screen.getAllByTestId("flight-ai-layer")) expect(layer.querySelector('[data-testid="flight-ai-boxes"]')).toBeNull();
+  });
+
+  it("lăn chuột ở bên gốc phóng cả bên ảnh rõ; kéo bên ảnh rõ di chuyển cả bên gốc", async () => {
+    await renderAi();
+    const raw = sized("flight-ai-surface-raw");
+    // Vừa khung mà lăn xuống: không nuốt cú lăn, trang cuộn như thường.
+    expect(fireEvent.wheel(raw, { deltaY: 120, clientX: 100, clientY: 75 })).toBe(true);
+    expectSynced("1");
+    expect(fireEvent.wheel(raw, { deltaY: -300, clientX: 100, clientY: 75 })).toBe(false);
+    const zoomed = expectSynced("1.56");
+    const enhanced = sized("flight-ai-surface-enhanced");
+    fireEvent.pointerDown(enhanced, { pointerId: 1, button: 0, clientX: 200, clientY: 150 });
+    fireEvent.pointerMove(enhanced, { pointerId: 1, clientX: 240, clientY: 150 });
+    fireEvent.pointerUp(enhanced, { pointerId: 1 });
+    const panned = expectSynced("1.56");
+    expect(panned).not.toBe(zoomed);
+  });
+
+  it("nhấp đúp phóng 3× quanh chỗ nhấp, nhấp đúp lần nữa về vừa khung", async () => {
+    await renderAi();
+    const enhanced = sized("flight-ai-surface-enhanced");
+    fireEvent.doubleClick(enhanced, { clientX: 0, clientY: 0 });
+    expect(screen.getByTestId("flight-ai-zoom").textContent).toBe("3.0×");
+    expect(expectSynced("3")).toBe("translate(0%, 0%) scale(3)"); // góc trên trái đứng yên
+    fireEvent.doubleClick(enhanced, { clientX: 0, clientY: 0 });
+    expect(screen.getByTestId("flight-ai-zoom").textContent).toBe("1.0×");
+  });
+
+  it("thanh trượt: giữ độ phóng khi đổi cách xem, ranh giới đứng yên, tay nắm vẫn dời ranh giới", async () => {
+    await renderAi();
+    fireEvent.click(screen.getByTestId("flight-ai-zoom-in"));
+    fireEvent.click(screen.getByTestId("flight-ai-mode-slider"));
+    const zoomed = expectSynced("1.5");
+    const clip = () => screen.getByTestId("flight-ai-enhanced-clip").style.clipPath;
+    expect(clip()).toBe("inset(0 0 0 50%)");
+    const slider = sized("flight-ai-slider");
+    // Kéo tay nắm: dời ranh giới, ảnh không đi.
+    const handle = screen.getByTestId("flight-ai-handle");
+    fireEvent.pointerDown(handle, { pointerId: 2, button: 0, clientX: 100, clientY: 150 });
+    fireEvent.pointerMove(slider, { pointerId: 2, clientX: 300, clientY: 150 });
+    fireEvent.pointerUp(slider, { pointerId: 2 });
+    expect(clip()).toBe("inset(0 0 0 75%)");
+    expect(handle.getAttribute("aria-valuenow")).toBe("75");
+    expect(transforms()[0]).toBe(zoomed);
+    // Kéo chỗ khác khi đang phóng: di chuyển ảnh, ranh giới giữ nguyên.
+    fireEvent.pointerDown(slider, { pointerId: 3, button: 0, clientX: 200, clientY: 150 });
+    fireEvent.pointerMove(slider, { pointerId: 3, clientX: 160, clientY: 120 });
+    fireEvent.pointerUp(slider, { pointerId: 3 });
+    expect(expectSynced("1.5")).not.toBe(zoomed);
+    expect(clip()).toBe("inset(0 0 0 75%)");
   });
 });
