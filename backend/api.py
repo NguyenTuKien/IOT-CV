@@ -26,6 +26,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from backend import __version__, config
 from backend.flights import store_from_config
+from backend.flights.ai import EnhancerUnavailable, FlightFrameAIService, FrameNotFound
 from backend.flights.video import RecordingCache
 from backend.schemas import (
     CONTRACT_VERSION,
@@ -33,6 +34,7 @@ from backend.schemas import (
     ConfigPayload,
     EventsPayload,
     FlightDetail,
+    FlightFrameAI,
     FlightListPayload,
     FlightSkippedFile,
     LimitsPayload,
@@ -251,6 +253,8 @@ def build_router(hub) -> APIRouter:
     # telemetry của chuyến đang bay không khựng.
     flights_store = store_from_config()
     recordings = RecordingCache(Path(config.RECORD_DIR))
+    # AI trên khung đã ghi dùng chung model của khối vision (hub.vision), không nạp lần hai.
+    frame_ai = FlightFrameAIService(recordings, lambda: getattr(hub, "vision", None))
 
     def _flight_list() -> FlightListPayload:
         scan = flights_store.scan()
@@ -272,9 +276,28 @@ def build_router(hub) -> APIRouter:
 
     @router.get("/flights/frame")
     async def flight_frame(
-        rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"), n: int = Query(..., ge=0)
+        rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"),
+        n: int = Query(..., ge=0),
+        variant: Literal["raw", "enhanced"] = Query("raw"),
     ) -> Response:
-        """Khung JPEG thứ `n` (thứ tự dòng `frames.csv`) của lần ghi `rec`."""
+        """Khung JPEG thứ `n` (thứ tự dòng `frames.csv`) của lần ghi `rec`.
+
+        `variant=enhanced` = khung đó sau enhancer của XLA (để so với gốc trên trang Lịch sử
+        bay); enhancer không dùng được -> 503 `{error: "enhancer_unavailable", reason}`."""
+        if variant == "enhanced":
+            try:
+                enhanced = await asyncio.to_thread(frame_ai.enhanced_jpeg, rec, n)
+            except FrameNotFound as exc:
+                raise HTTPException(404, str(exc)) from exc
+            except EnhancerUnavailable as exc:
+                return JSONResponse(
+                    {"error": "enhancer_unavailable", "reason": exc.reason}, status_code=503
+                )
+            return Response(
+                enhanced,
+                media_type="image/jpeg",
+                headers={"Cache-Control": "private, max-age=3600"},
+            )
 
         def read() -> bytes | None:
             item = recordings.get(rec)
@@ -288,5 +311,19 @@ def build_router(hub) -> APIRouter:
             media_type="image/jpeg",
             headers={"Cache-Control": "private, max-age=86400, immutable"},
         )
+
+    @router.get("/flights/ai", response_model=FlightFrameAI)
+    async def flight_frame_ai(
+        rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"),
+        n: int = Query(..., ge=0),
+        detect: bool = Query(True),
+    ) -> FlightFrameAI:
+        """Hộp người (detector trên khung gốc) + số đo ảnh + trạng thái model cho khung `n`.
+
+        `detect=false`: bỏ detector, chỉ chạy enhancer (người xem tắt hộp người)."""
+        try:
+            return await asyncio.to_thread(frame_ai.analyze, rec, n, detect)
+        except FrameNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
 
     return router

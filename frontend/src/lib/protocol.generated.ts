@@ -269,6 +269,48 @@ export interface FlightVideoClip {
   times: number[];
 }
 /**
+ * `GET /api/flights/ai?rec=…&n=…` — AI trên MỘT khung đã ghi (trang Lịch sử bay).
+ *
+ * `boxes` là hộp người của detector chạy trên khung GỐC (D5), toạ độ pixel của khung
+ * `width×height`. Ảnh rõ của khung lấy ở `/api/flights/frame?…&variant=enhanced`; trường
+ * `enhancer` cho biết có lấy được không. `note` = lý do riêng của khung này (vd. sai cỡ).
+ * `quality_enhanced` / `enhancer_ms` chỉ có khi enhancer chạy được trên khung này.
+ */
+export interface FlightFrameAI {
+  rec: string;
+  n: number;
+  width: number;
+  height: number;
+  detector: VisionModelStatus;
+  enhancer: VisionModelStatus;
+  boxes: DetectionBox[];
+  detector_ms?: number | null;
+  enhancer_ms?: number | null;
+  quality_raw?: ImageQuality | null;
+  quality_enhanced?: ImageQuality | null;
+  note?: string | null;
+}
+/**
+ * Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý
+ * do, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.
+ */
+export interface VisionModelStatus {
+  state: "loaded" | "rejected" | "disabled";
+  reason?: string | null;
+  version?: string | null;
+  providers?: string[];
+  cpu_only?: boolean;
+}
+/**
+ * Số đo không tham chiếu trên ảnh xám của một khung: `brightness` = trung bình (0–255),
+ * `contrast` = độ lệch chuẩn, `sharpness` = phương sai Laplace (nhiễu cũng làm số này tăng).
+ */
+export interface ImageQuality {
+  brightness: number;
+  contrast: number;
+  sharpness: number;
+}
+/**
  * `GET /api/flights` — mọi chuyến, cũ trước mới sau.
  */
 export interface FlightListPayload {
@@ -365,17 +407,6 @@ export interface VisionStatus {
   frames_processed?: number;
   frames_dropped?: number;
   errors?: number;
-}
-/**
- * Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý
- * do, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.
- */
-export interface VisionModelStatus {
-  state: "loaded" | "rejected" | "disabled";
-  reason?: string | null;
-  version?: string | null;
-  providers?: string[];
-  cpu_only?: boolean;
 }
 /**
  * `GET /api/system` — thông tin vận hành cho trang Hệ thống của web.
@@ -494,6 +525,7 @@ export interface RestResponses {
   "POST /api/recording/stop": RecordingStatus;
   "GET /api/flights": FlightListPayload;
   "GET /api/flight": FlightDetail;
+  "GET /api/flights/ai": FlightFrameAI;
 }
 
 export const DOWNLINK_TYPES = [

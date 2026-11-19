@@ -4,6 +4,7 @@
  *   ┌─ danh sách ─┐┌──────── bản đồ vệt bay ────────┐┌── video camera ──┐
  *   │ theo ngày   ││ drone tại đầu phát, home        ││ khung tại đầu phát│
  *   │             │├──── phát · tốc độ · tua · dải mode · vạch sự kiện ───┤
+ *   │             │├── AI: khung gốc ↔ ảnh rõ (cạnh nhau / thanh trượt), hộp người, số đo ──┤
  *   │             │├── biểu đồ: độ cao, tốc độ, pin, sóng, mất gói, camera, GPS, rung ──┤
  *   └─────────────┘└── tóm tắt chuyến ──┴── sự kiện (bấm để tua) ──┘
  *
@@ -11,12 +12,13 @@
  * (`backend/flights/`). Chỉ ĐỌC — trang này không gửi gì xuống drone. Chuyến đang chọn nằm
  * trên URL (`?f=`) để chép link gửi được.
  */
-import { BarChart3, History, ListTree, Map as MapIcon, Video } from "lucide-react";
+import { BarChart3, History, ListTree, Map as MapIcon, Sparkles, Video } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { pageMeta } from "@/app/routes";
 import { Chip, EmptyState, ModeBadge, PageHeader } from "@/components/kit";
+import { AiCompare } from "@/components/flights/AiCompare";
 import { FlightEvents, FlightSummaryList } from "@/components/flights/FlightInfo";
 import { FlightList } from "@/components/flights/FlightList";
 import { PlaybackBar } from "@/components/flights/PlaybackBar";
@@ -225,6 +227,17 @@ function FlightReplay({ flight }: { flight: FlightDetail }) {
 
       <Panel title="Phát lại" subtitle="Dải màu = chế độ bay · vạch = cảnh báo / lỗi" icon={History} accent="cyan" bodyClassName="p-3">
         <PlaybackBar flight={flight} cursor={cursor} playing={playing} speed={speed} onSeek={seek} onPlay={setPlaying} onSpeed={setSpeed} />
+      </Panel>
+
+      <Panel
+        title="AI xử lý ảnh trên video chuyến bay"
+        subtitle="Khung gốc ↔ khung sau enhancer, laptop xử lý theo đầu phát · hộp người của detector"
+        icon={Sparkles}
+        accent="violet"
+        bodyClassName="p-0"
+        testId="flight-ai-panel"
+      >
+        <AiCompare flight={flight} cursor={cursor} playing={playing} onPlay={setPlaying} />
       </Panel>
 
       <Panel title="Số liệu theo thời gian" subtitle="Vạch vàng = đầu phát · bấm vào biểu đồ để tua" icon={BarChart3} accent="blue" bodyClassName="grid gap-x-4 gap-y-2 p-3 md:grid-cols-2 2xl:grid-cols-3">

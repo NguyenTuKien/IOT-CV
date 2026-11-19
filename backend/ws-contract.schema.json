@@ -97,6 +97,9 @@
     },
     "GET /api/flight": {
       "$ref": "#/$defs/FlightDetail"
+    },
+    "GET /api/flights/ai": {
+      "$ref": "#/$defs/FlightFrameAI"
     }
   },
   "uplink_rate_limits": {
@@ -752,6 +755,109 @@
       "title": "FlightEvent",
       "type": "object"
     },
+    "FlightFrameAI": {
+      "description": "`GET /api/flights/ai?rec=…&n=…` — AI trên MỘT khung đã ghi (trang Lịch sử bay).\n\n`boxes` là hộp người của detector chạy trên khung GỐC (D5), toạ độ pixel của khung\n`width×height`. Ảnh rõ của khung lấy ở `/api/flights/frame?…&variant=enhanced`; trường\n`enhancer` cho biết có lấy được không. `note` = lý do riêng của khung này (vd. sai cỡ).\n`quality_enhanced` / `enhancer_ms` chỉ có khi enhancer chạy được trên khung này.",
+      "properties": {
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "n": {
+          "title": "N",
+          "type": "integer"
+        },
+        "width": {
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "title": "Height",
+          "type": "integer"
+        },
+        "detector": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
+        "enhancer": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
+        "boxes": {
+          "items": {
+            "$ref": "#/$defs/DetectionBox"
+          },
+          "title": "Boxes",
+          "type": "array"
+        },
+        "detector_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detector Ms"
+        },
+        "enhancer_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enhancer Ms"
+        },
+        "quality_raw": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageQuality"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "quality_enhanced": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ImageQuality"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "required": [
+        "rec",
+        "n",
+        "width",
+        "height",
+        "detector",
+        "enhancer",
+        "boxes"
+      ],
+      "title": "FlightFrameAI",
+      "type": "object"
+    },
     "FlightListPayload": {
       "description": "`GET /api/flights` — mọi chuyến, cũ trước mới sau.",
       "properties": {
@@ -1326,6 +1432,30 @@
         "times"
       ],
       "title": "FlightVideoClip",
+      "type": "object"
+    },
+    "ImageQuality": {
+      "description": "Số đo không tham chiếu trên ảnh xám của một khung: `brightness` = trung bình (0–255),\n`contrast` = độ lệch chuẩn, `sharpness` = phương sai Laplace (nhiễu cũng làm số này tăng).",
+      "properties": {
+        "brightness": {
+          "title": "Brightness",
+          "type": "number"
+        },
+        "contrast": {
+          "title": "Contrast",
+          "type": "number"
+        },
+        "sharpness": {
+          "title": "Sharpness",
+          "type": "number"
+        }
+      },
+      "required": [
+        "brightness",
+        "contrast",
+        "sharpness"
+      ],
+      "title": "ImageQuality",
       "type": "object"
     },
     "LimitsPayload": {

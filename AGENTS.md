@@ -147,6 +147,10 @@ bản sau đè bản trước mà không báo gì.
   lấy từ `lib/tone.ts`, `lib/eventStyle.ts`, `lib/modes.ts` và `components/kit` — đừng tô màu tại chỗ.
   E2E Playwright trong phiên agent có lúc ra trang trắng (`ERR_NETWORK_ACCESS_DENIED` = WinError 10013 khi tải
   chunk JS): đọc ảnh lỗi trước khi kết luận giao diện hỏng.
+  Playwright MCP gắn vào Chrome THẬT của người dùng: cửa sổ bị VS Code che là `document.visibilityState`
+  = `hidden`, Chrome hãm timer (~1 lần/giây) → mọi số đo tốc độ trang (khung/s, độ trễ) sai. Đo tốc độ bằng Chrome
+  headless riêng (`chromium.launch({ channel: "chrome" })` của `@playwright/test` trong `frontend/`), và đọc
+  `visibilityState` trước khi tin số (19/11/2026).
   Người dùng xem web ở **1707×900, nền ngày** (laptop 2560×1600 @150 %): kiểm bố cục ở đúng cỡ đó. Trang Bay phải vừa
   một màn hình không cuộn cột (radar vật cản thấy ngay), bàn phím lái tay luôn hiện; danh sách nhãn–giá trị dùng
   `KeyValue` của `components/kit` (icon, chip trạng thái), đừng viết bảng trơn tại chỗ.
