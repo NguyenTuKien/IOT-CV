@@ -260,6 +260,11 @@ DETECTION_TRACK_MAX_GAP: int | None = _env_optional("DETECTION_TRACK_MAX_GAP", i
 # Wilson 0,45 < 0,5; D:/XLA/results/ab-v2/decision.json).
 ENHANCER_OFFLINE_ONNX = _bundle_path("ENHANCER_OFFLINE_ONNX", "")
 ENHANCER_OFFLINE_SHA256 = _env_str("ENHANCER_OFFLINE_SHA256", "").strip().lower()
+# Lý do hiện trên web khi ENHANCER_OFFLINE_ONNX rỗng (ô trạng thái model, nút dựng offline).
+ENHANCER_OFFLINE_DISABLED_REASON = _env_str(
+    "ENHANCER_OFFLINE_DISABLED_REASON",
+    "không ship: A/B mù 26/11 không hơn ảnh rõ classic (16/25); đặt ENHANCER_OFFLINE_ONNX để bật",
+)
 # §13 job offline: cache ảnh ×2 theo chuyến (logs/.cache/ đã gitignore), JPEG thang OpenCV 0–100.
 FLIGHT_AI_CACHE_DIR = str(
     (PROJECT_ROOT / _env_str("FLIGHT_AI_CACHE_DIR", "logs/.cache/flights-ai")).resolve()
