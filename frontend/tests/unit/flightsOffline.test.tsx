@@ -185,6 +185,23 @@ describe("AiCompare — nguồn ảnh rõ offline", () => {
     expect(screen.queryByTestId("flight-ai-offline-bar")).toBeNull();
   });
 
+  it("ghi chú enhancer theo phiên bản của khung + enhancer_default_on, không ghi cứng", async () => {
+    stubBackend({ statuses: [status()], cached: () => false });
+    useTelemetryStore.setState({
+      status: { vision: { detector: { state: "loaded" }, enhancer: { state: "loaded", version: "2.0.0" }, enhancer_default_on: true } } as unknown as StatusPayload,
+    });
+    try {
+      renderAi();
+      // Khung trả enhancer 1.0.0 (aiBody): ghi chú lấy phiên bản của chính khung, không của status.
+      await waitFor(() => expect(screen.getByTestId("flight-ai-enhancer-note").textContent).toContain("Enhancer v1.0.0 dựng ảnh rõ bên phải"));
+      const note = screen.getByTestId("flight-ai-enhancer-note").textContent ?? "";
+      expect(note).toContain('luồng trực tiếp bật "Ảnh rõ" sẵn');
+      expect(note).not.toContain("chưa đạt");
+    } finally {
+      useTelemetryStore.setState({ status: null });
+    }
+  });
+
   it("khung chưa dựng (404 not_cached): bên phải là ảnh rõ trực tiếp + chip 'chưa dựng'", async () => {
     window.localStorage.setItem(FLIGHT_AI_SOURCE_KEY, "offline");
     stubBackend({ statuses: [status({ state: "none" })], cached: () => false });

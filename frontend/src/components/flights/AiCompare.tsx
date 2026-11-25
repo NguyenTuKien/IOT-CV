@@ -44,8 +44,10 @@ import {
   writeAiSource,
 } from "@/lib/flights";
 import type { FlightAiSource, FlightDetail, FlightFrameAI, FrameRef, ImageQuality, KeepUp, OfflineEnhanceStatus, OfflineRefusal } from "@/lib/flights";
+import type { VisionModelStatus } from "@/lib/protocol.generated";
 import { ACCENT_SOFT } from "@/lib/tone";
 import { cn } from "@/lib/utils";
+import { useTelemetryStore } from "@/store/telemetry";
 import { VIEW_FIT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, zoomAt } from "@/lib/zoom";
 
 type ViewMode = "side" | "slider";
@@ -427,6 +429,24 @@ function modelSub(ai: FlightFrameAI | null): string {
   return `${part("detector", ai.detector_ms, ai.detector.reason)} · ${part("enhancer", ai.enhancer_ms, ai.enhancer.reason)}`;
 }
 
+/**
+ * Ghi chú dưới bảng số đo: enhancer nào đang dựng ảnh rõ (phiên bản của khung này, không có thì
+ * của trạng thái backend) và luồng trực tiếp bật "Ảnh rõ" sẵn hay không (`enhancer_default_on`).
+ * Không ghi cứng phiên bản: đổi bundle thì chữ tự đổi theo.
+ */
+function enhancerNote(ai: FlightFrameAI | null, live: VisionModelStatus | null, defaultOn: boolean | null): string {
+  const st = ai?.enhancer ?? live;
+  if (!st || (st.state !== "loaded" && st.state !== "ready")) {
+    return `Enhancer chưa nạp${st?.reason ? `: ${st.reason}` : ""}, bên phải chưa có ảnh rõ.`;
+  }
+  const version = st.version ?? live?.version ?? null;
+  const name = version ? `Enhancer v${version.replace(/^v/, "")}` : "Enhancer";
+  if (defaultOn == null) return `${name} dựng ảnh rõ bên phải.`;
+  return defaultOn
+    ? `${name} dựng ảnh rõ bên phải; luồng trực tiếp bật "Ảnh rõ" sẵn, người xem tắt được.`
+    : `${name} dựng ảnh rõ bên phải; luồng trực tiếp để khung gốc sẵn, người xem tự bật "Ảnh rõ".`;
+}
+
 function FrameStats({
   frame,
   keepUp,
@@ -439,6 +459,8 @@ function FrameStats({
   boxesOn: boolean;
 }) {
   const ai = frame?.ai ?? null;
+  const liveEnhancer = useTelemetryStore((s) => s.status?.vision?.enhancer ?? null);
+  const defaultOn = useTelemetryStore((s) => s.status?.vision?.enhancer_default_on ?? null);
   const top = ai && ai.boxes.length > 0 ? Math.max(...ai.boxes.map((b) => b.confidence)) : null;
   const qr = ai?.quality_raw ?? undefined;
   const qe = ai?.quality_enhanced ?? undefined;
@@ -490,9 +512,8 @@ function FrameStats({
           />
         ))}
       </KeyValueList>
-      <p className="text-[11px] leading-snug text-muted-foreground">
-        Enhancer v1.0.0 chưa đạt bài A/B của XLA trên khung bay thật, nên luồng trực tiếp vẫn để khung gốc mặc định. Số đo trên không thay
-        được mắt người xem: hãy so hai bên.
+      <p className="text-[11px] leading-snug text-muted-foreground" data-testid="flight-ai-enhancer-note">
+        {enhancerNote(ai, liveEnhancer, defaultOn)} Số đo trên không thay được mắt người xem: hãy so hai bên.
       </p>
     </aside>
   );

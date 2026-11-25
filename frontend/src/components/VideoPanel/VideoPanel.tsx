@@ -82,6 +82,7 @@ export function VideoPanel({
   const boxes = useTelemetryStore((s) => s.detection?.boxes?.length ?? null);
   const enhancerState = useTelemetryStore((s) => s.status?.vision?.enhancer?.state ?? null);
   const enhancerReason = useTelemetryStore((s) => s.status?.vision?.enhancer?.reason ?? null);
+  const enhancerVersion = useTelemetryStore((s) => s.status?.vision?.enhancer?.version ?? null);
   // Chưa chọn lần nào (khoá trống) thì theo `status.vision.enhancer_default_on` (hợp đồng XLA §13);
   // đã chọn thì giữ lựa chọn, kể cả khi mặc định của backend đổi.
   const defaultOn = useTelemetryStore((s) => s.status?.vision?.enhancer_default_on ?? false);
@@ -212,7 +213,7 @@ export function VideoPanel({
               enhancerReady
                 ? enhanced
                   ? "Tắt ảnh rõ (về khung gốc của camera)"
-                  : "Bật ảnh rõ (enhancer của XLA, chưa đạt A/B — xem thử)"
+                  : `Bật ảnh rõ (enhancer ${enhancerVersion ? `v${enhancerVersion.replace(/^v/, "")} ` : ""}của XLA)`
                 : `Ảnh rõ không dùng được: ${enhancerReason ?? "enhancer chưa nạp"}`
             }
             data-testid="video-enhanced-toggle"
