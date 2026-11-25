@@ -258,7 +258,10 @@ def test_model_bi_tu_choi_backend_van_song(monkeypatch):
 
     from backend import app as app_mod
 
-    rt = VisionRuntime(_Reader(), load_detector=_rejecting, load_enhancer=_rejecting)
+    # Verifier tắt hẳn: không phụ thuộc máy có bundle verifier mặc định hay không (CI không có).
+    rt = VisionRuntime(
+        _Reader(), load_detector=_rejecting, load_enhancer=_rejecting, load_verifier=lambda: None
+    )
     rt.load()
     assert rt.pipeline is None
     ev = [e for e in BUS.recent() if e.code == "vision.model_rejected"]
