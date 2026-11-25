@@ -18,7 +18,7 @@ cản bằng TFmini Plus, camera ESP32-S3 + AI nhận diện người.
 | Luật an toàn | `SAFETY.md` |
 | Quyết định còn mở | `plans/QUYET-DINH-CHUA-CHOT.md` |
 | BOM gốc + lý do chọn | `docs/archive/plan-nhap-92-giai-doan.md` (bản ghi quyết định, không phải tài liệu chết) |
-| Phần AI xử lý ảnh chất lượng thấp (thiết kế, plan, thí nghiệm, bằng chứng) | `D:\XLA\plans\` trên nhánh `main` của XLA (phase 01–14 xong 19/11/2026, PR #2): plan `plans\261118-ai-anh-chat-luong-thap\plan.md`, trạng thái + kết quả `thuc-thi-phase-10-14.md` §7, báo cáo gốc `plans\reports\261118-brainstorm-ai-anh-chat-luong-thap.md`; bundle ONNX `models\release\detector-v1.0.0`, `enhancer-v1.0.0` (enhancer chưa đạt A/B, chưa làm ảnh rõ mặc định); `plans/ai/` của repo này là bản cũ 21/09. Hợp đồng model `D:\XLA\docs\hop-dong-model.md`; IOT-CV đặt bundle ở `models/vision/<bundle>/` (chép bằng `scripts/vision/lay_model.py`, kiểm bằng `scripts/vision/kiem_bundle.py`), nạp ở `backend/vision/` (phase 15–16 của plan XLA) |
+| Phần AI xử lý ảnh chất lượng thấp (thiết kế, plan, thí nghiệm, bằng chứng) | `D:\XLA`. Bản đang chạy là **AI v2** (26/11/2026): plan `plans\261125-ai-v2\plan.md` (nhánh `feat/ai-v2` của XLA), kết quả `results\v2\` (`system\README.md` cả hệ, `iotcv\README.md` bench + nghiệm thu IOT-CV), A/B mù `results\ab-v2\decision.json`. Bundle mặc định trong `backend/config.py`: `detector-v1.0.1` (cùng ONNX v1.0.0, thêm `recommended_track` k1/n1), `verifier-v1.0.0` (tầng 2, ngưỡng 0,35), `enhancer-v2.0.0` (classic ONNX, thắng gốc 25/25, **"Ảnh rõ" bật sẵn** theo `ENHANCER_DEFAULT_ON`). `enhancer-offline` (SR ×2) **không ship**: thắng classic chỉ 16/25 (cận dưới Wilson 0,45 < 0,5) → API offline trả 503, web tắt nút kèm lý do. Bản v1 (plan `261118-ai-anh-chat-luong-thap`, `enhancer-v1.0.0` chưa đạt A/B) chỉ còn để đối chiếu; `plans/ai/` của repo này là bản cũ 21/09. `.env` còn ghim `DETECTOR_ONNX`/`ENHANCER_ONNX` cũ thì thắng mặc định: xoá các dòng đó. Hợp đồng model `D:\XLA\docs\hop-dong-model.md`; IOT-CV đặt bundle ở `models/vision/<bundle>/` (chép bằng `scripts/vision/lay_model.py`, kiểm bằng `scripts/vision/kiem_bundle.py`), nạp ở `backend/vision/` |
 | Các chuyến đã bay (log FC + tlog + video ghép theo giờ GPS) | trang **Lịch sử bay** của web (`/flights`, Alt+L); dòng lệnh `uv run python -m backend.flights --events` |
 
 `plans/reports/260921-*` là báo cáo nghiên cứu ngày 21/09/2026, giữ nguyên như bản ghi lịch sử —
@@ -142,6 +142,13 @@ bản sau đè bản trước mà không báo gì.
   (`backend/vision/model_bundle.py` lo cả hai). Số ms của bench phụ thuộc GPU có đang hạ xung không: đọc khối `machine` trong
   file bench trước khi so (19/11/2026). Subprocess `uv` gọi sang repo khác (XLA) phải bỏ `UV_PROJECT_ENVIRONMENT`/`VIRTUAL_ENV`,
   không thì uv xoá venv của repo kia.
+- Verifier (ORT CUDA) trả ~60 ms **mỗi lần** số hộp N khác lần trước, không chỉ lần đầu: `backend/vision/verifier.py`
+  giữ một session cho mỗi bậc N và chạy thử từng bậc lúc nạp. Đừng gộp về một session "cho đỡ VRAM": phase 09 XLA đo
+  p95 cả hệ 173 ms vì lỗi này; sau khi sửa, verifier p95 ~9 ms (bench 26/11, `D:\XLA\results\v2\iotcv\README.md`).
+- Job ảnh rõ offline (nếu bật bundle offline) chiếm hết GPU: luồng trực tiếp chậm ~4× khi job chạy, nên backend chặn job
+  khi ARM / vừa mất liên kết; đừng bỏ chặn đó. Bench ms phải chạy khi không có job offline hay job GPU XLA (khoá
+  `D:\DevCache\locks\gpu.lock`), và v1/v2 xen kẽ trong một tiến trình: GPU laptop hay đứng ~780 MHz, hai lần đo cách
+  nhau vài phút đã lệch hơn chênh lệch cần đo.
 - Web: build `frontend/` (`pnpm build`) bằng **PowerShell**, đừng bằng Git Bash — build từ Git Bash ghi URL font
   `../../../../../D:/Coding/...` vào CSS, backend trả 404 font (15/11/2026). Màu, chip, nhãn mode/nguồn sự kiện
   lấy từ `lib/tone.ts`, `lib/eventStyle.ts`, `lib/modes.ts` và `components/kit` — đừng tô màu tại chỗ.
