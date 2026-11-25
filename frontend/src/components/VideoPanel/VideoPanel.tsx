@@ -16,8 +16,9 @@
  *
  * Nút "Ảnh rõ" (hợp đồng model XLA §8): chỉ đổi `src` giữa `variant=raw` và
  * `variant=enhanced`; box vẫn vẽ bằng `DetectionOverlay` (enhancer giữ nguyên toạ độ).
- * Mặc định TẮT — `enhancer-v1.0.0` chưa đạt A/B ngày 19/11/2026. Lựa chọn nhớ trong
- * `localStorage`; enhancer chưa nạp (backend trả 503) thì nút tắt + chip lý do.
+ * Lựa chọn nhớ trong `localStorage` (`iot-cv.video-enhanced`); chưa chọn lần nào thì theo
+ * `status.vision.enhancer_default_on` của backend (env `ENHANCER_DEFAULT_ON`, hợp đồng XLA §13).
+ * Enhancer chưa nạp (backend trả 503) thì nút tắt + chip lý do.
  */
 import { Camera, CameraOff, Expand, Sparkles } from "lucide-react";
 
@@ -48,11 +49,13 @@ function streamSrc(attempt: number, enhanced: boolean): string {
   return q ? `${VIDEO_STREAM_PATH}?${q}` : VIDEO_STREAM_PATH;
 }
 
-function readEnhanced(): boolean {
+/** Lựa chọn "Ảnh rõ" đã lưu: true/false, hoặc null khi người xem chưa chọn (theo mặc định backend). */
+function readEnhanced(): boolean | null {
   try {
-    return localStorage.getItem(ENHANCED_KEY) === "1";
+    const v = localStorage.getItem(ENHANCED_KEY);
+    return v === "1" ? true : v === "0" ? false : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -79,14 +82,18 @@ export function VideoPanel({
   const boxes = useTelemetryStore((s) => s.detection?.boxes?.length ?? null);
   const enhancerState = useTelemetryStore((s) => s.status?.vision?.enhancer?.state ?? null);
   const enhancerReason = useTelemetryStore((s) => s.status?.vision?.enhancer?.reason ?? null);
-  const [wantEnhanced, setWantEnhanced] = useState(readEnhanced);
+  // Chưa chọn lần nào (khoá trống) thì theo `status.vision.enhancer_default_on` (hợp đồng XLA §13);
+  // đã chọn thì giữ lựa chọn, kể cả khi mặc định của backend đổi.
+  const defaultOn = useTelemetryStore((s) => s.status?.vision?.enhancer_default_on ?? false);
+  const [stored, setStored] = useState(readEnhanced);
+  const wantEnhanced = stored ?? defaultOn;
   // Luồng enhanced vừa hỏng (503 hay đứt) thì quay về raw cho tới khi người xem bật lại.
   const [enhancedFailed, setEnhancedFailed] = useState(false);
   const enhancerReady = enhancerState === "loaded" && !enhancedFailed;
   const enhanced = wantEnhanced && enhancerReady;
   const toggleEnhanced = () => {
     const next = !wantEnhanced;
-    setWantEnhanced(next);
+    setStored(next);
     setEnhancedFailed(false);
     try {
       localStorage.setItem(ENHANCED_KEY, next ? "1" : "0");
