@@ -590,6 +590,8 @@ def test_runtime_verifier_env_rong_la_disabled_khong_su_kien(tmp_path, monkeypat
     st = rt.status()
     assert (st.verifier.state, st.verifier.reason) == ("disabled", "VERIFIER_ONNX chưa đặt (tắt)")
     assert st.enhancer_offline.state == "disabled"
+    assert st.enhancer_offline.reason == config.ENHANCER_OFFLINE_DISABLED_REASON
+    assert "A/B" in st.enhancer_offline.reason  # web nói vì sao tắt, không chỉ tên biến env
     assert rt.pipeline is not None and rt.pipeline.verifier is None
     assert [e.detail["model"] for e in bus.recent() if e.code == "vision.model_rejected"] == [
         "enhancer"

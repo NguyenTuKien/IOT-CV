@@ -87,13 +87,15 @@ class VisionRuntime:
         )
         return VisionModelStatus(state="rejected", reason=reason)
 
-    def _try(self, kind: str, loader, env_key: str | None = None):
+    def _try(
+        self, kind: str, loader, env_key: str | None = None, disabled_reason: str | None = None
+    ):
         try:
             model = loader()
         except BundleRejected as exc:
             return None, self._reject(kind, exc.reason)
         if model is None:
-            reason = f"{env_key} chưa đặt (tắt)" if env_key else "tắt"
+            reason = disabled_reason or (f"{env_key} chưa đặt (tắt)" if env_key else "tắt")
             return None, VisionModelStatus(state="disabled", reason=reason)
         bundle = model if isinstance(model, LoadedBundle) else model.bundle
         return model, _model_status(bundle)
@@ -105,7 +107,10 @@ class VisionRuntime:
             "verifier", self._load_verifier, "VERIFIER_ONNX"
         )
         self.enhancer_offline, self.enhancer_offline_status = self._try(
-            "enhancer-offline", self._load_enhancer_offline, "ENHANCER_OFFLINE_ONNX"
+            "enhancer-offline",
+            self._load_enhancer_offline,
+            "ENHANCER_OFFLINE_ONNX",
+            config.ENHANCER_OFFLINE_DISABLED_REASON,
         )
         if self.detector is None and self.verifier is not None:
             # Verifier chỉ chạy sau detector (§9): không có detector thì nó không dùng được.
