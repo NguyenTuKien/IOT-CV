@@ -630,15 +630,26 @@ def test_status_schema_moi():
         VisionModelStatus(state="running")
 
 
-def test_config_mac_dinh_v11(monkeypatch):
-    """Nạp lại `backend/config.py` thành module riêng, không env: mặc định của hợp đồng §9–§13."""
+def test_config_mac_dinh_v11(monkeypatch, tmp_path):
+    """Nạp lại `backend/config.py` thành module riêng, không env, không `.env`: mặc định của hợp
+    đồng §9–§13 và bundle v2 (phase 15 plan XLA 261125-ai-v2).
+
+    Chép config.py sang `tmp_path/backend/` để `PROJECT_ROOT` = `tmp_path`: `.env` của máy chủ dự
+    án (vd. còn ghim bundle v1) không lọt vào phép thử mặc định."""
     import importlib.util
+    import shutil
 
     for key in (
         "ENHANCER_DEFAULT_ON",
+        "DETECTOR_ONNX",
+        "DETECTOR_SHA256",
+        "ENHANCER_ONNX",
+        "ENHANCER_SHA256",
         "VERIFIER_ONNX",
+        "VERIFIER_SHA256",
         "VERIFIER_CONFIDENCE",
         "ENHANCER_OFFLINE_ONNX",
+        "ENHANCER_OFFLINE_SHA256",
         "FLIGHT_AI_CACHE_DIR",
         "FLIGHT_AI_JPEG_QUALITY",
         "FLIGHT_AI_LINK_GRACE_S",
@@ -646,16 +657,27 @@ def test_config_mac_dinh_v11(monkeypatch):
         *(f"DETECTION_TRACK_{k}" for k in ("K", "N", "IOU", "MAX_GAP")),
     ):
         monkeypatch.delenv(key, raising=False)
-    spec = importlib.util.spec_from_file_location("_config_fresh", ROOT / "backend" / "config.py")
+    (tmp_path / "backend").mkdir()
+    shutil.copy(ROOT / "backend" / "config.py", tmp_path / "backend" / "config.py")
+    spec = importlib.util.spec_from_file_location(
+        "_config_fresh", tmp_path / "backend" / "config.py"
+    )
     fresh = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fresh)
-    assert fresh.ENHANCER_DEFAULT_ON is False  # phase 15 mới bật
-    assert (fresh.VERIFIER_ONNX, fresh.ENHANCER_OFFLINE_ONNX, fresh.VERIFIER_CONFIDENCE) == (
-        "",
-        "",
-        None,
+    root = tmp_path.resolve()
+    assert fresh.ENHANCER_DEFAULT_ON is True  # classic enhancer-v2.0.0, quyết định chủ dự án
+    vision = root / "models" / "vision"
+    assert Path(fresh.DETECTOR_ONNX) == vision / "detector-v1.0.1" / "detector.onnx"
+    assert Path(fresh.VERIFIER_ONNX) == vision / "verifier-v1.0.0" / "verifier.onnx"
+    assert Path(fresh.ENHANCER_ONNX) == vision / "enhancer-v2.0.0" / "enhancer.onnx"
+    assert (fresh.DETECTOR_SHA256, fresh.VERIFIER_SHA256, fresh.ENHANCER_SHA256) == (
+        "23b1da69165ffe05760bda23b4a41c858930e8a8fd8b0aebc039f1e0c5c59aef",
+        "d566343a5487775b9f6334d9df0bb0a1d9c9b2d2b76e2b8bfa4738facc012d58",
+        "83d96e8b0f628d0e6cc271ed9550220962de897cac2d57ed306a1db51cb5477b",
     )
-    assert Path(fresh.FLIGHT_AI_CACHE_DIR) == (ROOT / "logs" / "flights-ai").resolve()
+    # enhancer-offline-v1.0.0 không ship (XLA results/ab-v2/decision.json: offline_ship false).
+    assert (fresh.ENHANCER_OFFLINE_ONNX, fresh.VERIFIER_CONFIDENCE) == ("", None)
+    assert Path(fresh.FLIGHT_AI_CACHE_DIR) == root / "logs" / ".cache" / "flights-ai"
     assert (fresh.FLIGHT_AI_JPEG_QUALITY, fresh.FLIGHT_AI_LINK_GRACE_S) == (92, 300.0)
     assert fresh.FLIGHT_AI_MIN_FREE_MB == 3000.0
     assert fresh.DETECTION_TRACK_K is None and fresh.DETECTION_TRACK_MAX_GAP is None

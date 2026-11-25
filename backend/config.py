@@ -171,21 +171,32 @@ BATTERY_WARN_PCT = _env_int("BATTERY_WARN_PCT", 25)
 CAMERA_STREAM_URL = _env_str("CAMERA_STREAM_URL", "http://192.168.4.1:81/stream")
 VISION_ENABLED = _env_bool("VISION_ENABLED", True)  # tắt hẳn vision khi test bay
 
-# Model AI từ repo XLA (D:\XLA, docs/hop-dong-model.md §5, 19/11/2026). Bundle chép bằng
+# Model AI từ repo XLA (D:\XLA, docs/hop-dong-model.md §5). Bundle chép bằng
 # `scripts/vision/lay_model.py --from <bundle XLA>` vào models/vision/ (file .onnx đã gitignore).
-# sha256 phải đặt: thiếu hay lệch là model KHÔNG nạp, backend bay vẫn chạy (SAFETY.md mục 9).
+# sha256 lệch (hoặc env đặt rỗng) là model KHÔNG nạp, backend bay vẫn chạy (SAFETY.md mục 9).
+# Mặc định = bundle v2 (plan XLA 261125-ai-v2 phase 15, 26/11/2026): detector-v1.0.1 (cùng ONNX
+# với v1.0.0, thêm `recommended_track`), verifier-v1.0.0, enhancer-v2.0.0 (classic ONNX).
+# Về bundle v1: đặt DETECTOR_ONNX/ENHANCER_ONNX (+ sha) trong .env, VERIFIER_ONNX= rỗng.
 DETECTOR_ONNX = str(
     (
-        PROJECT_ROOT / _env_str("DETECTOR_ONNX", "models/vision/detector-v1.0.0/detector.onnx")
+        PROJECT_ROOT / _env_str("DETECTOR_ONNX", "models/vision/detector-v1.0.1/detector.onnx")
     ).resolve()
 )
-DETECTOR_SHA256 = _env_str("DETECTOR_SHA256", "").strip().lower()
+DETECTOR_SHA256 = (
+    _env_str("DETECTOR_SHA256", "23b1da69165ffe05760bda23b4a41c858930e8a8fd8b0aebc039f1e0c5c59aef")
+    .strip()
+    .lower()
+)
 ENHANCER_ONNX = str(
     (
-        PROJECT_ROOT / _env_str("ENHANCER_ONNX", "models/vision/enhancer-v1.0.0/enhancer.onnx")
+        PROJECT_ROOT / _env_str("ENHANCER_ONNX", "models/vision/enhancer-v2.0.0/enhancer.onnx")
     ).resolve()
 )
-ENHANCER_SHA256 = _env_str("ENHANCER_SHA256", "").strip().lower()
+ENHANCER_SHA256 = (
+    _env_str("ENHANCER_SHA256", "83d96e8b0f628d0e6cc271ed9550220962de897cac2d57ed306a1db51cb5477b")
+    .strip()
+    .lower()
+)
 VISION_ORT_PROVIDERS = tuple(
     p.strip()
     for p in _env_str("VISION_ORT_PROVIDERS", "CUDAExecutionProvider,CPUExecutionProvider").split(
@@ -229,8 +240,12 @@ def _bundle_path(key: str, default: str) -> str:
 
 # Hợp đồng XLA v1.1 (`D:/XLA/docs/hop-dong-model.md` §9–§13, plan XLA 261125-ai-v2, 25/11/2026).
 # §9 verifier (tầng 2, sau detector). VERIFIER_ONNX rỗng = tắt: chạy chỉ detector.
-VERIFIER_ONNX = _bundle_path("VERIFIER_ONNX", "")
-VERIFIER_SHA256 = _env_str("VERIFIER_SHA256", "").strip().lower()
+VERIFIER_ONNX = _bundle_path("VERIFIER_ONNX", "models/vision/verifier-v1.0.0/verifier.onnx")
+VERIFIER_SHA256 = (
+    _env_str("VERIFIER_SHA256", "d566343a5487775b9f6334d9df0bb0a1d9c9b2d2b76e2b8bfa4738facc012d58")
+    .strip()
+    .lower()
+)
 # Ngưỡng giữ hộp sau verifier: rỗng = `conf_threshold` trong meta.json của bundle verifier.
 VERIFIER_CONFIDENCE: float | None = _env_optional("VERIFIER_CONFIDENCE", float)
 # §10 lọc track k/n (backend/vision/track_filter.py). Rỗng = `recommended_track` của detector;
@@ -240,12 +255,14 @@ DETECTION_TRACK_N: int | None = _env_optional("DETECTION_TRACK_N", int)
 DETECTION_TRACK_IOU: float | None = _env_optional("DETECTION_TRACK_IOU", float)
 DETECTION_TRACK_MAX_GAP: int | None = _env_optional("DETECTION_TRACK_MAX_GAP", int)
 # §11 enhancer-offline (×2, chỉ job offline của trang Lịch sử bay, không chạy trực tiếp).
-# ENHANCER_OFFLINE_ONNX rỗng = tắt: API offline trả 503 (§13).
+# ENHANCER_OFFLINE_ONNX rỗng = tắt: API offline trả 503 (§13). Mặc định rỗng:
+# enhancer-offline-v1.0.0 không ship (A/B mù 26/11: offline thắng classic 16/25, cận dưới
+# Wilson 0,45 < 0,5; D:/XLA/results/ab-v2/decision.json).
 ENHANCER_OFFLINE_ONNX = _bundle_path("ENHANCER_OFFLINE_ONNX", "")
 ENHANCER_OFFLINE_SHA256 = _env_str("ENHANCER_OFFLINE_SHA256", "").strip().lower()
-# §13 job offline: cache ảnh ×2 theo chuyến (logs/ đã gitignore), JPEG thang OpenCV 0–100.
+# §13 job offline: cache ảnh ×2 theo chuyến (logs/.cache/ đã gitignore), JPEG thang OpenCV 0–100.
 FLIGHT_AI_CACHE_DIR = str(
-    (PROJECT_ROOT / _env_str("FLIGHT_AI_CACHE_DIR", "logs/flights-ai")).resolve()
+    (PROJECT_ROOT / _env_str("FLIGHT_AI_CACHE_DIR", "logs/.cache/flights-ai")).resolve()
 )
 FLIGHT_AI_JPEG_QUALITY = _env_int("FLIGHT_AI_JPEG_QUALITY", 92)
 # Mất liên kết FC chưa quá chừng này giây thì không chạy job (có thể đang bay, §13).
@@ -253,8 +270,8 @@ FLIGHT_AI_LINK_GRACE_S = _env_float("FLIGHT_AI_LINK_GRACE_S", 300.0)
 # Ổ còn trống dưới chừng này MB thì job dừng, API trả 507 (§13).
 FLIGHT_AI_MIN_FREE_MB = _env_float("FLIGHT_AI_MIN_FREE_MB", 3000.0)
 # Web: "Ảnh rõ" bật sẵn khi người xem chưa chọn (localStorage `iot-cv.video-enhanced` trống, §13).
-# Mặc định TẮT; phase 15 của plan XLA bật khi ship enhancer-v2 classic.
-ENHANCER_DEFAULT_ON = _env_bool("ENHANCER_DEFAULT_ON", False)
+# Mặc định BẬT từ enhancer-v2.0.0 classic (quyết định chủ dự án; A/B mù v2 classic thắng gốc 25/25).
+ENHANCER_DEFAULT_ON = _env_bool("ENHANCER_DEFAULT_ON", True)
 
 # Nguồn video GIẢ (Phase 07 §7.8.3) — camera thật chỉ có từ Phase 17. Bật thì
 # backend tự phục vụ một luồng MJPEG lặp video mẫu ở `/api/video/fake-source`
