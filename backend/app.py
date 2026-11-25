@@ -24,6 +24,8 @@ Endpoint:
     GET  /api/recording           - bộ ghi video camera về laptop (đèn REC)
     POST /api/recording/start     - bật ghi (thư mục mới trong logs/recordings)
     POST /api/recording/stop      - tắt ghi, đóng file AVI
+    POST /api/flights/enhance-offline?rec=… - dựng ảnh rõ offline ×2 cho một lần ghi (nền)
+    GET  /api/flights/enhance-offline?rec=… - tiến độ job đó
     WS   /ws                      - hai chiều, theo Hợp đồng WebSocket (schemas.py)
     /                             - frontend tĩnh đã build (frontend/dist), kể cả
                                     các đường dẫn trang của web (/mission, /3d…)
@@ -126,6 +128,27 @@ VISION = _make_vision()
 HUB.vision = VISION
 
 
+def _make_offline_job():
+    """Job ảnh rõ offline ×2 của trang Lịch sử bay (hợp đồng XLA §13). Dựng sẵn, KHÔNG tự chạy:
+    chỉ chạy khi web gọi `POST /api/flights/enhance-offline`. Bundle lấy từ `VISION` (đã kiểm ở
+    trạng thái `ready` lúc nạp); không có vision thì API trả 503."""
+    from pathlib import Path
+
+    from backend.flights.offline import OfflineEnhanceJob
+    from backend.flights.video import RecordingCache
+
+    return OfflineEnhanceJob(
+        RecordingCache(Path(config.RECORD_DIR)),
+        vision=lambda: VISION,
+        telemetry=lambda: STATE,
+    )
+
+
+OFFLINE_JOB = _make_offline_job()
+# `api.py` đọc `hub.offline_job` (tiêm qua hub như recorder, tránh import vòng app <-> api).
+HUB.offline_job = OFFLINE_JOB
+
+
 def _autostart_enabled() -> bool:
     """Đặt TELEMETRY_AUTOSTART=0 để không tự mở MAVLink (hữu ích khi test)."""
     return os.environ.get("TELEMETRY_AUTOSTART", "1") not in ("0", "false", "False")
@@ -165,6 +188,8 @@ async def lifespan(app: FastAPI):
         # dừng trước camera để kịp đóng file AVI cho đủ chỉ mục.
         if RECORDER is not None:
             RECORDER.stop()
+        # Job offline: ghi manifest + đóng session ORT trước khi gỡ khối vision.
+        OFFLINE_JOB.stop()
         if AUTO_QUALITY is not None:
             AUTO_QUALITY.stop()
         if VISION is not None:
