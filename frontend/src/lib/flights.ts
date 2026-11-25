@@ -6,9 +6,10 @@
  * đã đưa tlog và video (đồng hồ laptop) về giờ GPS của FC, nên ở đây không chỉnh giờ nữa.
  */
 import { restGet } from "./api";
-import type { FlightSummary, FlightVideoClip } from "./protocol";
+import { REST_REFS, validatorForRef } from "./protocol";
+import type { FlightSummary, FlightVideoClip, OfflineEnhanceAccepted, OfflineEnhanceStatus } from "./protocol";
 
-export type { FlightDetail, FlightFrameAI, FlightSummary, ImageQuality } from "./protocol";
+export type { FlightDetail, FlightFrameAI, FlightSummary, ImageQuality, OfflineEnhanceAccepted, OfflineEnhanceStatus } from "./protocol";
 
 export const SPEEDS = [1, 2, 4, 8] as const;
 export type Speed = (typeof SPEEDS)[number];
@@ -24,12 +25,100 @@ export async function fetchFlight(id: string, init?: RequestInit) {
   return restGet("GET /api/flight", `?id=${encodeURIComponent(id)}`, init);
 }
 
-/** `raw` = khung camera đã ghi; `enhanced` = khung đó sau enhancer của XLA (chạy trên laptop). */
-export type FrameVariant = "raw" | "enhanced";
+/**
+ * `raw` = khung camera đã ghi; `enhanced` = khung đó sau enhancer của XLA (chạy trên laptop);
+ * `offline` = ảnh ×2 (1280×960) job offline đã dựng trước cho cả lần ghi (hợp đồng XLA §13).
+ */
+export type FrameVariant = "raw" | "enhanced" | "offline";
 
 export function frameUrl(rec: string, n: number, variant: FrameVariant = "raw"): string {
   const url = `/api/flights/frame?rec=${encodeURIComponent(rec)}&n=${n}`;
-  return variant === "enhanced" ? `${url}&variant=enhanced` : url;
+  return variant === "raw" ? url : `${url}&variant=${variant}`;
+}
+
+/** Nguồn ảnh bên phải của khối AI: ảnh rõ trực tiếp hay ảnh offline AI dựng lại (§13). */
+export type FlightAiSource = "enhanced" | "offline";
+export const FLIGHT_AI_SOURCE_KEY = "iot-cv.flight-ai-source";
+
+/** Đọc lựa chọn nguồn đã lưu; giá trị lạ / chưa có / bị chặn lưu trữ → "enhanced". */
+export function readAiSource(): FlightAiSource {
+  try {
+    return window.localStorage.getItem(FLIGHT_AI_SOURCE_KEY) === "offline" ? "offline" : "enhanced";
+  } catch {
+    return "enhanced";
+  }
+}
+
+export function writeAiSource(source: FlightAiSource): void {
+  try {
+    window.localStorage.setItem(FLIGHT_AI_SOURCE_KEY, source);
+  } catch {
+    // Chặn lưu trữ: chỉ mất lựa chọn ở lần mở sau.
+  }
+}
+
+/** Trạng thái job offline của một lần ghi (`GET /api/flights/enhance-offline`). */
+export async function getOffline(rec: string, init?: RequestInit): Promise<OfflineEnhanceStatus> {
+  return restGet("GET /api/flights/enhance-offline", `?rec=${encodeURIComponent(rec)}`, init);
+}
+
+/** POST bị từ chối: mã HTTP + mã lỗi hợp đồng (§13) + lý do cho người đọc. */
+export interface OfflineRefusal {
+  status: number;
+  error: string;
+  reason: string;
+}
+
+export type OfflineStartResult = { ok: true; accepted: OfflineEnhanceAccepted } | { ok: false; refusal: OfflineRefusal };
+
+/** Câu tiếng Việt cho từng mã lỗi của `POST /api/flights/enhance-offline`. */
+export function offlineRefusalText(error: string, body: Record<string, unknown>): string {
+  const reason = typeof body.reason === "string" ? body.reason : null;
+  switch (error) {
+    case "armed":
+      return reason ?? "drone đang ARM — không dựng ảnh offline khi có thể đang bay";
+    case "link_recent":
+      return reason ?? "vừa mất liên kết FC — có thể đang bay";
+    case "busy":
+      return `đang dựng ảnh offline cho lần ghi ${typeof body.rec === "string" ? body.rec : "khác"} (một job một lúc)`;
+    case "enhancer_offline_unavailable":
+      return `model offline không dùng được: ${reason ?? "chưa nạp"}`;
+    case "disk_full":
+      return `ổ đĩa sắp đầy (còn ${typeof body.free_mb === "number" ? Math.round(body.free_mb) : "?"} MB)`;
+    default:
+      return reason ?? error;
+  }
+}
+
+/** Bắt đầu (hoặc chạy tiếp) job offline cho lần ghi `rec`. 202 → `ok`; 409/503/507 → `refusal`. */
+export async function startOffline(rec: string, init?: RequestInit): Promise<OfflineStartResult> {
+  const route = "POST /api/flights/enhance-offline";
+  const res = await fetch(`/api/flights/enhance-offline?rec=${encodeURIComponent(rec)}`, {
+    ...init,
+    method: "POST",
+    headers: { Accept: "application/json", ...init?.headers },
+  });
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    // Thân không phải JSON (proxy, router): lý do là mã HTTP.
+  }
+  if (res.ok) {
+    const parsed = validatorForRef(REST_REFS[route].$ref).safeParse(body);
+    if (!parsed.success) throw new Error(`${route} trả dữ liệu sai hợp đồng: ${parsed.error.issues[0]?.message}`);
+    return { ok: true, accepted: parsed.data as OfflineEnhanceAccepted };
+  }
+  const obj = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const error = typeof obj.error === "string" ? obj.error : `http_${res.status}`;
+  const reason = typeof obj.error === "string" ? offlineRefusalText(error, obj) : `HTTP ${res.status}`;
+  return { ok: false, refusal: { status: res.status, error, reason } };
+}
+
+/** Job còn chạy hoặc còn chờ chạy tiếp: web hỏi lại tiến độ mỗi `OFFLINE_POLL_MS`. */
+export const OFFLINE_POLL_MS = 2000;
+export function offlineActive(state: OfflineEnhanceStatus["state"] | null | undefined): boolean {
+  return state === "queued" || state === "running" || state === "paused";
 }
 
 /**
@@ -70,21 +159,39 @@ export function videoFpsAt(clips: readonly FlightVideoClip[], t: number, windowS
   return count / windowS;
 }
 
+/** Lỗi lấy khung: lý do cho người đọc + mã HTTP + mã lỗi hợp đồng (`not_cached`…) nếu có. */
+export class FrameError extends Error {
+  readonly status: number;
+  readonly code: string | null;
+
+  constructor(message: string, status: number, code: string | null) {
+    super(message);
+    this.name = "FrameError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 /**
- * JPEG của một khung. Lỗi ném `Error` mang lý do backend gửi kèm (503 `enhancer_unavailable` có
- * `reason`, vd. "enhancer chưa nạp"); thân không phải JSON thì lý do là mã HTTP.
+ * JPEG của một khung. Lỗi ném `FrameError` mang lý do backend gửi kèm (503 `enhancer_unavailable`
+ * có `reason`, vd. "enhancer chưa nạp"; 404 `not_cached` của ảnh offline); thân không phải JSON thì
+ * lý do là mã HTTP.
  */
 export async function fetchFrameBlob(rec: string, n: number, variant: FrameVariant, init?: RequestInit): Promise<Blob> {
   const res = await fetch(frameUrl(rec, n, variant), init);
   if (res.ok) return res.blob();
   let reason = `HTTP ${res.status}`;
+  let code: string | null = null;
   try {
     const body: unknown = await res.json();
-    if (body && typeof body === "object" && "reason" in body && typeof body.reason === "string") reason = body.reason;
+    if (body && typeof body === "object") {
+      if ("reason" in body && typeof body.reason === "string") reason = body.reason;
+      if ("error" in body && typeof body.error === "string") code = body.error;
+    }
   } catch {
     // Thân lỗi không phải JSON (proxy, 404 của router): giữ lý do là mã HTTP.
   }
-  throw new Error(reason);
+  throw new FrameError(reason, res.status, code);
 }
 
 /** Ảnh rõ đổi bao nhiêu phần trăm so với gốc; `null` khi thiếu số hoặc gốc bằng 0. */

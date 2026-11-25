@@ -4,8 +4,9 @@ Vào/ra cùng cỡ 640×480 BGR uint8; cột `[0, crop_left)` của ảnh ra l�
 detector vẫn khớp toạ độ trên cả hai luồng. Chỉ phục vụ luồng web `variant=enhanced`, không đưa vào
 đường nhận diện (D5).
 
-Kết quả A/B ngày 19/11/2026 (XLA `results/ab/README.md` §4.6): `enhancer-v1.0.0` chưa đạt tiêu chí,
-nên web để "Ảnh rõ" TẮT mặc định — người xem tự bật.
+Bundle mặc định từ 26/11/2026 là `enhancer-v2.0.0` (classic ONNX, plan XLA 261125-ai-v2): thắng
+khung gốc 25/25 ở A/B mù v2 (XLA `results/ab-v2/decision.json`), web bật "Ảnh rõ" sẵn theo
+`ENHANCER_DEFAULT_ON`; người xem tắt được. (`enhancer-v1.0.0` NAFNet chưa đạt A/B 19/11.)
 """
 
 from __future__ import annotations

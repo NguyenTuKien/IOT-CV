@@ -22,6 +22,8 @@ import datetime as dt
 import json
 import sys
 import time
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -62,17 +64,46 @@ def _sha(path: str, env_sha: str) -> str:
     return env_sha or str(read_meta(Path(path)).get("onnx_sha256", ""))
 
 
-def _rows(rec_dir: Path) -> list[dict]:
+@dataclass(frozen=True)
+class ReplayFrame:
+    """Một dòng của `frames.csv` khi phát lại: chỉ số `n` (như `Recording.frame(n)`), đoạn, số
+    khung trong đoạn, và khung JPEG gốc (None khi đọc không được)."""
+
+    n: int
+    segment: int
+    video_frame: int
+    frame: MjpegFrame | None
+
+
+def read_rows(rec_dir: Path) -> list[dict]:
+    """Dòng của `frames.csv` cùng thứ tự với `Recording.rows` (bỏ dòng thiếu segment/video_frame,
+    như `Recording`), để chỉ số `n` của hai bên khớp nhau."""
+    rows = []
     with (rec_dir / "frames.csv").open(encoding="utf-8", newline="") as f:
-        return list(csv.DictReader(f))
+        for row in csv.DictReader(f):
+            try:
+                int(row["segment"]), int(row["video_frame"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            rows.append(row)
+    return rows
 
 
-def _frame(rec: Recording, rows: list[dict], i: int) -> MjpegFrame | None:
-    jpeg = rec.frame(i)
-    if jpeg is None:
-        return None
-    ts = int(float(rows[i]["unix_time"]) * 1000)
-    return MjpegFrame(jpeg, int(rows[i]["frame_id"] or i), ts, 12, "VGA", time.monotonic())
+def replay_frames(rec_dir: Path, indices: Iterable[int] | None = None) -> Iterator[ReplayFrame]:
+    """Vòng đọc bản ghi dùng chung của `replay_bench.py` và `replay_pred.py`: JPEG nguyên vẹn
+    (không nén lại) theo thứ tự `frames.csv`, kèm giờ `unix_time` làm `timestamp_ms`."""
+    rec, rows = Recording(rec_dir), read_rows(rec_dir)
+    for i in range(len(rows)) if indices is None else indices:
+        if not 0 <= i < len(rows):
+            continue
+        row = rows[i]
+        jpeg = rec.frame(i)
+        frame = None
+        if jpeg is not None:
+            ts = int(float(row["unix_time"]) * 1000)
+            fid = int(row.get("frame_id") or i)
+            frame = MjpegFrame(jpeg, fid, ts, 12, "VGA", time.monotonic())
+        yield ReplayFrame(i, int(row["segment"]), int(row["video_frame"]), frame)
 
 
 def _summary(pipe: VisionPipeline) -> dict:
@@ -168,9 +199,8 @@ def run(rec_dir: Path, start: int, n: int) -> dict:
     pipe = VisionPipeline(
         _NullReader(), PersonDetector(det_b), Enhancer(enh_b), timing_window=100_000
     )
-    rec, rows = Recording(rec_dir), _rows(rec_dir)
-    idx = range(start, min(len(rows), start + WARMUP + n))
-    frames = [f for f in (_frame(rec, rows, i) for i in idx) if f is not None]
+    idx = range(start, start + WARMUP + n)
+    frames = [r.frame for r in replay_frames(rec_dir, idx) if r.frame is not None]
     warm, body = frames[:WARMUP], frames[WARMUP:]
 
     pipe.acquire_enhanced()  # có người xem "Ảnh rõ": trường hợp nặng nhất

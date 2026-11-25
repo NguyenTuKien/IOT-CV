@@ -6,7 +6,11 @@ Bước: (1) `backend.vision.model_bundle.load_bundle` (4 kiểm §5; `--sha256`
 meta.json, tức là chỉ kiểm file khớp meta); (2) chạy 3 khung `golden/*.jpg` giải mã bằng
 `cv2.imdecode` như backend; (3) so `golden/expected.json`:
   detector — cùng số hộp có score ≥ conf_threshold, mỗi hộp IoU ≥ 0,95, |Δscore| ≤ 0,02;
-  enhancer — sai khác tuyệt đối trung bình ≤ 1,0, lớn nhất ≤ 8 (thang 0–255) so với `*.out.png`.
+  enhancer — sai khác tuyệt đối trung bình ≤ 1,0, lớn nhất ≤ 8 (thang 0–255) so với `*.out.png`;
+  verifier (§9) — hộp vào `golden/boxes.json`, mỗi điểm |Δscore| ≤ 0,02 so với `expected.json`;
+  enhancer-offline (§11) — như enhancer trên ảnh ra 1280×960; `temporal_window` T > 1 thì 3 khung
+  golden là một chuỗi, cửa sổ của khung i là `clip(i − T//2 … i + T//2)` (lặp khung biên).
+  Bundle offline mở session thật (`keep_session=True`) chỉ ở đây; backend chỉ kiểm rồi đóng.
 Mã thoát: 0 = đạt, 1 = bundle bị từ chối hoặc golden lệch, 2 = sai cách gọi.
 """
 
@@ -76,15 +80,53 @@ def _check_detector(bundle, golden: Path, expected: dict) -> list[dict]:
     return rows
 
 
+def _check_verifier(bundle, golden: Path, expected: dict) -> list[dict]:
+    import cv2
+
+    boxes_all = json.loads((golden / "boxes.json").read_text(encoding="utf-8"))
+    rows = []
+    for name, want in sorted(expected.items()):
+        img = cv2.imdecode(np.fromfile(golden / name, np.uint8), cv2.IMREAD_COLOR)
+        boxes = np.asarray(boxes_all.get(name, []), np.float32).reshape(-1, 4)
+        (scores,) = bundle.session.run(["scores"], {"frame": img, "boxes": boxes})
+        exp = [float(s) for s in want["scores"]]
+        ok = len(scores) == len(exp) == len(boxes)
+        worst = max((abs(float(g) - e) for g, e in zip(scores, exp, strict=False)), default=0.0)
+        rows.append(
+            {
+                "frame": name,
+                "n_boxes": len(boxes),
+                "max_dscore": round(worst, 4),
+                "pass": ok and worst <= DSCORE_MAX,
+            }
+        )
+    return rows
+
+
+def _offline_feeds(bundle, imgs: list[np.ndarray], i: int) -> dict:
+    t = int(bundle.meta.get("temporal_window", 1))
+    if t == 1:
+        return {"frame": imgs[i]}
+    idx = [min(max(j, 0), len(imgs) - 1) for j in range(i - t // 2, i + t // 2 + 1)]
+    return {"frames": np.stack([imgs[j] for j in idx])}
+
+
 def _check_enhancer(bundle, golden: Path, expected: dict) -> list[dict]:
     import cv2
 
+    names = sorted(expected)
+    imgs = [cv2.imdecode(np.fromfile(golden / n, np.uint8), cv2.IMREAD_COLOR) for n in names]
+    offline = bundle.kind == "enhancer-offline"
     rows = []
-    for name in sorted(expected):
-        img = cv2.imdecode(np.fromfile(golden / name, np.uint8), cv2.IMREAD_COLOR)
-        (out,) = bundle.session.run(["frame_out"], {"frame": img})
+    for i, name in enumerate(names):
+        feeds = _offline_feeds(bundle, imgs, i) if offline else {"frame": imgs[i]}
+        (out,) = bundle.session.run(["frame_out"], feeds)
         ref_path = golden / (Path(name).stem + ".out.png")
         ref = cv2.imdecode(np.fromfile(ref_path, np.uint8), cv2.IMREAD_COLOR)
+        if ref is None or out.shape != ref.shape:
+            got = None if ref is None else list(ref.shape)
+            rows.append({"frame": name, "shape": list(out.shape), "ref_shape": got, "pass": False})
+            continue
         diff = np.abs(out.astype(np.int16) - ref.astype(np.int16))
         mean_abs, max_abs = float(diff.mean()), int(diff.max())
         rows.append(
@@ -106,12 +148,22 @@ def check(bundle_dir: Path, sha256: str | None, providers: list[str] | None) -> 
     kind = onnx_path.stem
     try:
         meta = read_meta(onnx_path)
-        bundle = load_bundle(onnx_path, sha256 or str(meta.get("onnx_sha256", "")), kind, providers)
+        bundle = load_bundle(
+            onnx_path,
+            sha256 or str(meta.get("onnx_sha256", "")),
+            kind,
+            providers,
+            keep_session=True,  # golden phải chạy thật, kể cả kind offline
+        )
     except BundleRejected as exc:
         return {"pass": False, "model": kind, "reason": exc.reason}
     golden = bundle_dir / "golden"
     expected = json.loads((golden / "expected.json").read_text(encoding="utf-8"))
-    rows = (_check_detector if kind == "detector" else _check_enhancer)(bundle, golden, expected)
+    checker = {"detector": _check_detector, "verifier": _check_verifier}.get(kind, _check_enhancer)
+    try:
+        rows = checker(bundle, golden, expected)
+    except (OSError, ValueError, KeyError) as exc:
+        return {"pass": False, "model": kind, "reason": f"golden đọc lỗi: {exc!r}"}
     return {
         "pass": all(r["pass"] for r in rows),
         "model": kind,

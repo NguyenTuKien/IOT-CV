@@ -27,6 +27,7 @@ from fastapi.responses import JSONResponse, Response, StreamingResponse
 from backend import __version__, config
 from backend.flights import store_from_config
 from backend.flights.ai import EnhancerUnavailable, FlightFrameAIService, FrameNotFound
+from backend.flights.offline import OfflineEnhanceJob, OfflineRefused, RecordingNotFound
 from backend.flights.video import RecordingCache
 from backend.schemas import (
     CONTRACT_VERSION,
@@ -41,6 +42,8 @@ from backend.schemas import (
     MissionPayload,
     MissionUploadResult,
     MissionWaypoint,
+    OfflineEnhanceAccepted,
+    OfflineEnhanceStatus,
     RecordingStatus,
     StatusPayload,
     SystemPayload,
@@ -255,6 +258,13 @@ def build_router(hub) -> APIRouter:
     recordings = RecordingCache(Path(config.RECORD_DIR))
     # AI trên khung đã ghi dùng chung model của khối vision (hub.vision), không nạp lần hai.
     frame_ai = FlightFrameAIService(recordings, lambda: getattr(hub, "vision", None))
+    # Job ảnh rõ offline ×2 (hợp đồng XLA §13): app.py dựng sẵn ở `hub.offline_job` (để lifespan
+    # dừng được); thiếu (test dựng router riêng) thì dựng ở đây, cùng bộ đọc lần ghi.
+    offline_job: OfflineEnhanceJob = getattr(hub, "offline_job", None) or OfflineEnhanceJob(
+        recordings,
+        vision=lambda: getattr(hub, "vision", None),
+        telemetry=lambda: getattr(hub, "state", None),
+    )
 
     def _flight_list() -> FlightListPayload:
         scan = flights_store.scan()
@@ -278,12 +288,23 @@ def build_router(hub) -> APIRouter:
     async def flight_frame(
         rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"),
         n: int = Query(..., ge=0),
-        variant: Literal["raw", "enhanced"] = Query("raw"),
+        variant: Literal["raw", "enhanced", "offline"] = Query("raw"),
     ) -> Response:
         """Khung JPEG thứ `n` (thứ tự dòng `frames.csv`) của lần ghi `rec`.
 
         `variant=enhanced` = khung đó sau enhancer của XLA (để so với gốc trên trang Lịch sử
-        bay); enhancer không dùng được -> 503 `{error: "enhancer_unavailable", reason}`."""
+        bay); enhancer không dùng được -> 503 `{error: "enhancer_unavailable", reason}`.
+        `variant=offline` = ảnh 1280×960 job offline đã dựng (§13); chưa có -> 404
+        `{error: "not_cached", reason}`."""
+        if variant == "offline":
+            data, why = await asyncio.to_thread(offline_job.cached_frame, rec, n)
+            if data is None:
+                return JSONResponse({"error": "not_cached", "reason": why}, status_code=404)
+            return Response(
+                data,
+                media_type="image/jpeg",
+                headers={"Cache-Control": "private, max-age=3600"},
+            )
         if variant == "enhanced":
             try:
                 enhanced = await asyncio.to_thread(frame_ai.enhanced_jpeg, rec, n)
@@ -324,6 +345,31 @@ def build_router(hub) -> APIRouter:
         try:
             return await asyncio.to_thread(frame_ai.analyze, rec, n, detect)
         except FrameNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @router.post("/flights/enhance-offline", response_model=OfflineEnhanceAccepted, status_code=202)
+    async def flight_enhance_offline_start(
+        rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"),
+    ) -> OfflineEnhanceAccepted | JSONResponse:
+        """Dựng ảnh rõ offline ×2 cho cả lần ghi `rec` (nền, một job một lúc, §13).
+
+        409 `armed` / `link_recent` / `busy` (kèm `rec` đang chạy), 503
+        `enhancer_offline_unavailable` (kèm `reason`, cả khi mở session lỗi), 507 `disk_full`."""
+        try:
+            return await asyncio.to_thread(offline_job.start, rec)
+        except OfflineRefused as exc:
+            return JSONResponse(exc.body, status_code=exc.status)
+        except RecordingNotFound as exc:
+            raise HTTPException(404, str(exc)) from exc
+
+    @router.get("/flights/enhance-offline", response_model=OfflineEnhanceStatus)
+    async def flight_enhance_offline_status(
+        rec: str = Query(..., pattern=r"^\d{8}-\d{6}$"),
+    ) -> OfflineEnhanceStatus:
+        """Trạng thái job offline của `rec`: none | queued | running | paused | done | failed."""
+        try:
+            return await asyncio.to_thread(offline_job.status, rec)
+        except RecordingNotFound as exc:
             raise HTTPException(404, str(exc)) from exc
 
     return router

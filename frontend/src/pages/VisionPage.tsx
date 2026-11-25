@@ -12,13 +12,14 @@
  * `backend/vision/auto_quality.py`) và báo bằng sự kiện `camera.quality` — trang đọc mức
  * hiện tại từ sự kiện đó, không tự đoán.
  */
-import { Activity, BarChart3, Camera, Crosshair, ImageIcon, Scan, SquareDashed, Workflow } from "lucide-react";
+import { Activity, BarChart3, BrainCircuit, Camera, Crosshair, ImageIcon, Scan, SquareDashed, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { pageMeta } from "@/app/routes";
 import { Chip, EmptyState, KeyValue, KeyValueList, PageHeader } from "@/components/kit";
 import { Panel } from "@/components/Panel";
 import { VideoPanel } from "@/components/VideoPanel/VideoPanel";
+import { ModelStatus } from "@/components/vision/ModelStatus";
 import { NO_VALUE, formatClock } from "@/lib/format";
 import type { DetectionPayload } from "@/lib/protocol";
 import { useSessionStore } from "@/store/session";
@@ -180,6 +181,7 @@ export default function VisionPage() {
   const stats = useDetectionStats();
   const rate = useSessionStore((s) => s.rates.detection ?? 0);
   const camera = useTelemetryStore((s) => s.status?.camera);
+  const vision = useTelemetryStore((s) => s.status?.vision);
   const maxLabel = useMemo(() => Math.max(1, ...stats.byLabel.map(([, n]) => n)), [stats.byLabel]);
   const quality = useQualityChanges();
 
@@ -205,6 +207,9 @@ export default function VisionPage() {
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
         <VideoPanel title="Camera trên drone" tools className="min-h-[420px] xl:h-[min(70dvh,720px)]" />
         <div className="flex flex-col gap-3">
+          <Panel title="Model AI" subtitle="trạng thái, phiên bản, provider, ms" icon={BrainCircuit} accent="indigo" bodyClassName="p-3">
+            <ModelStatus vision={vision} />
+          </Panel>
           <Panel title="Bộ nhận diện" subtitle={`${DETECTION_WINDOW} gói gần nhất`} icon={BarChart3} accent="violet" bodyClassName="flex flex-col gap-4 p-3">
             <KeyValueList>
               <KeyValue icon={Activity} accent="violet" label="Nhịp gói detection" value={`${rate} /s`} />

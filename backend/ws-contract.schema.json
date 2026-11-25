@@ -100,6 +100,12 @@
     },
     "GET /api/flights/ai": {
       "$ref": "#/$defs/FlightFrameAI"
+    },
+    "POST /api/flights/enhance-offline": {
+      "$ref": "#/$defs/OfflineEnhanceAccepted"
+    },
+    "GET /api/flights/enhance-offline": {
+      "$ref": "#/$defs/OfflineEnhanceStatus"
     }
   },
   "uplink_rate_limits": {
@@ -787,6 +793,9 @@
           "title": "Boxes",
           "type": "array"
         },
+        "verifier": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
         "detector_ms": {
           "anyOf": [
             {
@@ -798,6 +807,18 @@
           ],
           "default": null,
           "title": "Detector Ms"
+        },
+        "verifier_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verifier Ms"
         },
         "enhancer_ms": {
           "anyOf": [
@@ -1680,6 +1701,112 @@
       "title": "MissionWaypoint",
       "type": "object"
     },
+    "OfflineEnhanceAccepted": {
+      "description": "`POST /api/flights/enhance-offline?rec=…` → 202.",
+      "properties": {
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "queued",
+            "running"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "done": {
+          "title": "Done",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "rec",
+        "state",
+        "done",
+        "total"
+      ],
+      "title": "OfflineEnhanceAccepted",
+      "type": "object"
+    },
+    "OfflineEnhanceStatus": {
+      "description": "`GET /api/flights/enhance-offline?rec=…` → 200. `paused` = armed, liên kết FC vừa mất, hoặc\nkhoá GPU của XLA đang bị giữ (`reason` ghi lý do); khi `paused` job đóng session ORT.",
+      "properties": {
+        "rec": {
+          "title": "Rec",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "none",
+            "queued",
+            "running",
+            "paused",
+            "done",
+            "failed"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "done": {
+          "title": "Done",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        },
+        "bundle_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Bundle Version"
+        },
+        "s_per_frame": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "S Per Frame"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        }
+      },
+      "required": [
+        "rec",
+        "state",
+        "done",
+        "total"
+      ],
+      "title": "OfflineEnhanceStatus",
+      "type": "object"
+    },
     "PongPayload": {
       "properties": {
         "server_ts": {
@@ -2353,11 +2480,12 @@
       "type": "object"
     },
     "VisionModelStatus": {
-      "description": "Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý\ndo, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.",
+      "description": "Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5, §13): đã nạp, sẵn sàng, bị\ntừ chối kèm lý do, hay tắt. `ready` = sha + meta đúng và mở được session CPU lúc khởi động\n(không chạy) rồi đóng — model offline, web tô vàng; `loaded` = đang chạy thật, tô xanh.\n`cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.",
       "properties": {
         "state": {
           "enum": [
             "loaded",
+            "ready",
             "rejected",
             "disabled"
           ],
@@ -2414,6 +2542,17 @@
         },
         "enhancer": {
           "$ref": "#/$defs/VisionModelStatus"
+        },
+        "verifier": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
+        "enhancer_offline": {
+          "$ref": "#/$defs/VisionModelStatus"
+        },
+        "enhancer_default_on": {
+          "default": false,
+          "title": "Enhancer Default On",
+          "type": "boolean"
         },
         "ms": {
           "additionalProperties": {

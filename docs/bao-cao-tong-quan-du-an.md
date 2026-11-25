@@ -380,9 +380,9 @@ uav-iot-cv/
 │   │   ├── calibrate_camera.py      # hiệu chuẩn bàn cờ
 │   │   ├── simulate_degradation.py  # sinh VisDrone-ESP32
 │   │   ├── convert_visdrone.py
-│   │   ├── split_dataset.py
-│   │   ├── train.py
-│   │   ├── evaluate.py
+│   │   ├── (chia dữ liệu, huấn luyện, đánh giá: ở repo XLA, D:\XLA,
+│   │   │    GitHub Localhost218/XLA; khung sườn cũ trong IOT-CV đã xoá 25/11/2026;
+│   │   │    IOT-CV chỉ nhận model ONNX vào models/vision/, nạp ở backend/vision/)
 │   │   └── ablation_restore.py      # chạy toàn bộ ma trận ablation
 │   ├── configs/  datasets/  weights/  results/
 ├── docs/
