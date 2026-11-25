@@ -284,18 +284,22 @@ export interface FlightFrameAI {
   detector: VisionModelStatus;
   enhancer: VisionModelStatus;
   boxes: DetectionBox[];
+  verifier?: VisionModelStatus;
   detector_ms?: number | null;
+  verifier_ms?: number | null;
   enhancer_ms?: number | null;
   quality_raw?: ImageQuality | null;
   quality_enhanced?: ImageQuality | null;
   note?: string | null;
 }
 /**
- * Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý
- * do, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.
+ * Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5, §13): đã nạp, sẵn sàng, bị
+ * từ chối kèm lý do, hay tắt. `ready` = sha + meta đúng và mở được session CPU lúc khởi động
+ * (không chạy) rồi đóng — model offline, web tô vàng; `loaded` = đang chạy thật, tô xanh.
+ * `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU.
  */
 export interface VisionModelStatus {
-  state: "loaded" | "rejected" | "disabled";
+  state: "loaded" | "ready" | "rejected" | "disabled";
   reason?: string | null;
   version?: string | null;
   providers?: string[];
@@ -344,6 +348,28 @@ export interface MissionUploadResult {
   count?: number;
   readback_ok?: boolean;
   code?: string | null;
+}
+/**
+ * `POST /api/flights/enhance-offline?rec=…` → 202.
+ */
+export interface OfflineEnhanceAccepted {
+  rec: string;
+  state: "queued" | "running";
+  done: number;
+  total: number;
+}
+/**
+ * `GET /api/flights/enhance-offline?rec=…` → 200. `paused` = armed, liên kết FC vừa mất, hoặc
+ * khoá GPU của XLA đang bị giữ (`reason` ghi lý do); khi `paused` job đóng session ORT.
+ */
+export interface OfflineEnhanceStatus {
+  rec: string;
+  state: "none" | "queued" | "running" | "paused" | "done" | "failed";
+  done: number;
+  total: number;
+  bundle_version?: string | null;
+  s_per_frame?: number | null;
+  reason?: string | null;
 }
 export interface PongPayload {
   server_ts: number;
@@ -399,6 +425,9 @@ export interface StatusPayload {
 export interface VisionStatus {
   detector: VisionModelStatus;
   enhancer: VisionModelStatus;
+  verifier?: VisionModelStatus;
+  enhancer_offline?: VisionModelStatus;
+  enhancer_default_on?: boolean;
   ms?: {
     [k: string]: {
       [k: string]: number;
@@ -526,6 +555,8 @@ export interface RestResponses {
   "GET /api/flights": FlightListPayload;
   "GET /api/flight": FlightDetail;
   "GET /api/flights/ai": FlightFrameAI;
+  "POST /api/flights/enhance-offline": OfflineEnhanceAccepted;
+  "GET /api/flights/enhance-offline": OfflineEnhanceStatus;
 }
 
 export const DOWNLINK_TYPES = [

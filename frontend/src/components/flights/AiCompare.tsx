@@ -13,17 +13,37 @@
  *
  * Đã thử cho backend xử lý trước vài khung kế tiếp (19/11/2026): khi AI chậm hơn video, khung xử lý
  * trước không phải khung đầu phát xin tiếp, chỉ giành GPU — đo trên đoạn 13 khung/s còn tệ hơn. Bỏ.
+ *
+ * Nguồn bên phải (hợp đồng XLA §13, lưu ở `iot-cv.flight-ai-source`): "Ảnh rõ" trực tiếp, hoặc
+ * "Ảnh rõ offline" — ảnh ×2 job offline dựng trước cho cả lần ghi (nút dựng + tiến độ ở thanh
+ * dưới, hỏi lại mỗi 2 s khi job còn chạy). Khung chưa dựng thì bên phải là ảnh rõ trực tiếp kèm chip
+ * "chưa dựng". Bên gốc luôn hiện, mọi nguồn. Model offline không có thì nút dựng tắt, ghi lý do.
  */
-import { Columns2, Gauge, Maximize, Pause, PersonStanding, Play, Sparkles, SquareSplitHorizontal, VideoOff, ZoomIn, ZoomOut } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Columns2, Gauge, Images, Maximize, Pause, PersonStanding, Play, Sparkles, SquareSplitHorizontal, VideoOff, WandSparkles, ZoomIn, ZoomOut } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { Placeholder, SideBySide, SliderCompare } from "@/components/flights/AiViewer";
 import type { CompareFrame } from "@/components/flights/AiViewer";
-import { Chip, EmptyState, KeyValue, KeyValueList } from "@/components/kit";
+import { Chip, EmptyState, KeyValue, KeyValueList, Meter } from "@/components/kit";
 import { useZoomView } from "@/hooks/useZoomView";
-import { FRAME_STALE_S, countKeepUp, fetchFrameAi, fetchFrameBlob, frameAt, qualityDelta, videoFpsAt } from "@/lib/flights";
-import type { FlightDetail, FlightFrameAI, FrameRef, ImageQuality, KeepUp } from "@/lib/flights";
+import {
+  FRAME_STALE_S,
+  FrameError,
+  OFFLINE_POLL_MS,
+  countKeepUp,
+  fetchFrameAi,
+  fetchFrameBlob,
+  frameAt,
+  getOffline,
+  offlineActive,
+  qualityDelta,
+  readAiSource,
+  startOffline,
+  videoFpsAt,
+  writeAiSource,
+} from "@/lib/flights";
+import type { FlightAiSource, FlightDetail, FlightFrameAI, FrameRef, ImageQuality, KeepUp, OfflineEnhanceStatus, OfflineRefusal } from "@/lib/flights";
 import { ACCENT_SOFT } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 import { VIEW_FIT, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP, zoomAt } from "@/lib/zoom";
@@ -59,55 +79,80 @@ function revoke(f: CompareFrame | null) {
   if (f.enhanced) URL.revokeObjectURL(f.enhanced);
 }
 
-async function loadCompare(rec: string, n: number, detect: boolean, signal: AbortSignal): Promise<CompareFrame> {
+interface RightSide {
+  blob: Blob | null;
+  error: string | null;
+  source: "enhanced" | "offline";
+  offlineMissing: string | null;
+}
+
+/** Bên phải: ảnh offline khi chọn nguồn đó và khung đã dựng; chưa dựng (404) → ảnh rõ trực tiếp. */
+async function loadRight(rec: string, n: number, source: FlightAiSource, signal: AbortSignal): Promise<RightSide> {
+  const live = async (offlineMissing: string | null): Promise<RightSide> => {
+    try {
+      return { blob: await fetchFrameBlob(rec, n, "enhanced", { signal }), error: null, source: "enhanced", offlineMissing };
+    } catch (e) {
+      if (signal.aborted) throw e;
+      return { blob: null, error: errorText(e), source: "enhanced", offlineMissing };
+    }
+  };
+  if (source !== "offline") return live(null);
+  try {
+    return { blob: await fetchFrameBlob(rec, n, "offline", { signal }), error: null, source: "offline", offlineMissing: null };
+  } catch (e) {
+    if (signal.aborted) throw e;
+    const missing = e instanceof FrameError && e.status === 404 ? e.message || "chưa dựng" : `ảnh offline lỗi: ${errorText(e)}`;
+    return live(missing);
+  }
+}
+
+async function loadCompare(rec: string, n: number, detect: boolean, source: FlightAiSource, signal: AbortSignal, offlineVersion: string | null): Promise<CompareFrame> {
   // Ba request cùng lúc: số đo và ảnh rõ cùng cần enhancer của khung này, backend gộp hai lần xin
   // thành MỘT lần chạy (`FlightFrameAIService._enhance`), nên không phải chờ nối đuôi.
   let aiError: string | null = null;
-  let enhancedError: string | null = null;
-  const soft = <T,>(p: Promise<T>, onError: (msg: string) => void): Promise<T | null> =>
-    p.catch((e: unknown) => {
-      if (signal.aborted) throw e;
-      onError(errorText(e));
-      return null;
-    });
-  const [rawBlob, ai, enhancedBlob] = await Promise.all([
+  const [rawBlob, ai, right] = await Promise.all([
     fetchFrameBlob(rec, n, "raw", { signal }),
-    soft(fetchFrameAi(rec, n, { signal }, detect), (m) => {
-      aiError = m;
+    fetchFrameAi(rec, n, { signal }, detect).catch((e: unknown) => {
+      if (signal.aborted) throw e;
+      aiError = errorText(e);
+      return null;
     }),
-    soft(fetchFrameBlob(rec, n, "enhanced", { signal }), (m) => {
-      enhancedError = m;
-    }),
+    loadRight(rec, n, source, signal),
   ]);
   return {
-    key: frameKey(rec, n, detect),
+    key: frameKey(rec, n, detect, source),
     rec,
     n,
     raw: URL.createObjectURL(rawBlob),
-    enhanced: enhancedBlob ? URL.createObjectURL(enhancedBlob) : null,
-    enhancedError,
+    enhanced: right.blob ? URL.createObjectURL(right.blob) : null,
+    enhancedError: right.error,
+    enhancedSource: right.source,
+    offlineMissing: right.offlineMissing,
+    offlineVersion: right.source === "offline" ? offlineVersion : null,
     ai,
     aiError,
   };
 }
 
-/** Bật/tắt hộp người là xin lại khung với/không detector, nên cờ nằm trong khoá. */
-function frameKey(rec: string, n: number, detect: boolean): string {
-  return `${rec}:${n}:${detect ? "d" : "e"}`;
+/** Bật/tắt hộp người là xin lại khung với/không detector, nên cờ nằm trong khoá; nguồn cũng vậy. */
+function frameKey(rec: string, n: number, detect: boolean, source: FlightAiSource | string = "enhanced"): string {
+  return `${rec}:${n}:${detect ? "d" : "e"}:${source}`;
 }
 
 /** Khung đang hiện của khối AI: luôn đổi trọn cặp (gốc + ảnh rõ + số đo) của cùng một khung. */
-function useCompareFrame(ref: FrameRef | null, playing: boolean, detect: boolean) {
+function useCompareFrame(ref: FrameRef | null, playing: boolean, detect: boolean, source: FlightAiSource, offlineGen: string, offlineVersion: string | null) {
   const rec = ref?.rec ?? null;
   const n = ref?.n ?? null;
-  const key = rec != null && n != null ? frameKey(rec, n, detect) : null;
+  // `offlineGen` đổi khi job offline xong: khung đang hiện (có thể là ảnh rõ dự phòng) được xin lại.
+  const sourceKey = source === "offline" ? `offline-${offlineGen}` : source;
+  const key = rec != null && n != null ? frameKey(rec, n, detect, sourceKey) : null;
   const [shown, setShown] = useState<CompareFrame | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [keepUp, setKeepUp] = useState<KeepUp | null>(null);
   const busy = useRef(false);
   const failed = useRef<string | null>(null);
   const ctrl = useRef<AbortController | null>(null);
-  const want = useRef<{ rec: string; n: number; detect: boolean; key: string } | null>(null);
+  const want = useRef<{ rec: string; n: number; detect: boolean; source: FlightAiSource; version: string | null; key: string } | null>(null);
   const shownKey = useRef<string | null>(null);
   const pump = useRef<() => void>(() => {});
   const playingNow = useRef(playing);
@@ -142,8 +187,9 @@ function useCompareFrame(ref: FrameRef | null, playing: boolean, detect: boolean
       if (!target || !signal || signal.aborted || busy.current) return;
       if (target.key === shownKey.current || target.key === failed.current) return;
       busy.current = true;
-      loadCompare(target.rec, target.n, target.detect, signal)
-        .then((next) => {
+      loadCompare(target.rec, target.n, target.detect, target.source, signal, target.version)
+        .then((loaded) => {
+          const next = { ...loaded, key: target.key };
           if (signal.aborted) {
             revoke(next);
             return;
@@ -174,11 +220,147 @@ function useCompareFrame(ref: FrameRef | null, playing: boolean, detect: boolean
   }, []);
 
   useEffect(() => {
-    want.current = rec != null && n != null && key != null ? { rec, n, detect, key } : null;
+    want.current = rec != null && n != null && key != null ? { rec, n, detect, source, version: offlineVersion, key } : null;
     pump.current();
-  }, [rec, n, detect, key]);
+  }, [rec, n, detect, source, offlineVersion, key]);
 
   return { shown, error, keepUp };
+}
+
+/** Job ảnh rõ offline của lần ghi `rec` (null = không hỏi): trạng thái, hỏi lại khi còn chạy, nút dựng. */
+function useOfflineJob(rec: string | null, pollMs: number) {
+  const [status, setStatus] = useState<OfflineEnhanceStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [refusal, setRefusal] = useState<{ rec: string; refusal: OfflineRefusal } | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!rec) return;
+    const c = new AbortController();
+    getOffline(rec, { signal: c.signal })
+      .then((st) => {
+        setStatus(st);
+        setStatusError(null);
+      })
+      .catch((e: unknown) => {
+        if (!c.signal.aborted) setStatusError(errorText(e));
+      });
+    return () => c.abort();
+  }, [rec, tick]);
+
+  const mine = status && status.rec === rec ? status : null;
+  const active = offlineActive(mine?.state);
+  // Hỏi lại sau mỗi lần nhận trạng thái mới, chỉ khi job còn chạy / chờ / tạm dừng.
+  useEffect(() => {
+    if (!active) return;
+    const t = setTimeout(() => setTick((x) => x + 1), pollMs);
+    return () => clearTimeout(t);
+  }, [active, mine, pollMs]);
+
+  const start = useCallback(async () => {
+    if (!rec) return;
+    setStarting(true);
+    setRefusal(null);
+    try {
+      const r = await startOffline(rec);
+      if (r.ok) {
+        const a = r.accepted;
+        setStatus((s) => ({
+          rec: a.rec,
+          state: a.state,
+          done: a.done,
+          total: a.total,
+          bundle_version: s?.rec === a.rec ? (s.bundle_version ?? null) : null,
+          s_per_frame: s?.rec === a.rec ? (s.s_per_frame ?? null) : null,
+          reason: null,
+        }));
+      } else {
+        setRefusal({ rec, refusal: r.refusal });
+      }
+    } catch (e) {
+      setRefusal({ rec, refusal: { status: 0, error: "network", reason: errorText(e) } });
+    } finally {
+      setStarting(false);
+      setTick((x) => x + 1);
+    }
+  }, [rec]);
+
+  return { status: mine, statusError, refusal: refusal && refusal.rec === rec ? refusal.refusal : null, starting, start };
+}
+
+type OfflineJob = ReturnType<typeof useOfflineJob>;
+
+const OFFLINE_STATE: Record<OfflineEnhanceStatus["state"], { text: string; tone: "ok" | "warn" | "danger" | "neutral" }> = {
+  none: { text: "chưa dựng", tone: "neutral" },
+  queued: { text: "đang chờ", tone: "neutral" },
+  running: { text: "đang dựng", tone: "ok" },
+  paused: { text: "tạm dừng", tone: "warn" },
+  done: { text: "đã dựng xong", tone: "ok" },
+  failed: { text: "lỗi", tone: "danger" },
+};
+
+/** Thanh dựng ảnh rõ offline cho lần ghi đang xem: nút, tiến độ, lý do dừng / từ chối. */
+function OfflineBar({ job }: { job: OfflineJob }) {
+  const st = job.status;
+  const unavailable = st && !st.bundle_version ? (st.reason ?? "model offline chưa nạp") : null;
+  const active = offlineActive(st?.state);
+  const done = st?.state === "done";
+  const view = st ? OFFLINE_STATE[st.state] : null;
+  const pct = st && st.total > 0 ? st.done / st.total : null;
+  let reason: string | null = null;
+  let reasonTone: "warn" | "danger" = "warn";
+  if (job.refusal) {
+    reason = job.refusal.reason;
+    reasonTone = job.refusal.status === 409 ? "warn" : "danger";
+  } else if (unavailable) {
+    reason = `Không dựng được: ${unavailable}`;
+  } else if (st?.reason && (st.state === "paused" || st.state === "failed")) {
+    reason = st.reason;
+    reasonTone = st.state === "failed" ? "danger" : "warn";
+  } else if (job.statusError) {
+    reason = `Không đọc được tiến độ: ${job.statusError}`;
+  }
+  const label = done ? "Đã dựng ảnh rõ offline" : st && st.done > 0 && !active ? "Dựng tiếp ảnh rõ offline" : "Dựng ảnh rõ offline cho chuyến này";
+  const meterTone = view?.tone === "danger" ? "danger" : view?.tone === "warn" ? "warn" : "ok";
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md border border-border/70 bg-foreground/[0.012] px-2 py-1.5"
+      data-testid="flight-ai-offline-bar"
+      data-state={st?.state ?? "unknown"}
+    >
+      <ToolButton
+        onClick={() => void job.start()}
+        disabled={!st || !!unavailable || active || done || job.starting}
+        title={unavailable ? `Không dựng được: ${unavailable}` : "Tính trước ảnh ×2 cho mọi khung của lần ghi này (nền, chỉ khi drone không bay)"}
+        icon={WandSparkles}
+        testId="flight-ai-offline-start"
+      >
+        {label}
+      </ToolButton>
+      {st ? (
+        <span className="flex min-w-48 flex-1 items-center gap-2">
+          <Meter value={pct} tone={meterTone} className="flex-1" />
+          <span className="num font-mono text-[11px] text-foreground" data-testid="flight-ai-offline-progress">
+            {st.done}/{st.total} khung
+          </span>
+          {view ? (
+            <Chip tone={view.tone} size="xs" dot={st.state === "running"} pulse={st.state === "running"} testId="flight-ai-offline-state">
+              {view.text}
+            </Chip>
+          ) : null}
+          {st.s_per_frame != null ? <span className="num font-mono text-[11px] text-muted-foreground">{st.s_per_frame.toFixed(2)} s/khung</span> : null}
+        </span>
+      ) : (
+        <span className="text-[11px] text-muted-foreground">đang hỏi tiến độ…</span>
+      )}
+      {reason ? (
+        <Chip tone={reasonTone} size="xs" className="h-auto max-w-full py-0.5 whitespace-normal" title={reason} testId="flight-ai-offline-reason">
+          {reason}
+        </Chip>
+      ) : null}
+    </div>
+  );
 }
 
 /** Nút trên thanh công cụ. Có `active` thì là nút bật/tắt (aria-pressed); không có là nút lệnh. */
@@ -321,22 +503,34 @@ export function AiCompare({
   cursor,
   playing,
   onPlay,
+  offlinePollMs = OFFLINE_POLL_MS,
 }: {
   flight: FlightDetail;
   cursor: number;
   playing: boolean;
   onPlay: (playing: boolean) => void;
+  /** Nhịp hỏi lại tiến độ job offline (test truyền nhỏ). */
+  offlinePollMs?: number;
 }) {
   const ref = frameAt(flight.video, cursor);
   const [mode, setMode] = useState<ViewMode>(() => (readPref(MODE_KEY) === "slider" ? "slider" : "side"));
   const [boxes, setBoxes] = useState(() => readPref(BOXES_KEY) !== "0");
-  const { shown, error, keepUp } = useCompareFrame(ref, playing, boxes);
+  const [source, setSource] = useState<FlightAiSource>(readAiSource);
+  // Job offline theo lần ghi đang xem (chuyến có thể gồm nhiều lần ghi); chỉ hỏi khi chọn nguồn offline.
+  const jobRec = ref?.rec ?? flight.video[0]?.rec ?? null;
+  const job = useOfflineJob(source === "offline" ? jobRec : null, offlinePollMs);
+  const offlineGen = job.status?.state === "done" ? "done" : "partial";
+  const { shown, error, keepUp } = useCompareFrame(ref, playing, boxes, source, offlineGen, job.status?.bundle_version ?? null);
   // Một khung nhìn cho mọi ô: giữ nguyên khi đổi khung (đang phát) và khi đổi cách xem.
   const zoom = useZoomView();
   const zoomStep = (factor: number) => zoom.apply(zoomAt(zoom.latest.current, factor, 0.5, 0.5));
   const pickMode = (m: ViewMode) => {
     setMode(m);
     writePref(MODE_KEY, m);
+  };
+  const pickSource = (next: FlightAiSource) => {
+    setSource(next);
+    writeAiSource(next);
   };
   const toggleBoxes = () => {
     setBoxes((b) => {
@@ -369,7 +563,7 @@ export function AiCompare({
   }
 
   return (
-    <div className="flex flex-col gap-3 p-3" data-testid="flight-ai" data-mode={mode}>
+    <div className="flex flex-col gap-3 p-3" data-testid="flight-ai" data-mode={mode} data-source={source}>
       <div className="flex flex-wrap items-center gap-1.5">
         <ToolButton active={playing} onClick={() => onPlay(!playing)} title={playing ? "Dừng phát" : "Phát chuyến bay, AI xử lý theo"} icon={playing ? Pause : Play} testId="flight-ai-play">
           {playing ? "Dừng" : "Phát"}
@@ -383,6 +577,19 @@ export function AiCompare({
         </ToolButton>
         <ToolButton active={boxes} onClick={toggleBoxes} title="Vẽ hộp người của detector (chạy trên khung gốc)" icon={PersonStanding} testId="flight-ai-boxes-toggle">
           Hộp người
+        </ToolButton>
+        <span className="mx-1 h-5 w-px bg-border" aria-hidden />
+        <ToolButton active={source === "enhanced"} onClick={() => pickSource("enhanced")} title="Bên phải: ảnh rõ trực tiếp (enhancer chạy theo đầu phát)" icon={Sparkles} testId="flight-ai-source-enhanced">
+          Ảnh rõ
+        </ToolButton>
+        <ToolButton
+          active={source === "offline"}
+          onClick={() => pickSource("offline")}
+          title="Bên phải: ảnh rõ offline ×2 do AI dựng lại, tính trước cho cả lần ghi"
+          icon={Images}
+          testId="flight-ai-source-offline"
+        >
+          Ảnh rõ offline (AI dựng lại)
         </ToolButton>
         <span className="mx-1 h-5 w-px bg-border" aria-hidden />
         <ToolButton onClick={() => zoomStep(1 / ZOOM_STEP)} disabled={zoom.view.s <= ZOOM_MIN} title="Thu nhỏ (cả hai bên)" icon={ZoomOut} testId="flight-ai-zoom-out" />
@@ -406,6 +613,7 @@ export function AiCompare({
           ) : null}
         </span>
       </div>
+      {source === "offline" ? <OfflineBar job={job} /> : null}
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_290px]">
         <div className="flex flex-col gap-1.5">
           <div className="relative">

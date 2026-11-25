@@ -198,20 +198,31 @@ class CameraStatus(BaseModel):
 
 
 class VisionModelStatus(BaseModel):
-    """Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5): đã nạp, bị từ chối kèm lý
-    do, hay tắt. `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU."""
+    """Một model AI (repo XLA, hợp đồng `docs/hop-dong-model.md` §5, §13): đã nạp, sẵn sàng, bị
+    từ chối kèm lý do, hay tắt. `ready` = sha + meta đúng và mở được session CPU lúc khởi động
+    (không chạy) rồi đóng — model offline, web tô vàng; `loaded` = đang chạy thật, tô xanh.
+    `cpu_only` = CUDA không tạo được, model chạy chậm trên CPU."""
 
-    state: Literal["loaded", "rejected", "disabled"]
+    state: Literal["loaded", "ready", "rejected", "disabled"]
     reason: str | None = None
     version: str | None = None
     providers: list[str] = Field(default_factory=list)
     cpu_only: bool = False
 
 
+def _vision_disabled() -> VisionModelStatus:
+    return VisionModelStatus(state="disabled", reason="chưa nạp")
+
+
 class VisionStatus(BaseModel):
     detector: VisionModelStatus
     enhancer: VisionModelStatus
-    # p50/p95 ms từng bước của pipeline (decode, detector, enhancer, encode, total).
+    # Hợp đồng XLA §13 (v1.1): verifier (§9), enhancer-offline (§11), "Ảnh rõ" bật sẵn hay không
+    # (env ENHANCER_DEFAULT_ON — web dùng khi localStorage `iot-cv.video-enhanced` chưa có).
+    verifier: VisionModelStatus = Field(default_factory=_vision_disabled)
+    enhancer_offline: VisionModelStatus = Field(default_factory=_vision_disabled)
+    enhancer_default_on: bool = False
+    # p50/p95 ms từng bước của pipeline (decode, detector, verifier, enhancer, encode, total).
     ms: dict[str, dict[str, float]] = Field(default_factory=dict)
     frames_processed: int = 0
     frames_dropped: int = 0
@@ -642,11 +653,74 @@ class FlightFrameAI(BaseModel):
     detector: VisionModelStatus
     enhancer: VisionModelStatus
     boxes: list[DetectionBox]
+    # Hợp đồng XLA §10/§13 (v1.1): `boxes` là hộp SAU verifier khi verifier `loaded` (cùng điểm
+    # vận hành với luồng trực tiếp); `verifier` cho biết verifier có chạy không.
+    verifier: VisionModelStatus = Field(default_factory=_vision_disabled)
     detector_ms: float | None = None
+    verifier_ms: float | None = None
     enhancer_ms: float | None = None
     quality_raw: ImageQuality | None = None
     quality_enhanced: ImageQuality | None = None
     note: str | None = None
+
+
+# -- Job ảnh rõ offline ×2 của trang Lịch sử bay (hợp đồng XLA §13, v1.1) ----------------------
+OfflineEnhanceState = Literal["none", "queued", "running", "paused", "done", "failed"]
+
+
+class OfflineEnhanceAccepted(BaseModel):
+    """`POST /api/flights/enhance-offline?rec=…` → 202."""
+
+    rec: str
+    state: Literal["queued", "running"]
+    done: int
+    total: int
+
+
+class OfflineEnhanceStatus(BaseModel):
+    """`GET /api/flights/enhance-offline?rec=…` → 200. `paused` = armed, liên kết FC vừa mất, hoặc
+    khoá GPU của XLA đang bị giữ (`reason` ghi lý do); khi `paused` job đóng session ORT."""
+
+    rec: str
+    state: OfflineEnhanceState
+    done: int
+    total: int
+    bundle_version: str | None = None
+    s_per_frame: float | None = None
+    reason: str | None = None
+
+
+class OfflineEnhanceError(BaseModel):
+    """Thân lỗi của API offline: 409 `armed` | `link_recent` | `busy` (kèm `rec` của job đang
+    chạy), 503 `enhancer_offline_unavailable` (kèm `reason`), 507 `disk_full` (kèm `free_mb`),
+    404 `not_cached` (`GET /api/flights/frame?…&variant=offline`)."""
+
+    error: Literal[
+        "armed",
+        "link_recent",
+        "busy",
+        "enhancer_offline_unavailable",
+        "disk_full",
+        "not_cached",
+    ]
+    rec: str | None = None
+    reason: str | None = None
+    free_mb: float | None = None
+
+
+class OfflineEnhanceManifest(BaseModel):
+    """`<FLIGHT_AI_CACHE_DIR>/<rec>/enhancer-offline-v<ver>/manifest.json`. `onnx_sha256` khác
+    bundle đang nạp → coi như chưa có cache. `started`/`finished` là ISO 8601 (hợp đồng không ghi
+    kiểu, chọn ở IOT-CV); `finished` None khi chưa xong; `wall_s` = thời gian chạy (giây)."""
+
+    bundle_version: str
+    onnx_sha256: str
+    total: int
+    done: int
+    jpeg_quality: int
+    started: str
+    finished: str | None = None
+    wall_s: float = 0.0
 
 
 REST_MODELS: dict[str, type[BaseModel]] = {
@@ -663,6 +737,8 @@ REST_MODELS: dict[str, type[BaseModel]] = {
     "GET /api/flights": FlightListPayload,
     "GET /api/flight": FlightDetail,
     "GET /api/flights/ai": FlightFrameAI,
+    "POST /api/flights/enhance-offline": OfflineEnhanceAccepted,
+    "GET /api/flights/enhance-offline": OfflineEnhanceStatus,
 }
 
 

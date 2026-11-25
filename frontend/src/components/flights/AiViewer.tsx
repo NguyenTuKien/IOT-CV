@@ -26,7 +26,12 @@ import { cn } from "@/lib/utils";
 import { VIEW_FIT, ZOOM_DOUBLE_CLICK, ZOOM_MIN, panBy, projectRect, viewTransform, visibleRect, wheelAtLimit, wheelFactor, zoomAt } from "@/lib/zoom";
 import type { ZoomView } from "@/lib/zoom";
 
-/** Một khung đang hiện: gốc + ảnh rõ + số đo của CÙNG một khung (object URL của hai JPEG). */
+/**
+ * Một khung đang hiện: gốc + ảnh rõ + số đo của CÙNG một khung (object URL của hai JPEG). Bên phải
+ * là ảnh rõ trực tiếp (`enhancedSource: "enhanced"`, 640×480) hoặc ảnh offline AI dựng lại
+ * (`"offline"`, 1280×960, hợp đồng XLA §13); hai cỡ cùng tỉ lệ 4:3 nên hộp người vẫn khớp.
+ * `offlineMissing`: người xem chọn offline nhưng khung này chưa dựng — bên phải là ảnh rõ trực tiếp.
+ */
 export interface CompareFrame {
   key: string;
   rec: string;
@@ -34,6 +39,9 @@ export interface CompareFrame {
   raw: string;
   enhanced: string | null;
   enhancedError: string | null;
+  enhancedSource?: "enhanced" | "offline";
+  offlineMissing?: string | null;
+  offlineVersion?: string | null;
   ai: FlightFrameAI | null;
   aiError: string | null;
 }
@@ -233,9 +241,33 @@ export function Placeholder({ children }: { children: ReactNode }) {
   return <div className="absolute inset-0 grid place-items-center p-4 text-center text-xs text-white/75">{children}</div>;
 }
 
-function enhancedLabel(ai: FlightFrameAI | null): string {
-  const v = ai?.enhancer.version;
+function enhancedLabel(frame: CompareFrame): string {
+  if (frame.enhancedSource === "offline") {
+    const v = frame.offlineVersion;
+    return v ? `ẢNH RÕ OFFLINE · AI dựng lại · v${v}` : "ẢNH RÕ OFFLINE · AI dựng lại";
+  }
+  const v = frame.ai?.enhancer.version;
   return v ? `ẢNH RÕ · enhancer-v${v}` : "ẢNH RÕ (AI)";
+}
+
+/** Chip trên bên phải: "ảnh do AI dựng lại" (offline) hoặc "chưa dựng" (offline thiếu khung này). */
+function SourceNote({ frame, right }: { frame: CompareFrame; right?: boolean }) {
+  const pos = cn("pointer-events-none absolute top-9 z-10", right ? "right-2" : "left-2");
+  if (frame.enhancedSource === "offline") {
+    return (
+      <Chip tone="indigo" variant="solid" size="xs" className={pos} title="Ảnh ×2 do mạng sinh dựng lại: chi tiết có thể là AI đoán, không phải camera thấy" testId="flight-ai-offline-note">
+        ảnh do AI dựng lại
+      </Chip>
+    );
+  }
+  if (frame.offlineMissing) {
+    return (
+      <Chip tone="warn" variant="solid" size="xs" mono className={pos} title={frame.offlineMissing} testId="flight-ai-offline-missing">
+        chưa dựng · đang xem ảnh rõ trực tiếp
+      </Chip>
+    );
+  }
+  return null;
 }
 
 function enhancedMissing(f: CompareFrame): string {
@@ -246,8 +278,18 @@ function RawImage({ frame }: { frame: CompareFrame }) {
   return <img src={frame.raw} alt={`Khung gốc ${frame.n}`} className="absolute inset-0 size-full object-fill" draggable={false} data-testid="flight-ai-raw" />;
 }
 
-function EnhancedImage({ src, n }: { src: string; n: number }) {
-  return <img src={src} alt={`Khung ${n} sau enhancer`} className="absolute inset-0 size-full object-fill" draggable={false} data-testid="flight-ai-enhanced" />;
+function EnhancedImage({ src, n, offline }: { src: string; n: number; offline?: boolean }) {
+  const alt = offline ? `Khung ${n} ảnh offline AI dựng lại` : `Khung ${n} sau enhancer`;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="absolute inset-0 size-full object-fill"
+      draggable={false}
+      data-testid="flight-ai-enhanced"
+      data-source={offline ? "offline" : "enhanced"}
+    />
+  );
 }
 
 export function SideBySide({ frame, aspect, boxes, zoom }: ViewerProps) {
@@ -266,14 +308,15 @@ export function SideBySide({ frame, aspect, boxes, zoom }: ViewerProps) {
         {frame.enhanced ? (
           <>
             <ZoomLayer view={view}>
-              <EnhancedImage src={frame.enhanced} n={frame.n} />
+              <EnhancedImage src={frame.enhanced} n={frame.n} offline={frame.enhancedSource === "offline"} />
             </ZoomLayer>
             {boxes ? <BoxLayer ai={frame.ai} view={view} /> : null}
           </>
         ) : (
           <Placeholder>{enhancedMissing(frame)}</Placeholder>
         )}
-        <SideLabel accent="violet">{enhancedLabel(frame.ai)}</SideLabel>
+        <SideLabel accent="violet">{enhancedLabel(frame)}</SideLabel>
+        <SourceNote frame={frame} />
         <ZoomMap view={view} aspect={aspect} />
       </ZoomSurface>
     </div>
@@ -306,7 +349,7 @@ export function SliderCompare({ frame, aspect, boxes, zoom }: ViewerProps) {
       {frame.enhanced ? (
         <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${pos}%)` }} data-testid="flight-ai-enhanced-clip">
           <ZoomLayer view={view}>
-            <EnhancedImage src={frame.enhanced} n={frame.n} />
+            <EnhancedImage src={frame.enhanced} n={frame.n} offline={frame.enhancedSource === "offline"} />
           </ZoomLayer>
           {boxes ? <BoxLayer ai={frame.ai} view={view} /> : null}
         </div>
@@ -317,8 +360,9 @@ export function SliderCompare({ frame, aspect, boxes, zoom }: ViewerProps) {
       )}
       <SideLabel accent="slate">GỐC</SideLabel>
       <SideLabel accent="violet" right>
-        {enhancedLabel(frame.ai)}
+        {enhancedLabel(frame)}
       </SideLabel>
+      <SourceNote frame={frame} right />
       <ZoomMap view={view} aspect={aspect} />
       <div className="pointer-events-none absolute inset-y-0 z-10 w-0.5 -translate-x-1/2 bg-white/90" style={{ left: `${pos}%` }}>
         <div

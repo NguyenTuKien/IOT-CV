@@ -317,8 +317,20 @@ class WebSocketHub:
                 available=self._camera_available(),
                 fake=config.CAMERA_FAKE,
             ),
-            vision=self.vision.status() if self.vision is not None else None,
+            vision=self._vision_status(),
         )
+
+    def _vision_status(self):
+        if self.vision is None:
+            return None
+        status = self.vision.status()
+        # s/khung đo được của job ảnh rõ offline (§13) cho ô trạng thái model ở trang Vision;
+        # `ms` vốn là dict bước → số đo, bước offline đo theo giây/khung chứ không p50/p95.
+        job = getattr(self, "offline_job", None)
+        s_per = getattr(job, "last_s_per_frame", None)
+        if s_per is not None:
+            status.ms["enhancer_offline"] = {"s_per_frame": float(s_per)}
+        return status
 
     def _mission_status(self) -> MissionStatus:
         if self.mission is None:

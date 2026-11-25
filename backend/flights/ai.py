@@ -1,5 +1,8 @@
 """AI trên khung ĐÃ GHI cho trang Lịch sử bay: hộp người + ảnh rõ của từng khung, để so với gốc.
 
+Hộp người là hộp SAU verifier khi verifier `loaded` (hợp đồng XLA §10/§13), cùng ngưỡng với luồng
+trực tiếp. Ảnh rõ offline ×2 (§13) do job riêng `backend/flights/offline.py` tính trước.
+
 Dùng chung model mà `VisionRuntime` đã nạp lúc backend khởi động (không nạp lần hai, không đụng
 pipeline của luồng trực tiếp). Detector chạy trên khung GỐC đúng như lúc bay (D5); enhancer chỉ để
 người xem so sánh. Kết quả lưu đệm theo (lần ghi, số khung): người xem kéo qua kéo lại một đoạn.
@@ -113,6 +116,14 @@ class FlightFrameAIService:
         return v, v.detector_status, v.enhancer_status
 
     @staticmethod
+    def _verifier_status(v: Any) -> VisionModelStatus:
+        if v is None:
+            return _VISION_OFF
+        return getattr(v, "verifier_status", None) or VisionModelStatus(
+            state="disabled", reason="chưa nạp"
+        )
+
+    @staticmethod
     def _size_note(img: np.ndarray) -> str | None:
         h, w = img.shape[:2]
         if (w, h) == (FRAME_WIDTH, FRAME_HEIGHT):
@@ -193,10 +204,22 @@ class FlightFrameAIService:
         if getattr(v, "enhancer", None) is not None and note is None:
             pending = _ENHANCE_POOL.submit(self._enhance, rec, n, img)
         detector = getattr(v, "detector", None) if detect else None
+        verifier = getattr(v, "verifier", None)
+        ver_ms: float | None = None
         if detector is not None and note is None:
             t0 = time.perf_counter()
             dets = detector.detect(img)
             det_ms = round((time.perf_counter() - t0) * 1000, 1)
+            if verifier is not None:
+                # Cùng điểm vận hành với luồng trực tiếp (hợp đồng XLA §10, pipeline.py
+                # `_detect`): hộp detector → verifier → giữ hộp có điểm ≥ ngưỡng verifier.
+                t1 = time.perf_counter()
+                scores = verifier.verify(img, [[d.x1, d.y1, d.x2, d.y2] for d in dets])
+                ver_ms = round((time.perf_counter() - t1) * 1000, 1)
+                if scores is not None:
+                    dets = [
+                        d for d, s in zip(dets, scores, strict=True) if s >= verifier.confidence
+                    ]
             boxes = [
                 DetectionBox(
                     x1=d.x1, y1=d.y1, x2=d.x2, y2=d.y2, confidence=d.confidence, label=PERSON_LABEL
@@ -217,8 +240,10 @@ class FlightFrameAIService:
             height=h,
             detector=det_status,
             enhancer=enh_status,
+            verifier=self._verifier_status(v),
             boxes=boxes,
             detector_ms=det_ms,
+            verifier_ms=ver_ms,
             enhancer_ms=enhanced.ms if enhanced else None,
             quality_raw=image_quality(img),
             quality_enhanced=enhanced.quality if enhanced else None,

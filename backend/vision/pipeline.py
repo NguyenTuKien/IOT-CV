@@ -2,9 +2,11 @@
 
     reader --subscribe--> _on_frame: giữ KHUNG MỚI NHẤT (không hàng đợi)
       thread "vision-pipeline": giải mã JPEG
-        -> detector -> DetectionPayload (latest_detection)
-                    -> EventThrottle -> sự kiện vision.person_detected
+        -> detector -> verifier (nếu nạp, hợp đồng XLA §9) -> DetectionPayload (latest_detection)
+                    -> EventThrottle / TrackFilter k/n (§10) -> sự kiện vision.person_detected
         -> enhancer (chỉ khi có client enhanced) -> JPEG -> enhanced_view.latest()
+
+Hộp gửi lên WebSocket là hộp SAU verifier (§10); `DetectionPayload` giữ nguyên shape.
 
 Luật (SAFETY.md mục 9): pipeline chạy thread riêng, chậm thì BỎ khung cũ chứ không xếp hàng, lỗi
 trong thread chỉ log + đếm — không bao giờ làm chậm luồng raw, telemetry hay lệnh lái.
@@ -28,10 +30,12 @@ from backend.vision.enhancer import Enhancer
 from backend.vision.events import EventThrottle
 from backend.vision.model_bundle import FRAME_HEIGHT, FRAME_WIDTH, RateLimitedWarning
 from backend.vision.stream import MjpegFrame
+from backend.vision.track_filter import TrackBox, TrackEvent
+from backend.vision.verifier import BoxVerifier
 
 log = logging.getLogger(__name__)
 
-STEPS = ("decode", "detector", "enhancer", "encode", "total")
+STEPS = ("decode", "detector", "verifier", "enhancer", "encode", "total")
 _TIMING_WINDOW = 300
 
 
@@ -66,19 +70,27 @@ class VisionPipeline:
         detector: PersonDetector | None,
         enhancer: Enhancer | None,
         *,
+        verifier: BoxVerifier | None = None,
         on_person: Callable[[float], None] | None = None,
+        on_event: Callable[[TrackEvent], None] | None = None,
         clock: Callable[[], float] = time.time,
         timing_window: int = _TIMING_WINDOW,
     ) -> None:
+        """`on_event` nhận đủ sự kiện track (§10); `on_person` (cách gọi cũ) chỉ nhận
+        `confidence` của cùng sự kiện. Tham số track k/n sai (env + meta detector): `ValueError`."""
         if detector is None and enhancer is None:
             raise ValueError("pipeline cần ít nhất một model")
         self.reader = reader
         self.detector = detector
+        self.verifier = verifier if detector is not None else None
         self.enhancer = enhancer
         self.on_person = on_person
+        self.on_event = on_event
         self._clock = clock
         self.throttle = (
-            EventThrottle(confidence_threshold=detector.confidence) if detector else None
+            EventThrottle(confidence_threshold=detector.confidence, meta=detector.bundle.meta)
+            if detector
+            else None
         )
         self.enhanced_view = _EnhancedView()
 
@@ -177,10 +189,23 @@ class VisionPipeline:
 
     def _detect(self, img: np.ndarray, frame: MjpegFrame, t1: float) -> DetectionPayload | None:
         dets = self.detector.detect(img)
-        self._timings["detector"].append((time.perf_counter() - t1) * 1000)
+        t2 = time.perf_counter()
+        self._timings["detector"].append((t2 - t1) * 1000)
         # Khung sai cỡ: detector bỏ khung, không gửi payload với cỡ sai.
         if img.shape[:2] != (FRAME_HEIGHT, FRAME_WIDTH):
             return None
+        track_boxes = [TrackBox(d.x1, d.y1, d.x2, d.y2, d.confidence) for d in dets]
+        if self.verifier is not None:
+            # N = 0 thì verifier không gọi session, nhưng bước vẫn được đo (≈ 0 ms) cho đủ số.
+            scores = self.verifier.verify(img, [[b.x1, b.y1, b.x2, b.y2] for b in track_boxes])
+            self._timings["verifier"].append((time.perf_counter() - t2) * 1000)
+            keep = [
+                (d, TrackBox(b.x1, b.y1, b.x2, b.y2, b.score, float(s)))
+                for d, b, s in zip(dets, track_boxes, scores, strict=True)
+                if s >= self.verifier.confidence
+            ]
+            dets = [d for d, _ in keep]
+            track_boxes = [b for _, b in keep]
         frame_ts = frame.timestamp_ms / 1000.0 if frame.timestamp_ms is not None else self._clock()
         payload = DetectionPayload(
             frame_id=frame.frame_id or 0,
@@ -196,10 +221,12 @@ class VisionPipeline:
         )
         with self._cond:
             self._latest_detection = payload
-        best = max((d.confidence for d in dets), default=0.0)
-        emit = self.throttle is not None and self.throttle.should_emit(best, self._clock())
-        if emit and self.on_person is not None:
-            self.on_person(best)
+        events = self.throttle.update(track_boxes, self._clock()) if self.throttle else []
+        for event in events:
+            if self.on_event is not None:
+                self.on_event(event)
+            if self.on_person is not None:
+                self.on_person(event.confidence)
         return payload
 
     def _enhance(self, img: np.ndarray, frame: MjpegFrame) -> None:

@@ -225,14 +225,22 @@ def test_pipeline_phat_su_kien_nguoi_sau_du_khung(tmp_path):
 
 # -- chống spam (GIAI ĐOẠN 75) ---------------------------------------------------------------
 def test_should_emit_du_ca():
-    t = EventThrottle(min_frames=3, cooldown_s=4.0, confidence_threshold=0.5)
-    assert [t.should_emit(0.9, 0.0), t.should_emit(0.9, 0.1)] == [False, False]
-    assert t.should_emit(0.9, 0.2) is True  # đủ 3 khung liên tiếp
-    assert t.should_emit(0.9, 1.0) is False  # trong cooldown
-    assert t.should_emit(0.4, 4.5) is False  # dưới ngưỡng: đặt lại bộ đếm
-    assert [t.should_emit(0.9, 4.6), t.should_emit(0.9, 4.7)] == [False, False]
-    assert t.should_emit(0.9, 4.8) is True  # đủ 3 khung mới, đã hết cooldown
-    assert t.should_emit(0.5, 9.0) is True  # đúng ngưỡng tính là trên ngưỡng (>=)
+    # Từ 25/11/2026 nhận HỘP, chạy qua TrackFilter (hợp đồng XLA §10). Không recommended_track:
+    # k = n = 3, cooldown toàn cục; iou/max_gap ghi rõ để test không phụ thuộc env.
+    from backend.vision.track_filter import TrackBox, TrackParams
+
+    def hop(score: float = 0.9) -> list[TrackBox]:
+        return [TrackBox(10.0, 20.0, 110.0, 220.0, score)]
+
+    t = EventThrottle(cooldown_s=4.0, confidence_threshold=0.5, track=TrackParams(3, 3, 0.3, 1))
+    assert [t.should_emit(hop(), 0.0), t.should_emit(hop(), 0.1)] == [False, False]
+    assert t.should_emit(hop(), 0.2) is True  # đủ 3 khung cùng một track
+    assert t.should_emit(hop(), 1.0) is False  # trong cooldown
+    assert t.should_emit(hop(0.4), 4.5) is False  # dưới ngưỡng = track hụt 1 khung (≤ max_gap)
+    # Khác cũ (§10 (c)): track đã xác nhận còn sống, hết cooldown là phát ngay (cũ chờ tới 4.8).
+    assert t.should_emit(hop(), 4.6) is True
+    assert t.should_emit(hop(0.5), 9.0) is True  # đúng ngưỡng tính là trên ngưỡng (>=)
+    assert t.should_emit([], 9.1) is False  # khung không hộp
 
 
 def test_should_emit_can_nguong():
