@@ -1,0 +1,72 @@
+\documentclass[14pt,border=0pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold,
+  FontFace={sb}{n}{*-SemiBold},FontFace={m}{n}{*-Medium}]
+\newcommand{\sbf}{\fontseries{sb}\selectfont}
+\usepackage{graphicx}\graphicspath{{D:/Coding/IOT-CV/docs/thuyet-trinh/tex/asg/img/}}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,shadows,shadows.blur,decorations.pathreplacing}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\definecolor{cTeal}{HTML}{0F766E}\definecolor{cTealT}{HTML}{E0F2F1}
+% wire colours (legend of f5_daydien)
+\definecolor{wBat}{HTML}{D7261E}\definecolor{w5}{HTML}{D6337F}\definecolor{w45}{HTML}{EA7317}
+\definecolor{wGnd}{HTML}{111111}\definecolor{wTx}{HTML}{E0A100}\definecolor{wRx}{HTML}{16A34A}
+\definecolor{wI2c}{HTML}{2563EB}\definecolor{wIbus}{HTML}{7C3AED}\definecolor{wPha}{HTML}{6B7280}\definecolor{wSig}{HTML}{0E7490}
+\begin{document}
+% Thiết kế logic theo khối chức năng IoT. Cỡ thật trên slide 305 x 224 mm (12 x 8,8 in), đơn vị 1 mm.
+% Nguồn: TT/facts/03-phan-mem.md mục 1-3, 3.5, 8; TT/facts/02-firmware-cau-hinh.md mục 4; TT/facts/01-phan-cung.md mục 1.
+\begin{tikzpicture}[x=1mm,y=1mm,
+  layer/.style={draw=#1!75!black, fill=#1!5, line width=1.3pt, rounded corners=4mm},
+  pill/.style={fill=#1!80!black, text=white, rounded corners=2mm, inner sep=2mm, anchor=north west,
+               font=\bfseries\fontsize{14}{14}\selectfont},
+  blk/.style={draw=#1!70!black, fill=#1!14, line width=0.9pt, rounded corners=2mm, align=center, inner sep=1mm,
+              font=\fontsize{14}{16.5}\selectfont, text=cMuc, minimum height=15mm},
+  side/.style={draw=#1!70!black, fill=#1!5, line width=1.3pt, rounded corners=4mm},
+  stl/.style={font=\bfseries\fontsize{15}{18}\selectfont, text=#1!75!black, align=center},
+  sit/.style={font=\fontsize{14}{16.5}\selectfont, text=cMuc, align=center, text width=42mm},
+]
+\useasboundingbox (0,0) rectangle (305,224);
+% hàng: (tên style, màu, y đáy, cao)
+\newcommand{\row}[5]{% #1 màu, #2 tiêu đề, #3 y đáy, #4 cao, #5 danh sách khối x/w/chữ
+  \draw[layer=#1] (57,#3) rectangle (248,#3+#4);
+  \node[pill=#1] at (60,#3+#4-2.5) {#2};
+}
+% ---- Ứng dụng
+\row{cTim}{ỨNG DỤNG}{177}{45}{}
+\foreach \x/\t in {82.75/{Web GCS\\bay, nhiệm vụ}, 129.25/{Camera \& AI\\lịch sử bay}, 175.75/{Lái tay\\bàn phím}, 222.25/{Mission Planner\\hiệu chỉnh}}
+  \node[blk=cTim, minimum width=44mm] at (\x,191) {\t};
+% ---- Dịch vụ
+\row{cXanh}{DỊCH VỤ · BACKEND TRÊN LAPTOP}{95}{75}{}
+\foreach \x/\t in {82.75/{Telemetry\\8 Hz, lịch sử}, 129.25/{Lệnh bay\\mode, ARM}, 175.75/{Nhiệm vụ\\nạp, đọc lại}, 222.25/{An toàn\\web chỉ GUIDED}}
+  \node[blk=cXanh, minimum width=44mm] at (\x,147) {\t};
+\foreach \x/\t in {82.75/{Đọc camera\\khung mới nhất}, 129.25/{AI ONNX GPU\\người, ảnh rõ}, 175.75/{Ghi dữ liệu\\tlog, video}, 222.25/{Lịch sử bay\\ghép log}}
+  \node[blk=cXanh, minimum width=44mm] at (\x,128) {\t};
+\node[blk=cXanh, minimum width=183.5mm, minimum height=10mm, fill=cXanh!28, font=\sbf\fontsize{14}{14}\selectfont] at (152.5,108)
+  {bus sự kiện nội bộ · vòng đệm 200 sự kiện · GET /api/events};
+% ---- Truyền thông
+\row{cTeal}{TRUYỀN THÔNG}{49}{39}{}
+\foreach \x/\t in {79.5/{REST\\HTTP /api}, 116/{WebSocket\\JSON /ws}, 152.5/{HTTP\\MJPEG}, 189/{MAVLink2\\UDP 14550}, 225.5/{UART, I2C\\i-BUS, DShot}}
+  \node[blk=cTeal, minimum width=34mm] at (\x,63) {\t};
+% ---- Thiết bị
+\row{cLuc}{THIẾT BỊ}{3}{39}{}
+\foreach \x/\t in {79.5/{FC F405 V5\\IMU, baro}, 116/{GPS M10\\TFmini Plus}, 152.5/{ESP32\\DroneBridge}, 189/{Camera\\ESP32-S3}, 225.5/{Tay phát\\FS-i6X}}
+  \node[blk=cLuc, minimum width=34mm] at (\x,17) {\t};
+
+% ---- cột quản lý (trái) và an toàn (phải)
+\draw[side=cXam] (3,3) rectangle (51,222);
+\node[stl=cXam] at (27,212) {QUẢN LÝ};
+\foreach \y/\t in {184/{file tham số\\.param}, 152/{firmware\\custom build}, 120/{web cấu hình\\DroneBridge}, 88/{nhật ký bay\\16 MB trên FC}, 56/{/api/system\\/api/health}, 24/{SITL thử\\trước khi bay}}
+  \node[sit] at (27,\y) {\t};
+\draw[side=cDo] (254,3) rectangle (302,222);
+\node[stl=cDo] at (278,212) {AN TOÀN};
+\foreach \y/\t in {184/{một tab giữ\\quyền lái}, 152/{trần nhịp\\từng lệnh}, 120/{hợp đồng\\12 mã lỗi}, 88/{dead-man\\350 ms}, 56/{rào 100 m\\trần 20 m}, 24/{failsafe\\RC, pin}}
+  \node[sit] at (278,\y) {\t};
+\end{tikzpicture}
+
+\end{document}

@@ -1,0 +1,11 @@
+runner,kiem_gi,so_do,ket_qua,nguon
+run_mode_chain.py,7 chế độ bay,"7/7 mode; RTL về home 0,0 m",PASS,plans/PROGRESS.md:280
+run_rtl_alt.py,Độ cao RTL,"đỉnh 20,0 m (RTL_ALT_M 15) và 50,0 m (RTL_ALT_M 50)",PASS,plans/PROGRESS.md:281
+run_mission_auto.py,"Nạp, đọc lại, bay mission","6 item khớp từng trường; tới đủ WP 1–5; RTL về 0,0 m",PASS,plans/PROGRESS.md:282
+run_mission_low_alt.py,Waypoint thấp,"bay waypoint 3 m, xuống 3,2 m",PASS,plans/PROGRESS.md:283
+run_log_dump.py,Rút log FC,1218 mẫu CTUN ra CSV,PASS,plans/PROGRESS.md:284
+run_param_load.py,Nạp bộ tham số dự án,51/51 dòng kiểm,PASS,plans/PROGRESS.md:346
+run_avoid_brake.py,TFmini ảo + AVOID phanh,"gần cột nhất 1,07 m, không vượt cột",PASS,logs/sitl/run_avoid_brake-20261101.log
+run_backend_avoid.py,Backend báo trạng thái tránh,"OFF → NEAR → ACTIVE; gần nhất 1,05 m",PASS,docs/so-tay/07-backend-mission-proximity-safety.md:129
+run_nap_khi_bay.py,Nạp mission khi đang bay,"GUIDED < 0,1 s; lệch 0,42 m; về item 1",PASS,docs/so-tay/07-backend-mission-proximity-safety.md:308
+run_ngoai_troi.py,"Cấu hình ngoài trời (rào 100 m, trần 20 m)",8/8 bài,PASS,plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md mục 11.1

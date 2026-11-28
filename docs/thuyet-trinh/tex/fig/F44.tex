@@ -1,0 +1,44 @@
+\begin{tikzpicture}[font=\fontsize{15}{18}\selectfont]
+\frenchspacing
+% canvas 20,92 x 18,00 cm = the 8,4 x 7,25 in box of part_d (S32) minus the 6 pt border (scale 1 on the slide)
+\def\W{20.92}\def\H{18.0}
+\definecolor{cLoi}{HTML}{9CA3AF}
+\def\D{D:/Coding/IOT-CV/docs/thuyet-trinh/tex/fig/data}
+\begin{axis}[slide,
+  at={(10.81cm,9.2cm)}, anchor=center,
+  width=19.2cm, height=17.6cm,
+  view={-35}{25},
+  xmin=-25, xmax=25, ymin=-26, ymax=28, zmin=0, zmax=20,
+  xtick={-20,-10,...,20}, ytick={-20,-10,...,20}, ztick={0,5,...,20},
+  grid=major, grid style={cVien, line width=0.8pt},
+  axis line style={cXam, line width=1pt},
+  tick label style={font=\fontsize{15}{18}\selectfont, text=cXam},
+  label style={font=\bfseries\fontsize{15}{18}\selectfont, text=cMuc},
+  xlabel={Đông (m)}, ylabel={Bắc (m)}, zlabel={cao (m)},
+  clip=false,
+]
+% ground shadow of the track
+\addplot3[cXam!28, line width=2.2pt, no marks, line join=round] table[x=e, y=n, z expr=0] {\D/F44-shadow.dat};
+% drop lines every 5 s
+\addplot3[cXam!60, line width=0.7pt, no marks, empty line=jump] table[x=e, y=n, z=z] {\D/F44-drops.dat};
+% track coloured by flight mode
+\addplot3[cDo,   line width=2.4pt, no marks, line join=round] table[x=e, y=n, z=z] {\D/F44-seg2-auto.dat};
+\addplot3[cDo,   line width=2.4pt, no marks, line join=round] table[x=e, y=n, z=z] {\D/F44-seg4-auto.dat};
+\addplot3[cVang, line width=3.2pt, no marks, line join=round] table[x=e, y=n, z=z] {\D/F44-seg3-guided.dat};
+% Loiter climb last: the final AUTO descent lands on the same column
+\addplot3[cLoi, line width=4.6pt, no marks, line cap=round] table[x=e, y=n, z=z] {\D/F44-seg1-loiter.dat};
+% home and the GUIDED hold point
+\node[circle, fill=cNavy, draw=white, line width=1.4pt, minimum size=0.5cm, inner sep=0pt] at (axis cs:0,0,0) {};
+\node[anchor=north, text=cNavy, font=\bfseries\fontsize{16}{19}\selectfont, fill=white, fill opacity=0.85, text opacity=1,
+      inner sep=2pt, rounded corners=3pt] at (axis cs:0,0,-1.1) {home};
+\node[star, star points=5, star point ratio=2.3, fill=cVang, draw=white, line width=1.2pt, minimum size=0.95cm, inner sep=0pt]
+  at (axis cs:6.30,-14.41,18.03) {};
+% direct mode labels
+\node[anchor=east, text=cXam, font=\bfseries\fontsize{16}{19}\selectfont] at (axis cs:-1.2,0,3.2) {Loiter};
+\node[anchor=south, text=cVang, font=\bfseries\fontsize{16}{19}\selectfont, fill=white, fill opacity=0.85, text opacity=1,
+      inner sep=2pt, rounded corners=3pt] at (axis cs:6.30,-14.41,19.4) {GUIDED};
+\node[anchor=west, text=cDo, font=\bfseries\fontsize{16}{19}\selectfont] at (axis cs:24.4,3.0,13.0) {AUTO};
+\end{axis}
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}

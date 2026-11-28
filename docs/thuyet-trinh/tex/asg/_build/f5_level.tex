@@ -1,0 +1,80 @@
+\documentclass[14pt,border=0pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold,
+  FontFace={sb}{n}{*-SemiBold},FontFace={m}{n}{*-Medium}]
+\newcommand{\sbf}{\fontseries{sb}\selectfont}
+\usepackage{graphicx}\graphicspath{{D:/Coding/IOT-CV/docs/thuyet-trinh/tex/asg/img/}}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,shadows,shadows.blur,decorations.pathreplacing}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\definecolor{cTeal}{HTML}{0F766E}\definecolor{cTealT}{HTML}{E0F2F1}
+% wire colours (legend of f5_daydien)
+\definecolor{wBat}{HTML}{D7261E}\definecolor{w5}{HTML}{D6337F}\definecolor{w45}{HTML}{EA7317}
+\definecolor{wGnd}{HTML}{111111}\definecolor{wTx}{HTML}{E0A100}\definecolor{wRx}{HTML}{16A34A}
+\definecolor{wI2c}{HTML}{2563EB}\definecolor{wIbus}{HTML}{7C3AED}\definecolor{wPha}{HTML}{6B7280}\definecolor{wSig}{HTML}{0E7490}
+\begin{document}
+% Hệ đặt vào mô hình IoT mức 6: nút đầu cuối độc lập, máy chủ trung tâm (laptop), ứng dụng.
+% Cỡ thật trên slide 305 x 224 mm (12 x 8,8 in), đơn vị 1 mm.
+% Nguồn: TT/facts/03-phan-mem.md mục 1, 2, 3.8, 9; TT/facts/01-phan-cung.md mục 2.
+\begin{tikzpicture}[x=1mm,y=1mm,
+  nd/.style={draw=#1!75!black, fill=#1!12, line width=1.1pt, rounded corners=3mm, align=center, inner sep=2mm,
+             font=\fontsize{14}{16.5}\selectfont, text=cMuc},
+  zone/.style={draw=#1!70!black, fill=#1!4, line width=1.2pt, rounded corners=5mm, dash pattern=on 6pt off 3pt},
+  ztl/.style={font=\bfseries\fontsize{15}{18}\selectfont, text=#1!75!black, align=center},
+  a2/.style={line width=2.2pt, draw=#1, {Stealth[length=9pt,width=8pt]}-{Stealth[length=9pt,width=8pt]}},
+  a1/.style={line width=2.2pt, draw=#1, -{Stealth[length=9pt,width=8pt]}},
+  lab/.style={font=\fontsize{14}{16}\selectfont, text=cMuc, fill=white, inner sep=1.2pt, align=center},
+]
+\useasboundingbox (0,0) rectangle (305,224);
+\node[ztl=cLuc, anchor=north west, align=left] at (10,221) {NÚT ĐẦU CUỐI\\ĐỘC LẬP};
+
+% ---------------------------------------------------------------- nút đầu cuối
+\node[nd=cLuc, minimum width=70mm, minimum height=30mm] (drone) at (45,170)
+  {\bfseries Nút 1 · drone\\FC: IMU, baro, GPS, la bàn,\\LiDAR, 4 motor};
+\node[nd=cTeal, minimum width=70mm, minimum height=19mm] (db) at (45,129) {\bfseries ESP32 DroneBridge\\cầu UART sang Wi-Fi};
+\draw[a2=cTeal] (drone.south) -- (db.north) node[midway, lab, right=2mm] {UART};
+\node[nd=cLuc, minimum width=70mm, minimum height=26mm] (cam) at (45,80)
+  {\bfseries Nút 2 · camera\\ESP32-S3 + OV3660\\chỉ cảm biến};
+\node[nd=cXam, minimum width=70mm, minimum height=26mm, fill=cXamT] (rc) at (45,28)
+  {\bfseries Tay phát FS-i6X\\đường an toàn riêng,\\không qua máy chủ};
+\draw[line width=1.8pt, draw=cXam, dash pattern=on 5pt off 3pt, -{Stealth[length=9pt,width=8pt]}]
+  (rc.west) -- (5,28) -- (5,170) -- (drone.west);
+\node[lab, rotate=90] at (5,104) {AFHDS 2A · 2,4 GHz};
+
+% ---------------------------------------------------------------- máy chủ trung tâm
+\draw[zone=cXanh] (94,3) rectangle (232,222);
+\node[ztl=cXanh] at (163,211) {MÁY CHỦ TRUNG TÂM};
+\node[font=\fontsize{14}{16}\selectfont, text=cXanh!70!black] at (163,202.5) {laptop thay cho cloud của mức 6};
+\node[nd=cXanh, minimum width=84mm, minimum height=30mm, line width=1.5pt] (ctl) at (163,165)
+  {\bfseries Bộ điều khiển trung tâm\\backend FastAPI: biết trạng thái\\mọi nút, gửi lệnh xuống nút};
+\node[nd=cVang, minimum width=58mm, minimum height=30mm] (ana) at (127,104)
+  {\bfseries Phân tích\\AI ONNX GPU:\\tìm người, ảnh rõ};
+\node[nd=cVang, minimum width=58mm, minimum height=30mm] (sto) at (199,104)
+  {\bfseries Lưu trữ\\tlog, video, log FC,\\sự kiện};
+\node[nd=cTim, minimum width=84mm, minimum height=26mm] (app) at (163,36)
+  {\bfseries Ứng dụng\\Web GCS, 11 trang\\REST + WebSocket};
+\draw[a2=cXanh] (ana.north) -- (ana.north |- ctl.south);
+\draw[a1=cXanh] (sto.north |- ctl.south) -- (sto.north);
+\draw[a2=cTim] (ctl.south) -- (app.north);
+\draw[a1=cTim] (ana.south) -- (ana.south |- app.north);
+\draw[a1=cTim] (sto.south) -- (sto.south |- app.north);
+\draw[a2=cTeal, dash pattern=on 5pt off 3pt] (db.east) -| ($(ctl.west)+(-8,0)$) -- (ctl.west);
+\node[lab, anchor=south] at (96.5,131) {Wi-Fi\\MAVLink2};
+\draw[a1=cTeal, dash pattern=on 5pt off 3pt] (cam.east) -| ($(ana.south west)!0.25!(ana.south east)$);
+\node[lab, anchor=south] at (93,82) {MJPEG};
+
+% ---------------------------------------------------------------- người dùng
+\node[ztl=cTim, anchor=north] at (270,221) {NGƯỜI DÙNG};
+\node[nd=cTim, minimum width=62mm, minimum height=26mm] (op) at (270,36) {\bfseries Người vận hành\\trình duyệt,\\lái và theo dõi};
+\node[nd=cTim, minimum width=62mm, minimum height=30mm] (rv) at (270,104) {\bfseries Xem lại sau bay\\trang Lịch sử bay};
+\draw[a2=cTim] (app.east) -- (op.west);
+\draw[a1=cTim] (sto.east) -- (rv.west);
+\end{tikzpicture}
+
+\end{document}

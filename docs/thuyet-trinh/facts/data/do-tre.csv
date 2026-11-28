@@ -1,0 +1,10 @@
+phep_do,gia_tri,don_vi,nguon
+"Đóng tab → backend gửi vận tốc 0 (SITL, 2 lần)",6–7,ms,docs/so-tay/10-web-dieu-khien-obstacle-video.md:213
+Socket đóng → dead-man trip,< 1,ms,docs/so-tay/06-backend-dieu-khien-deadman.md:132
+"Trình duyệt treo, socket còn mở → dừng",≤ 350,ms,docs/so-tay/06-backend-dieu-khien-deadman.md:133
+Thả phím → trang gửi 0,≤ 100,ms,docs/so-tay/10-web-dieu-khien-obstacle-video.md:64
+Laptop hỏi AUTOPILOT_VERSION qua Wi-Fi → FC trả,210,ms,plans/reports/261115-kiem-phan-cung-that.md mục 1
+Tắt tay phát → FC báo Radio Failsafe,< 100,ms,plans/reports/261115-kiem-phan-cung-that.md mục 3
+Gọi nạp mission khi bay → HEARTBEAT GUIDED (SITL),< 100,ms,docs/so-tay/07-backend-mission-proximity-safety.md:308
+Mất sóng tay cầm → RTL (SITL),~1000,ms,plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md mục 11.1
+"AI cả hệ p95 trên laptop, nhịp thật","89,5",ms,D:/XLA/results/v2/iotcv/README.md:61

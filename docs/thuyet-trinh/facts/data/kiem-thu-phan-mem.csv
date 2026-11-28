@@ -1,0 +1,7 @@
+bo_kiem,so_bai_dat,nguon
+pytest backend,393,plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md mục 9
+pnpm test frontend,278 (22 file),plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md mục 9
+Coverage safety/mission/deadman/proximity,93 %,plans/PROGRESS.md:550
+SITL run_ngoai_troi.py,8/8,plans/reports/261115-lich-su-bay-va-phan-tich-01-02-11.md mục 11.1
+"SITL run-all.sh, 7 runner đầu",7/7,plans/PROGRESS.md:234
+Nghiệm thu web trên SITL,9/9,docs/so-tay/10-web-dieu-khien-obstacle-video.md:205
