@@ -1,0 +1,77 @@
+% Bốn mô hình giao tiếp IoT, mỗi mô hình là một kênh đang chạy thật trong hệ.
+% Cỡ thật trên slide 305 x 224 mm (12 x 8,8 in), đơn vị 1 mm.
+% Nguồn: TT/facts/03-phan-mem.md mục 1, 2.1, 2.2, 3.5; backend/events.py (bus sự kiện, vòng đệm 200); backend/vision/stream.py.
+\begin{tikzpicture}[x=1mm,y=1mm,
+  panel/.style={draw=#1!75!black, fill=#1!4, line width=1.3pt, rounded corners=4mm},
+  pill/.style={fill=#1!80!black, text=white, rounded corners=2mm, inner sep=2mm, anchor=north west,
+               font=\bfseries\fontsize{14}{14}\selectfont},
+  act/.style={draw=#1!70!black, fill=#1!14, line width=1pt, rounded corners=2mm, align=center, inner sep=1.5mm,
+              font=\fontsize{14}{16.5}\selectfont, text=cMuc, minimum height=14mm},
+  life/.style={draw=cXam!70, line width=0.9pt, dash pattern=on 4pt off 3pt},
+  msg/.style={line width=2pt, draw=#1, -{Stealth[length=9pt,width=8pt]}},
+  bmsg/.style={line width=2pt, draw=#1, {Stealth[length=9pt,width=8pt]}-{Stealth[length=9pt,width=8pt]}},
+  ml/.style={font=\fontsize{14}{16}\selectfont, text=cMuc, anchor=south, inner sep=1pt},
+  note/.style={font=\fontsize{14}{16.5}\selectfont, text=cXam, align=center},
+]
+\useasboundingbox (0,0) rectangle (305,224);
+
+% ---------------------------------------------------------------- (a) REST
+\begin{scope}[shift={(3,116)}]
+  \draw[panel=cXanh] (0,0) rectangle (147,105);
+  \node[pill=cXanh] at (3,102) {(a) Yêu cầu, phản hồi · REST};
+  \node[act=cTim, minimum width=40mm] (a1) at (28,80) {Trình duyệt};
+  \node[act=cXanh, minimum width=46mm] (a2) at (116,80) {Backend FastAPI};
+  \draw[life] (28,73) -- (28,17); \draw[life] (116,73) -- (116,17);
+  \draw[msg=cXanh] (28,63) -- (116,63) node[ml, midway] {GET /api/status};
+  \draw[msg=cLuc] (116,51) -- (28,51) node[ml, midway] {200 + JSON trạng thái};
+  \draw[msg=cXanh] (28,39) -- (116,39) node[ml, midway] {POST /api/mission};
+  \draw[msg=cLuc] (116,27) -- (28,27) node[ml, midway] {kết quả, đọc lại khớp};
+  \node[note] at (73.5,9) {mỗi yêu cầu một phản hồi};
+\end{scope}
+
+% ---------------------------------------------------------------- (b) bus sự kiện
+\begin{scope}[shift={(155,116)}]
+  \draw[panel=cVang] (0,0) rectangle (147,105);
+  \node[pill=cVang] at (3,102) {(b) Xuất bản, đăng ký · bus sự kiện};
+  \foreach \y/\t in {74/{telemetry}, 54/{AI camera}, 34/{dead-man}}
+    \node[act=cXanh, minimum width=34mm, minimum height=12mm] (p\y) at (21,\y) {\t};
+  \node[act=cVang, minimum width=38mm, minimum height=52mm, line width=1.5pt, fill=cVang!16] (bus) at (73,54)
+    {\bfseries bus\\\bfseries sự kiện\\[2pt]vòng đệm\\200 sự kiện};
+  \foreach \y in {74,54,34} \draw[msg=cVang!85!black] (p\y.east) -- (bus.west |- 0,\y);
+  \node[act=cTim, minimum width=34mm, minimum height=19mm] (s1) at (126,66) {mỗi tab\\/ws};
+  \node[act=cTim, minimum width=34mm, minimum height=19mm] (s2) at (126,40) {tab mới mở\\/api/events};
+  \draw[msg=cVang!85!black] (bus.east |- s1) -- (s1.west);
+  \draw[msg=cVang!85!black] (bus.east |- s2) -- (s2.west);
+  \node[note] at (73.5,13.5) {nguồn gửi một lần, mọi nơi đăng ký đều nhận};
+\end{scope}
+
+% ---------------------------------------------------------------- (c) MJPEG
+\begin{scope}[shift={(3,3)}]
+  \draw[panel=cTeal] (0,0) rectangle (147,105);
+  \node[pill=cTeal] at (3,102) {(c) Đẩy, kéo · luồng MJPEG};
+  \node[act=cTeal, minimum width=34mm] (c1) at (21,58) {Camera\\ESP32-S3};
+  \node[act=cTeal, minimum width=38mm, minimum height=54mm, line width=1.5pt, fill=cTeal!18] (buf) at (70,58)
+    {\bfseries 1 khung\\\bfseries mới nhất\\ghi đè};
+  \draw[msg=cTeal] (c1.east) -- (buf.west) node[ml, midway, above=1mm] {đẩy};
+  \foreach \y/\t in {79/{AI}, 58/{tab 1}, 37/{tab 2}}
+    \node[act=cTim, minimum width=26mm, minimum height=13mm] (k\y) at (128,\y) {\t};
+  \foreach \y in {79,58,37} \draw[msg=cTeal] (k\y.west) -- (buf.east |- 0,\y);
+  \node[ml, text=cMuc] at (101,84) {kéo};
+  \node[note] at (73.5,15) {1 kết nối tới camera, N người xem;\\nguồn nhanh hơn thì bỏ khung cũ};
+\end{scope}
+
+% ---------------------------------------------------------------- (d) WebSocket
+\begin{scope}[shift={(155,3)}]
+  \draw[panel=cTim] (0,0) rectangle (147,105);
+  \node[pill=cTim] at (3,102) {(d) Cặp độc quyền · WebSocket /ws};
+  \node[act=cTim, minimum width=40mm] (d1) at (28,80) {Tab người lái};
+  \node[act=cXanh, minimum width=40mm] (d2) at (119,80) {Backend};
+  \draw[life] (28,73) -- (28,19); \draw[life] (119,73) -- (119,19);
+  \draw[bmsg=cXam] (28,64) -- (119,64) node[ml, midway] {mở một lần, giữ suốt phiên};
+  \draw[msg=cLuc] (119,53) -- (28,53) node[ml, midway] {telemetry 8 lần/giây};
+  \draw[msg=cTim] (28,42) -- (119,42) node[ml, midway] {cmd.velocity, giữ phím W};
+  \draw[msg=cLuc] (119,31) -- (28,31) node[ml, midway] {ack hoặc error};
+  \draw[msg=cDo] (28,21) -- (119,21) node[ml, midway] {đóng tab};
+  \node[note, text=cDo!85!black] at (73.5,9.5) {backend gửi vận tốc 0 ngay (dead-man)};
+\end{scope}
+\end{tikzpicture}

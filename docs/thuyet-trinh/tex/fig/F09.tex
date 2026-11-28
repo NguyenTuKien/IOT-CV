@@ -1,0 +1,32 @@
+% F09 · S09 · 7 chặng lắp ráp A…G, rộng tỉ lệ số bước 4, 9, 9, 14, 11, 18, 11 (tổng 76).
+% Nguồn: facts/01-phan-cung.md mục 8 (docs/huong-dan/lap-rap/src/data-steps.js, data-steps2.js).
+% Khung slide 17,9 x 1,5 in. Bề rộng thân mỗi chevron = 0,2246 in x số bước; mũi t = 0,3 in; khe 0,06 in.
+\begin{tikzpicture}[x=1in,y=1in,line join=round,
+  sh/.style={general shadow={fill=black,opacity=.07,shadow xshift=1pt,shadow yshift=-1.6pt},
+             general shadow={fill=black,opacity=.05,shadow xshift=2pt,shadow yshift=-3.2pt}}]
+\useasboundingbox (0,0) rectangle (17.73,1.333);
+\def\yb{0.47}\def\hh{0.86}\def\tt{0.30}
+% \chev{x}{w}{màu}{chữ}{số bước}{đầu phẳng: 1}
+\newcommand\chev[6]{%
+  \ifnum#6=1
+    \path[sh,top color=#3!78!white,bottom color=#3,rounded corners=3pt]
+      (#1,\yb) -- (#1+#2,\yb) -- (#1+#2+\tt,\yb+\hh/2) -- (#1+#2,\yb+\hh) -- (#1,\yb+\hh) -- cycle;
+  \else
+    \path[sh,top color=#3!78!white,bottom color=#3,rounded corners=3pt]
+      (#1,\yb) -- (#1+#2,\yb) -- (#1+#2+\tt,\yb+\hh/2) -- (#1+#2,\yb+\hh) -- (#1,\yb+\hh) -- (#1+\tt,\yb+\hh/2) -- cycle;
+  \fi
+  \pgfmathsetmacro\cx{#1+#2/2+\tt/2+(#6==1?-0.07:0.02)}%
+  \node[text=white,align=center,inner sep=0pt] at (\cx,\yb+\hh/2)
+    {{\fontsize{24}{24}\bfseries #4}\\[3pt]{\fontsize{15}{15}\selectfont #5 bước}};}
+\chev{0.00}{0.90}{cXam}{A}{4}{1}
+\chev{0.96}{2.02}{cXam}{B}{9}{0}
+\chev{3.04}{2.02}{cXanh}{C}{9}{0}
+\chev{5.12}{3.14}{cXanh}{D}{14}{0}
+\chev{8.32}{2.47}{cXanh}{E}{11}{0}
+\chev{10.85}{4.04}{cDo}{F}{18}{0}
+\chev{14.95}{2.47}{cLuc}{G}{11}{0}
+% ngoặc dưới C đến E
+\draw[cXanh,line width=1.6pt,decorate,decoration={brace,mirror,amplitude=7pt}]
+  (3.10,0.39) -- (11.05,0.39);
+\node[text=cXanh,font=\fontsize{15}{15}\bfseries] at (7.07,0.12) {trên bàn, chưa lắp khung};
+\end{tikzpicture}

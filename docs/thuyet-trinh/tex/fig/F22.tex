@@ -1,0 +1,72 @@
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.15, shadow xshift=1.2pt, shadow yshift=-1.8pt}},
+  mav/.style={fill=cXanhT, draw=cXanh},
+  hub/.style={fill=cNavy!7, draw=cNavy},
+  vis/.style={fill=cVangT, draw=cVang},
+  fli/.style={fill=cLucT, draw=cLuc},
+  dmn/.style={fill=cDoT, draw=cDo},
+  tier/.style={anchor=west, font=\bfseries\fontsize{15}{18}\selectfont},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 27,52 x 19,52 cm = the 11,0 x 7,85 in box of part_b (S18) minus the 6 pt border;
+% same width as the OUTLINE slot, so the figure is placed at scale 1 and 15 pt text stays 15 pt
+\def\W{27.52}\def\H{19.52}
+\def\nm#1{{\mono\bfseries\fontsize{16}{19}\selectfont #1}}
+\def\ln#1{{\color{cXam}#1}}
+% #1 x  #2 y (bottom)  #3 width  #4 height  #5 style  #6 content
+\newcommand\cel[6]{%
+  \filldraw[shad, #5, line width=1.3pt, rounded corners=8pt] (#1,#2) rectangle ++(#3,#4);
+  \node[align=center, text width=#3 cm - 0.3cm, text=cMuc] at ($(#1,#2)+(#3/2,#4/2)$) {#6};
+}
+% ---------------- frame ----------------
+\filldraw[shad, fill=white, draw=cNavy, line width=1.8pt, rounded corners=14pt] (0.1,2.85) rectangle (21.9,16.85);
+\node[shad, fill=cNavy, text=white, rounded corners=8pt, anchor=south west, inner xsep=12pt, inner ysep=7pt,
+      font=\bfseries\fontsize{19}{22}\selectfont] (tab) at (0.1,16.6) {backend FastAPI · cổng 8000};
+% ---------------- tier: separate threads ----------------
+\node[tier, text=cVang] at (0.5,16.32) {THREAD RIÊNG};
+\cel{0.55}{13.75}{8.11}{2.2}{fli}{\nm{flights/}\\[1pt]\ln{8 file · 2\,031 dòng}\\[1pt]ghép log FC, tlog, video}
+\cel{8.91}{13.75}{12.54}{2.2}{vis}{\nm{vision/}\quad\ln{16 file · 3\,140 dòng}\\[2pt]đọc MJPEG, tự chỉnh JPEG, ghi video\\detector, verifier, Ảnh rõ trên GPU}
+% ---------------- tier: hub ----------------
+\node[tier, text=cNavy] at (0.5,13.3) {HUB};
+\cel{0.55}{11.05}{14.4}{1.9}{hub}{\nm{schemas.py}\quad\ln{864 dòng}\\[2pt]Pydantic $\rightarrow$ {\mono ws-contract.schema.json}}
+\cel{15.2}{11.05}{6.25}{1.9}{hub}{\nm{api.py}\quad\ln{375 dòng}\\[2pt]19 route {\mono /api/*}}
+\cel{0.55}{8.9}{3.3}{1.9}{hub}{\nm{events.py}\\[2pt]\ln{93 dòng}}
+\cel{4.1}{8.9}{17.35}{1.9}{hub}{\nm{ws.py}\quad\ln{1\,145 dòng}\\[2pt]phát telemetry · 10 loại lệnh · trần nhịp · 1 người lái}
+% ---------------- tier: MAVLink thread ----------------
+\node[tier, text=cXanh] at (0.5,8.43) {THREAD MAVLINK};
+\cel{0.55}{5.75}{11.97}{2.2}{mav}{\nm{mission}\quad\ln{850 dòng}\\[2pt]kiểm, nạp, đọc lại, GUIDED giữ chỗ}
+\cel{12.77}{5.75}{4.52}{2.2}{dmn}{\nm{deadman}\\[1pt]\ln{321 dòng}\\gửi vận tốc 0}
+\cel{17.54}{5.75}{3.91}{2.2}{mav}{\nm{safety}\\[2pt]\ln{278 dòng}}
+\cel{0.55}{3.3}{5.44}{2.2}{mav}{\nm{connection}\\[1pt]\ln{486 dòng}\\nối, lọc, tlog}
+\cel{6.24}{3.3}{6.36}{2.2}{mav}{\nm{telemetry}\\[1pt]\ln{568 dòng}\\gói $\rightarrow$ trạng thái}
+\cel{12.85}{3.3}{5.05}{2.2}{mav}{\nm{control}\\[1pt]\ln{451 dòng}\\lệnh, chờ ACK}
+\cel{18.15}{3.3}{3.3}{2.2}{mav}{{\mono\bfseries\fontsize{15}{18}\selectfont proximity}\\[2pt]\ln{179 dòng}}
+% deadman note
+\node[anchor=east, text=cDo, font=\bfseries\fontsize{15}{18}\selectfont, fill=white, inner xsep=4pt] (dn) at (21.45,8.43) {thread riêng, không trong asyncio};
+\draw[cDo, line width=1.6pt, -{Stealth[length=6pt]}] (15.03,8.08) -- (15.03,7.95);
+% ---------------- outside: camera, ESP32, browser ----------------
+\node[shad, vis, line width=1.4pt, rounded corners=10pt, align=center, minimum width=8.0cm, minimum height=1.8cm, anchor=north]
+  (cam) at (15.18,19.45) {\textbf{Camera ESP32-S3}\\[1pt]{\mono\color{cVang!70!black} MJPEG :81/stream}};
+\draw[cVang, line width=2.8pt, -{Stealth[length=11pt,width=11pt]}] (cam.south) -- (15.18,15.95);
+\node[shad, mav, line width=1.4pt, rounded corners=10pt, align=center, minimum width=5.2cm, minimum height=1.6cm, anchor=south west]
+  (esp) at (0.55,0.1) {\textbf{ESP32} DroneBridge};
+\draw[cXanh, line width=2.8pt, -{Stealth[length=11pt,width=11pt]}] (2.75,1.7) -- (2.75,3.3);
+\node[anchor=west, text=cXanh!70!black, font=\mono\fontsize{15.5}{18}\selectfont] at (esp.east) {udpin:0.0.0.0:14550};
+\node[shad, fill=cLuc, draw=cLuc, rounded corners=10pt, minimum width=2.15cm, minimum height=4.05cm, anchor=south west]
+  (web) at (25.3,8.9) {};
+\begin{scope}[shift={($(web.center)+(0,0.75)$)}]
+  \filldraw[fill=white, draw=white, rounded corners=3pt] (-0.78,-0.7) rectangle (0.78,0.75);
+  \fill[cLuc!75!black, rounded corners=3pt] (-0.78,0.47) rectangle (0.78,0.75);
+  \foreach \i in {0,1,2} \fill[white] (-0.6+\i*0.2,0.61) circle (0.055);
+  \draw[cLuc, line width=1.6pt] (-0.56,-0.4) -- (-0.22,-0.0) -- (0.1,-0.25) -- (0.56,0.2);
+\end{scope}
+\node[text=white, align=center, font=\bfseries\fontsize{15.5}{18.5}\selectfont] at ($(web.center)+(0,-1.05)$) {trình\\duyệt};
+\draw[cNavy, line width=2.8pt, {Stealth[length=11pt,width=11pt]}-{Stealth[length=11pt,width=11pt]}] (21.45,9.85) -- (25.3,9.85);
+\node[anchor=north, text=cNavy, font=\bfseries\fontsize{15}{18}\selectfont] at (23.56,9.62) {WebSocket};
+\draw[cNavy, line width=2.2pt, -{Stealth[length=10pt,width=10pt]}] (25.3,12.0) -- (21.45,12.0);
+\node[anchor=south, text=cNavy, font=\bfseries\fontsize{15}{18}\selectfont] at (23.53,12.22) {REST};
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}

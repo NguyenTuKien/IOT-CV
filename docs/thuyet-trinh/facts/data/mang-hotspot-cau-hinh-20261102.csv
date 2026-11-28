@@ -1,0 +1,4 @@
+cau_hinh_laptop,so_mau_ping,dronebridge_mat,camera_mat,dronebridge_mat_pct,camera_mat_pct,camera_fps
+Wi-Fi nhà 5 GHz + phát hotspot,240,77,122,32.1,50.8,1.41
+"Internet qua cáp iPhone, card chỉ phát hotspot",240,7,47,2.9,19.6,4.67
+Cáp iPhone + tắt quét nền card (che_do_bay.ps1 -Bat),150,0,0,0.0,0.0,9.2

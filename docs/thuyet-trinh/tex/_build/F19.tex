@@ -1,0 +1,83 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.16, shadow xshift=1.3pt, shadow yshift=-2pt}},
+  dev/.style={shad, rounded corners=10pt, line width=1.4pt, align=left, inner xsep=9pt, inner ysep=7pt,
+    text width=8.1cm, anchor=west},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 19,9 x 10,5 cm = the 8,0 x 4,3 in box of part_b (S17) minus the 6 pt border (scale 1 on the slide)
+\def\W{19.9}\def\H{10.5}
+\begin{scope}[yshift=-0.5cm]
+% ---------------- iPhone ----------------
+\begin{scope}[shift={(1.2,5.65)}]
+  \filldraw[shad, fill=cNavy, draw=cNavy, rounded corners=9pt] (-0.95,-1.75) rectangle (0.95,1.75);
+  \filldraw[fill=cXanhT, draw=none, rounded corners=4pt] (-0.79,-1.44) rectangle (0.79,1.44);
+  \fill[cNavy, rounded corners=2pt] (-0.3,1.47) rectangle (0.3,1.62);
+  \foreach \i/\h in {0/0.35,1/0.65,2/0.95,3/1.25} \fill[cXanh] (-0.55+\i*0.3,-0.7) rectangle ++(0.2,\h);
+\end{scope}
+\node[anchor=north west, align=left, text=cMuc] at (0.05,3.7) {\textbf{iPhone}\\{\color{cXam}cấp internet}};
+% ---------------- laptop ----------------
+\begin{scope}[shift={(6.75,5.95)}]
+  \filldraw[shad, fill=cMuc, draw=cMuc, rounded corners=8pt] (-2.45,-1.4) rectangle (2.45,1.75);
+  \fill[cXamT, rounded corners=3pt] (-2.2,-1.15) rectangle (2.2,1.5);
+  \filldraw[shad, fill=cXam!70, draw=cMuc, line width=1pt, rounded corners=3pt] (-2.9,-1.95) -- (2.9,-1.95) -- (2.55,-1.4) -- (-2.55,-1.4) -- cycle;
+  \fill[cXam] (-0.55,-1.95) rectangle (0.55,-1.82);
+  \begin{scope}[shift={(0,-0.6)}, cXanh, line width=2.6pt, line cap=round]
+    \fill (0,0) circle (0.16);
+    \draw (40:0.5) arc (40:140:0.5);
+    \draw (40:0.92) arc (40:140:0.92);
+    \draw (40:1.34) arc (40:140:1.34);
+  \end{scope}
+\end{scope}
+\node[anchor=north, align=center, text=cMuc] at (7.0,3.75) {\textbf{Laptop phát hotspot}\\[1pt]{\mono\color{cDoD}IOTCV-HOTSPOT}\\[1pt]2,4 GHz · {\mono 192.168.137.1}};
+% note above laptop
+\node[shad, fill=cDoT, draw=cDo, line width=1.2pt, rounded corners=8pt, text=cDoD, font=\bfseries\fontsize{15}{18}\selectfont,
+      inner xsep=10pt, inner ysep=5pt, anchor=north] (note) at (6.75,10.4) {Wi-Fi laptop không nối mạng nào khác};
+\draw[cDo, line width=1.6pt, -{Stealth[length=8pt]}] (note.south) -- (6.75,7.85);
+% cable
+\draw[cXam, line width=3.2pt, line cap=round] (2.15,5.3) .. controls (3.0,4.3) and (3.2,4.5) .. (3.85,4.35);
+\node[text=cXam, font=\bfseries\fontsize{15}{18}\selectfont, align=center] at (3.05,6.75) {cáp\\USB};
+% ---------------- two ESP32 boards ----------------
+\node[dev, fill=cXanhT, draw=cXanh] (db) at (11.03,7.55)
+  {{\color{cXanh}\bfseries\fontsize{16.5}{19}\selectfont ESP32 DroneBridge}\\[2pt]
+   {\mono DroneBridgeESP32.mshome.net}\\[1pt]{\color{cXam}MAVLink, UDP 14550}};
+\node[dev, fill=cVangT, draw=cVang] (cam) at (11.03,2.55)
+  {{\color{cVang}\bfseries\fontsize{16.5}{19}\selectfont Camera ESP32-S3}\\[2pt]
+   {\mono iotcv-camera.mshome.net}\\[1pt]{\color{cXam}video MJPEG, cổng 81}};
+% radio links: arcs from the laptop towards each board, then a dashed beam
+\coordinate (O) at (9.35,6.2);
+\foreach \tgt/\c/\a in {db/cXanh/39, cam/cVang/-63}{
+  \foreach \r in {0.5,0.88,1.26}
+    \draw[\c, line width=2.6pt, line cap=round] ($(O)+(\a-17:\r)$) arc (\a-17:\a+17:\r);
+  \draw[\c, line width=2.4pt, dash pattern=on 7pt off 5pt] ($(O)+(\a:1.5)$) -- (\tgt.west);
+}
+\end{scope}
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}
+
+\end{document}

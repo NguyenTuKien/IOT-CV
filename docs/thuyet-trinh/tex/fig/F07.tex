@@ -1,0 +1,109 @@
+% F07 · S08 · cây nguồn: pin 4S → pad ESC (+ tụ) → ESC/motor, FC (BEC 5 V, 4V5) → tải; UBEC → bảng chia → 2 ESP32.
+% Nguồn: facts/01-phan-cung.md mục 3 (data-cables.js; 02-avoid-tfmini.param dòng 20 đến 23 cho tải BEC; cỡ dây [CAB] gauges).
+% Khung slide 11,4 x 8,9 in.
+\newfontface\semib{BeVietnamPro-SemiBold}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf]%
+\begin{tikzpicture}[x=1in,y=1in,line join=round,line cap=round,
+  sh/.style={general shadow={fill=black,opacity=.06,shadow xshift=1pt,shadow yshift=-1.8pt},
+             general shadow={fill=black,opacity=.05,shadow xshift=2.4pt,shadow yshift=-4pt}},
+  lbl/.style={text=cMuc,font=\fontsize{14}{16}\selectfont,inner sep=0pt},
+  pill/.style={fill=white,draw=#1,line width=1.1pt,rounded corners=7pt,inner xsep=7pt,inner ysep=4pt,
+               align=center,text=cMuc,font=\fontsize{14}{16}\selectfont}]
+\frenchspacing
+\useasboundingbox (0,0) rectangle (11.23,8.73);
+\def\xe{8.60}% mép trái cột tải
+% \load{y tâm}{màu}{nền}{tên}{dòng phụ}
+\newcommand\load[5]{%
+  \fill[#3,sh,rounded corners=9pt] (\xe,#1-0.4) rectangle (11.23,#1+0.4);
+  \begin{scope}\clip[rounded corners=9pt] (\xe,#1-0.4) rectangle (11.23,#1+0.4);
+    \fill[#2] (\xe,#1-0.4) rectangle ++(0.11,0.8);\end{scope}
+  \draw[#2!40,line width=0.8pt,rounded corners=9pt] (\xe,#1-0.4) rectangle (11.23,#1+0.4);
+  \node[anchor=west,text=cMuc,font=\fontsize{15.5}{15.5}\bfseries,inner sep=0pt] at (\xe+0.24,#1+0.15) {#4};
+  \node[anchor=west,text=#2,font=\semib\fontsize{14}{14}\selectfont,inner sep=0pt] at (\xe+0.24,#1-0.18) {#5};}
+% ---------- dây chính (vẽ trước, khối đè lên)
+\draw[cDoD,line width=6.5pt] (1.70,4.70) -- (4.62,4.70);
+\draw[cDoD,line width=5.5pt,rounded corners=10pt] (4.62,4.70) -- (4.62,7.60) -- (4.90,7.60);
+\draw[cXanh,line width=3pt,rounded corners=10pt] (4.62,4.70) -- (4.62,2.00) -- (4.90,2.00);
+\fill[cDoD] (4.62,4.70) circle (0.09);
+\draw[cDo,line width=4pt] (6.50,7.60) -- (6.80,7.60);
+% cáp 10 chân ESC → FC
+\draw[cXam,line width=5pt,rounded corners=10pt] (5.70,7.15) -- (5.70,4.95) -- (6.80,4.95);
+\draw[white,opacity=.45,line width=0.5pt,rounded corners=10pt] (5.70,7.15) -- (5.70,4.95) -- (6.80,4.95);
+% UBEC → bảng chia → 2 ESP32
+\draw[cXanh,line width=3pt] (6.50,2.00) -- (6.80,2.00);
+\draw[cXanh,line width=2.4pt,rounded corners=6pt] (8.35,2.00) -- (8.47,2.00) -- (8.47,2.55) -- (\xe,2.55);
+\draw[cXanh,line width=2.4pt,rounded corners=6pt] (8.47,2.00) -- (8.47,1.45) -- (\xe,1.45);
+% ---------- pin
+\path[sh,top color=cDo!80!white,bottom color=cDoD,rounded corners=12pt] (0.0,3.35) rectangle (1.62,6.05);
+\fill[cDoD,rounded corners=3pt] (1.58,4.45) rectangle (1.74,4.95);
+\node[text=white,align=center,inner sep=0pt] at (0.81,4.70)
+  {{\fontsize{21}{24}\bfseries LiPo 4S}\\[5pt]{\semib\fontsize{15}{17}\selectfont 5 300 mAh}\\[4pt]
+   {\fontsize{14}{16}\selectfont 16,8 V đầy}};
+
+% nhãn dây XT60
+\node[text=cDoD,font=\fontsize{16}{16}\bfseries,inner sep=0pt] at (2.43,5.03) {XT60};
+\node[lbl] at (2.43,4.30) {12 đến 14 AWG};
+% ---------- pad + tụ
+\draw[cMuc,line width=1.6pt] (3.71,5.15) -- (3.71,5.52);
+\draw[cMuc,line width=2.6pt] (3.47,5.52) -- (3.95,5.52);
+\draw[cMuc,line width=2.6pt] (3.47,5.66) -- (3.95,5.66);
+\draw[cMuc,line width=1.6pt] (3.71,5.66) -- (3.71,5.86);
+\draw[cMuc,line width=1.6pt] (3.57,5.86) -- (3.85,5.86);
+\node[anchor=south,align=center,lbl] at (3.71,5.98) {tụ {\bfseries 1 500 µF}\\35 V song song};
+\path[sh,top color=cNavy!80!white,bottom color=cNavy,rounded corners=9pt] (3.12,4.25) rectangle (4.30,5.15);
+\node[text=white,align=center,font=\semib\fontsize{14}{16}\selectfont,inner sep=0pt] at (3.71,4.70) {pad nguồn\\ESC};
+
+% ---------- ESC, motor
+\path[sh,top color=cXam!80!white,bottom color=cXam,rounded corners=9pt] (4.90,7.15) rectangle (6.50,8.05);
+\node[text=white,align=center,inner sep=0pt] at (5.70,7.60)
+  {{\fontsize{16}{18}\bfseries ESC OX32}\\{\fontsize{14}{16}\selectfont 4in1 · 55 A}};
+\fill[cDoT,sh,rounded corners=10pt] (6.80,7.15) rectangle (11.23,8.60);
+\draw[cDo!40,line width=0.8pt,rounded corners=10pt] (6.80,7.15) rectangle (11.23,8.60);
+\foreach \x [count=\i] in {7.22,7.80,8.38,8.96}{
+  \fill[cMuc] (\x,8.12) circle (0.22);
+  \fill[cXam!70!white] (\x,8.12) circle (0.15);
+  \fill[cMuc] (\x,8.12) circle (0.05);
+  \node[text=cDo,font=\fontsize{14}{14}\bfseries,inner sep=0pt] at (\x,7.58) {M\i};}
+\node[anchor=west,align=left,inner sep=0pt] at (9.42,7.88)
+  {{\fontsize{15.5}{18}\bfseries 4 motor}\\{\color{cDo}\semib\fontsize{14}{16}\selectfont dây pha 16 AWG}};
+% ---------- FC + 2 ray nguồn
+\path[sh,top color=cNavy!80!white,bottom color=cNavy,rounded corners=12pt] (6.80,3.40) rectangle (8.35,6.85);
+\node[text=white,align=center,inner sep=0pt] at (7.575,6.47)
+  {{\fontsize{16}{18}\bfseries FC}\\{\fontsize{14}{15}\selectfont F405 V5}};
+\draw[cVang,line width=2.4pt] (7.575,5.80) -- (\xe,5.80);
+\draw[cLuc,line width=2.4pt,rounded corners=6pt] (7.575,4.30) -- (8.47,4.30) -- (8.47,4.80) -- (\xe,4.80);
+\draw[cLuc,line width=2.4pt,rounded corners=6pt] (8.47,4.30) -- (8.47,3.80) -- (\xe,3.80);
+\fill[cLuc] (8.47,4.30) circle (0.06);
+\node[pill=cVang,text=cVang,font=\semib\fontsize{14}{16}\selectfont] at (7.575,5.80) {BEC 5 V\\2,5 A};
+\node[pill=cLuc,text=cLuc,font=\semib\fontsize{14}{16}\selectfont] at (7.575,4.30) {4V5};
+\node[text=white!70!cNavy,font=\fontsize{14}{14}\selectfont,inner sep=0pt] at (7.575,3.73) {≤ 1 A chung};
+\node[pill=cXam,fill=cXamT] at (5.70,6.15) {cáp\\10 chân};
+% ---------- UBEC, bảng chia
+\path[sh,top color=cXanh!80!white,bottom color=cXanh,rounded corners=9pt] (4.90,1.55) rectangle (6.50,2.45);
+\node[text=white,align=center,inner sep=0pt] at (5.70,2.00)
+  {{\fontsize{16}{18}\bfseries UBEC}\\{\fontsize{14}{16}\selectfont 5 V · 3 A}};
+\fill[cXanhT,sh,rounded corners=9pt] (6.80,1.55) rectangle (8.35,2.45);
+\draw[cXanh!45,line width=0.8pt,rounded corners=9pt] (6.80,1.55) rectangle (8.35,2.45);
+\node[text=cXanh,align=center,font=\semib\fontsize{14}{16}\selectfont,inner sep=0pt] at (7.575,2.00) {bảng chia\\nguồn};
+% ---------- tải
+\load{5.80}{cVang}{cVangT}{TFmini Plus}{110 mA, đỉnh 140 mA}
+\load{4.80}{cLuc}{cLucT}{GPS M10}{≈ 40 mA}
+\load{3.80}{cLuc}{cLucT}{Bộ thu iA6B}{≈ 50 mA}
+\load{2.55}{cXanh}{cXanhT}{ESP32 DroneBridge}{chân VIN, 5 V}
+\load{1.45}{cXanh}{cXanhT}{camera ESP32-S3}{chân 5 V}
+% ---------- chú giải cỡ dây + GND
+\begin{scope}[shift={(0.05,0.35)}]
+  \node[anchor=west,text=cMuc,font=\fontsize{15}{15}\bfseries,inner sep=0pt] at (0,2.15) {Cỡ dây};
+  \draw[cDoD,line width=6.5pt] (0,1.65) -- (0.6,1.65);
+  \node[anchor=west,lbl] at (0.78,1.65) {12 đến 14 AWG · pin tới ESC};
+  \draw[cDo,line width=4pt] (0,1.20) -- (0.6,1.20);
+  \node[anchor=west,lbl] at (0.78,1.20) {16 AWG · dây motor};
+  \draw[cXanh,line width=3pt] (0,0.75) -- (0.6,0.75);
+  \node[anchor=west,lbl] at (0.78,0.75) {18 đến 22 AWG · UBEC, 5 V};
+  % GND
+  \draw[cMuc,line width=1.6pt] (0.30,0.32) -- (0.30,0.20);
+  \draw[cMuc,line width=1.6pt] (0.14,0.20) -- (0.46,0.20);
+  \draw[cMuc,line width=1.6pt] (0.20,0.12) -- (0.40,0.12);
+  \draw[cMuc,line width=1.6pt] (0.26,0.04) -- (0.34,0.04);
+  \node[anchor=west,text=cMuc,font=\semib\fontsize{14}{14}\selectfont,inner sep=0pt] at (0.78,0.17) {GND chung qua pin};
+\end{scope}
+\end{tikzpicture}

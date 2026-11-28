@@ -122,3 +122,9 @@ assignment/
 # Bundle model AI chép từ XLA (scripts/vision/lay_model.py) và số đo bench (scripts/vision/replay_bench.py)
 /models/vision/
 /logs/vision-bench/
+
+# File không thuộc dự án để ở gốc + rác build LaTeX của slide/báo cáo (28/11/2026)
+/DLP_BaoCao_NCKH_2026.pptx
+docs/**/*.aux
+docs/**/*.log
+docs/**/*.xdv

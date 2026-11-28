@@ -1,0 +1,113 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+% F06 · S07 · sơ đồ nối dây FC: SERIAL2..6, USB, cáp ESC 10 chân, dây nguồn.
+% Nguồn: facts/01-phan-cung.md mục 2 (data-cables.js), facts/02-firmware-cau-hinh.md mục 3 (01-base.param dòng 41 đến 74,
+% 02-avoid-tfmini.param dòng 59 đến 67). Khung slide 10,0 x 8,9 in.
+\newfontfamily\monof{Consolas}%
+\newfontface\semib{BeVietnamPro-SemiBold}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf]%
+\begin{tikzpicture}[x=1in,y=1in,line join=round,line cap=round,
+  sh/.style={general shadow={fill=black,opacity=.06,shadow xshift=1pt,shadow yshift=-1.8pt},
+             general shadow={fill=black,opacity=.05,shadow xshift=2.4pt,shadow yshift=-4pt}},
+  pill/.style={fill=white,draw=#1,line width=1.1pt,rounded corners=7pt,inner xsep=7pt,inner ysep=4pt,
+               align=center,text=cMuc,font=\fontsize{14}{16.5}\selectfont},
+  pw/.style={cTim,line width=1.5pt,dash pattern=on 5pt off 3pt},
+  pwl/.style={fill=cTimT,draw=cTim,line width=0.9pt,rounded corners=6pt,inner xsep=5pt,inner ysep=3pt,
+              text=cTim,font=\semib\fontsize{14}{14}\selectfont},
+  tab/.style={text=white,font=\monof\bfseries\fontsize{14}{14}\selectfont,inner sep=0pt},
+  wd/.style={line width=2.8pt}]
+\frenchspacing
+\useasboundingbox (0,0) rectangle (9.83,8.73);
+\def\ra{\,$\rightarrow$\,}\def\la{\,$\leftarrow$\,}
+% \dev{x trái}{y đáy}{màu}{nền}{tên}{dòng phụ}
+\newcommand\dev[6]{%
+  \fill[#4,sh,rounded corners=10pt] (#1,#2) rectangle ++(3.0,1.3);
+  \begin{scope}\clip[rounded corners=10pt] (#1,#2) rectangle ++(3.0,1.3);
+    \fill[#3] (#1,#2) rectangle ++(0.13,1.3);\end{scope}
+  \draw[#3!35,line width=0.8pt,rounded corners=10pt] (#1,#2) rectangle ++(3.0,1.3);
+  \node[anchor=west,text=cMuc,font=\fontsize{17}{17}\bfseries,inner sep=0pt] at (#1+0.33,#2+0.86) {#5};
+  \node[anchor=west,text=#3,font=\semib\fontsize{14.5}{14.5}\selectfont,inner sep=0pt] at (#1+0.33,#2+0.42) {#6};}
+% ---------- dây nguồn (vẽ dưới cùng)
+\draw[pw] (0.55,4.80) -- (0.55,7.25);
+\draw[pw] (6.15,5.95) -- (6.15,7.25);
+\draw[pw] (6.68,5.78) -- (7.12,5.78) -- (7.12,7.25);
+\draw[pw] (6.68,2.92) -- (7.12,2.92) -- (7.12,1.45);
+% ---------- dây dữ liệu
+\draw[wd,cXanh,rounded corners=8pt] (3.15,5.45) -- (1.75,5.45) -- (1.75,7.25);
+\draw[wd,cDo] (4.915,5.95) -- (4.915,7.25);
+\draw[wd,cLuc,rounded corners=8pt] (6.68,5.45) -- (8.55,5.45) -- (8.55,7.25);
+\draw[wd,cVang,rounded corners=8pt] (6.68,3.25) -- (8.55,3.25) -- (8.55,1.45);
+\draw[wd,cTim!70!cNavy,rounded corners=8pt] (3.15,3.25) -- (1.75,3.25) -- (1.75,1.45);
+% cáp ESC 10 chân: dải dẹt
+\fill[cXam] (4.70,1.45) rectangle (5.13,2.75);
+\foreach \x in {4.74,4.78,...,5.10} \draw[white,opacity=.35,line width=0.35pt] (\x,1.45) -- (\x,2.75);
+% ---------- FC
+\path[sh,top color=cNavy!80!white,bottom color=cNavy,rounded corners=14pt] (3.15,2.75) rectangle (6.68,5.95);
+\draw[white,opacity=.18,line width=1pt,rounded corners=10pt] (3.27,2.87) rectangle (6.56,5.83);
+\node[text=white,align=center,inner sep=0pt] at (4.915,4.30)
+  {{\fontsize{22}{25}\bfseries SpeedyBee}\\{\fontsize{22}{25}\bfseries F405 V5}\\[5pt]
+   {\color{white!75!cNavy}\fontsize{14}{14}\selectfont ArduCopter 4.7.1}};
+\fill[white] (3.42,5.58) -- (3.54,5.78) -- (3.66,5.58) -- cycle;
+\node[anchor=west,text=white,font=\semib\fontsize{14}{14}\selectfont,inner sep=0pt] at (3.74,5.66) {mũi drone};
+\node[tab,anchor=west] at (3.30,5.22) {SERIAL2};
+\node[tab,anchor=north] at (4.915,5.40) {SERIAL3};
+\node[tab,anchor=east] at (6.53,5.22) {SERIAL4};
+\node[tab,anchor=south] at (4.915,2.98) {SERIAL5};
+\node[tab,anchor=east] at (6.53,3.48) {SERIAL6};
+\node[tab,anchor=west] at (3.30,3.48) {SERIAL0};
+% chân cắm nhỏ ở mép FC
+\foreach \p in {(3.15,5.45),(6.68,5.45),(6.68,3.25),(3.15,3.25)} \fill[white] \p circle (0.06);
+\fill[white] (4.915,5.95) circle (0.06);
+% ---------- thiết bị
+\dev{0.00}{7.25}{cXanh}{cXanhT}{ESP32 DroneBridge}{MAVLink2 · 115 200}
+\dev{3.415}{7.25}{cDo}{cDoT}{TFmini Plus}{Rangefinder · 115 200}
+\dev{6.83}{7.25}{cLuc}{cLucT}{GPS M10 + la bàn}{GPS · 230 400}
+\dev{0.00}{0.15}{cTim}{cTimT}{Laptop qua USB-C}{Mission Planner, script}
+\dev{3.415}{0.15}{cXam}{cXamT}{ESC OX32 4in1}{Telemetry · DShot300}
+\dev{6.83}{0.15}{cVang}{cVangT}{Bộ thu iA6B}{RCIN · iBUS}
+% UBEC (nguồn riêng của ESP32)
+\fill[cTimT,sh,rounded corners=9pt] (0.0,3.95) rectangle (1.45,4.80);
+\draw[cTim!45,line width=0.8pt,rounded corners=9pt] (0.0,3.95) rectangle (1.45,4.80);
+\node[text=cTim,align=center,inner sep=0pt] at (0.725,4.375)
+  {{\fontsize{15}{17}\bfseries UBEC}\\{\semib\fontsize{14}{16}\selectfont 5 V 3 A}};
+% ---------- nhãn trên dây
+\node[pill=cXanh] at (1.75,6.30) {T2\ra GPIO16\\R2\la GPIO17};
+\node[pill=cDo] at (4.915,6.62) {R3\la TX (xanh)\\T3\ra RX (trắng)};
+\node[pill=cLuc] at (8.55,6.30) {TX\ra R4, RX\ra T4\\SCL/SDA};
+\node[pill=cVang] at (8.55,2.30) {R6 · iBUS};
+\node[pill=cXam] at (4.915,2.10) {cáp SH1.0 10 chân\\V, G, C, T, M1…M4};
+\node[pill=cTim!70!cNavy] at (1.75,2.30) {USB-C · MAVLink};
+\node[pwl] at (0.55,6.30) {5 V};
+\node[pwl] at (6.15,6.98) {5 V};
+\node[pwl] at (7.12,6.62) {4V5};
+\node[pwl] at (7.12,1.95) {4V5};
+% ---------- chú giải
+\begin{scope}[shift={(7.25,4.05)}]
+  \draw[wd,cMuc] (0,0.52) -- (0.5,0.52);
+  \node[anchor=west,text=cMuc,font=\fontsize{14}{14}\selectfont] at (0.6,0.52) {dây tín hiệu};
+  \draw[pw] (0,0.12) -- (0.5,0.12);
+  \node[anchor=west,text=cMuc,font=\fontsize{14}{14}\selectfont] at (0.6,0.12) {dây nguồn};
+\end{scope}
+\end{tikzpicture}
+
+\end{document}

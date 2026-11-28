@@ -1,0 +1,74 @@
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.16, shadow xshift=1.3pt, shadow yshift=-2pt}},
+  blk/.style={shad, rounded corners=10pt, line width=1.5pt, align=left, anchor=north west, text=cMuc,
+    inner xsep=10pt, inner ysep=8pt},
+  lnk/.style={line width=2.6pt, {Stealth[length=10pt,width=10pt]}-{Stealth[length=10pt,width=10pt]}},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 18,88 x 11,90 cm = the 7,6 x 4,85 in box of part_c (S23) minus the 6 pt border (scale 1 on the slide)
+\def\W{18.88}\def\H{11.9}
+\def\tit#1#2{{\color{#1}\bfseries\fontsize{17}{20}\selectfont #2}}
+% ---------------- four blocks ----------------
+\node[blk, fill=cNavy!8, draw=cNavy, minimum width=9.6cm, minimum height=4.2cm, text width=9.6cm-20pt] (sitl) at (0.1,11.8)
+  {\tit{cNavy}{WSL2 Ubuntu}\\[3pt]ArduCopter SITL {\mono -f bfx}\\{\color{cXam}thứ tự motor}\\{\color{cXam}kiểu Betaflight}};
+\node[blk, fill=cXanhT, draw=cXanh, minimum width=7.1cm, minimum height=4.2cm, text width=7.1cm-20pt] (har) at (11.7,11.8)
+  {\tit{cXanh}{{\mono harness.py}}\\[3pt]MAVLink thật\\{\color{cXam}2 runner kiểm}\\{\color{cXam}cả backend}};
+\node[blk, fill=cDoT, draw=cDo, minimum width=8.2cm, minimum height=3.15cm, text width=8.2cm-20pt] (be) at (0.1,6.0)
+  {\tit{cDo}{backend}\\[3pt]FastAPI\\{\color{cXam}cổng 8000}};
+\node[blk, fill=cLucT, draw=cLuc, minimum width=7.1cm, minimum height=3.15cm, text width=7.1cm-20pt] (web) at (11.7,6.0)
+  {\tit{cLuc}{web}\\[3pt]trình duyệt\\{\color{cXam}trang Bay}};
+% ---------------- icons (right side of each block) ----------------
+% virtual quad in the SITL block
+\begin{scope}[shift={($(sitl.east)+(-1.35,0.05)$)}, cNavy]
+  \draw[line width=2.6pt, line cap=round] (-0.62,-0.62) -- (0.62,0.62) (-0.62,0.62) -- (0.62,-0.62);
+  \foreach \a in {45,135,225,315} \filldraw[fill=white, line width=1.8pt] (\a:0.88) circle (0.36);
+  \filldraw[fill=cNavy, draw=cNavy, rounded corners=2pt] (-0.24,-0.24) rectangle (0.24,0.24);
+\end{scope}
+% checklist in the harness block
+\begin{scope}[shift={($(har.east)+(-1.05,0.05)$)}, cXanh]
+  \filldraw[fill=white, line width=1.7pt, rounded corners=3pt] (-0.62,-0.85) rectangle (0.62,0.85);
+  \foreach \j in {0,1,2}{
+    \draw[line width=2pt, line cap=round, line join=round] (-0.4,0.42-\j*0.48) -- (-0.29,0.3-\j*0.48) -- (-0.1,0.56-\j*0.48);
+    \draw[line width=1.6pt, line cap=round] (0.05,0.42-\j*0.48) -- (0.42,0.42-\j*0.48);
+  }
+\end{scope}
+% server in the backend block
+\begin{scope}[shift={($(be.east)+(-1.05,0.0)$)}, cDo]
+  \foreach \j in {0,1,2}{
+    \filldraw[fill=white, line width=1.6pt, rounded corners=2pt] (-0.6,-0.66+\j*0.46) rectangle (0.6,-0.3+\j*0.46);
+    \fill (0.36,-0.48+\j*0.46) circle (0.06);
+    \draw[line width=1.3pt] (-0.42,-0.48+\j*0.46) -- (0.1,-0.48+\j*0.46);
+  }
+\end{scope}
+% browser in the web block
+\begin{scope}[shift={($(web.east)+(-1.05,0.0)$)}]
+  \filldraw[fill=white, draw=cLuc, line width=1.6pt, rounded corners=3pt] (-0.66,-0.55) rectangle (0.66,0.6);
+  \fill[cLuc, rounded corners=2.5pt] (-0.66,0.34) rectangle (0.66,0.6);
+  \foreach \i in {0,1,2} \fill[white] (-0.5+\i*0.16,0.47) circle (0.045);
+  \draw[cLuc, line width=1.5pt] (-0.45,-0.3) -- (-0.17,0.0) -- (0.08,-0.2) -- (0.45,0.15);
+\end{scope}
+% ---------------- links ----------------
+% SITL <-> harness
+\draw[lnk, cXanh] (sitl.east |- 0,9.7) -- (har.west |- 0,9.7);
+% SITL -> backend over TCP
+\draw[cNavy, line width=2.8pt, -{Stealth[length=11pt,width=11pt]}] (2.1,7.6) -- (2.1,6.0);
+\node[anchor=west, text=cNavy, font=\mono\bfseries\fontsize{15}{18}\selectfont] at (2.35,6.8) {tcp:127.0.0.1:5760};
+% harness -> backend (2 runners need the backend)
+\draw[cXanh, line width=2.2pt, dash pattern=on 6pt off 4pt, -{Stealth[length=10pt,width=10pt]}] (12.6,7.6) -- (8.3,5.15);
+% backend <-> web
+\draw[lnk, cLuc] (8.3,4.2) -- (11.7,4.2);
+\node[anchor=north, text=cLuc!80!black, font=\bfseries\fontsize{15}{18}\selectfont] at (10.0,4.0) {WebSocket};
+% ---------------- run-all bar ----------------
+\node[shad, fill=cMuc, draw=cMuc, rounded corners=9pt, minimum width=18.7cm, minimum height=1.95cm, anchor=south west] (bar) at (0.1,0.1) {};
+\begin{scope}[shift={($(bar.west)+(1.0,0)$)}]
+  \filldraw[fill=cNavy, draw=white, line width=1.4pt, rounded corners=3pt] (-0.55,-0.5) rectangle (0.55,0.5);
+  \draw[white, line width=1.8pt, line cap=round, line join=round] (-0.32,0.2) -- (-0.1,0.0) -- (-0.32,-0.2);
+  \draw[white, line width=1.8pt, line cap=round] (0.02,-0.22) -- (0.3,-0.22);
+\end{scope}
+\node[anchor=west, align=left, text=white, inner sep=0pt] at ($(bar.west)+(1.9,0)$)
+  {{\mono\bfseries\fontsize{16}{19}\selectfont run-all.sh}\enspace· 8 runner nối tiếp, khoảng 17 phút\\{\color{white!80!cMuc}mã thoát ≠ 0 khi có runner hỏng}};
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}

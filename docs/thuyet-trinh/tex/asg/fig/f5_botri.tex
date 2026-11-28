@@ -1,0 +1,86 @@
+% Bố trí linh kiện nhìn từ trên. Cỡ thật trên slide 305 x 224 mm (12 x 8,8 in), đơn vị 1 mm.
+% Khung vẽ theo tỉ lệ 0,3: đường chéo motor-motor 480 mm -> 144 mm; cánh T1045 (10 in) -> đường kính 76 mm.
+% Nguồn: TT/facts/01-phan-cung.md mục 1, 2 (đánh số motor, chiều quay), mục 6 (vị trí).
+\begin{tikzpicture}[x=1mm,y=1mm,
+  fs/.style={font=\fontsize{14}{17}\selectfont, text=cMuc},
+  mot/.style={circle, draw=#1!80!black, fill=#1!16, line width=1.1pt, minimum size=15mm, inner sep=0pt,
+              font=\bfseries\fontsize{16}{16}\selectfont, text=#1!65!black},
+  prop/.style={circle, draw=#1!55, fill=#1!5, dashed, line width=0.8pt, minimum size=76mm},
+  num/.style={circle, fill=cDo, text=white, font=\bfseries\fontsize{14}{14}\selectfont, inner sep=0pt, minimum size=7.5mm},
+  part/.style={draw=#1!80!black, fill=#1!22, line width=0.9pt, rounded corners=1.2mm, inner sep=0pt,
+               font=\bfseries\fontsize{14}{14}\selectfont, text=cMuc},
+  under/.style={draw=#1!80!black, line width=1.1pt, dash pattern=on 5pt off 3pt, rounded corners=2mm},
+  lead/.style={draw=cDo, line width=1pt},
+]
+\useasboundingbox (0,0) rectangle (305,224);
+\begin{scope}[shift={(92,106)}]
+  % cánh
+  \foreach \a/\c in {45/cXanh, 135/cLuc, 225/cXanh, 315/cLuc}
+    \node[prop=\c] at (\a:72) {};
+  % càng + tấm trên
+  \foreach \a in {45,135,225,315} \draw[line width=7pt, draw=cNavy!85, line cap=round] (0,0) -- (\a:72);
+  \fill[cNavy!92, rounded corners=4mm] (-23,-36) rectangle (23,36);
+  % motor + chiều quay
+  \foreach \a/\n/\c in {45/2/cXanh, 135/4/cLuc, 225/3/cXanh, 315/1/cLuc}
+    \node[mot=\c] (M\n) at (\a:72) {M\n};
+  \foreach \a in {45,225}{
+    \begin{scope}[shift={(\a:72)}]
+      \draw[-{Stealth[length=10pt,width=9pt]}, line width=2.2pt, cXanh] (-70:13.5) arc[start angle=-70, end angle=200, radius=13.5];
+    \end{scope}}
+  \foreach \a in {135,315}{
+    \begin{scope}[shift={(\a:72)}]
+      \draw[-{Stealth[length=10pt,width=9pt]}, line width=2.2pt, cLuc!85!black] (250:13.5) arc[start angle=250, end angle=-20, radius=13.5];
+    \end{scope}}
+  % pin dưới tấm đế: nét đứt, vẽ đè lên tấm trên để thấy được
+  \draw[under=wBat, fill=wBat, fill opacity=0.18] (-19,-21) rectangle (19,23);
+  \node[font=\sbf\fontsize{14}{14}\selectfont, text=wBat!45] at (0,-16.3) {pin 4S};
+  % stack ở tâm, trên bát chống rung
+  \draw[cVien, line width=0.9pt, dash pattern=on 3pt off 2pt] (-11.5,-11.5) rectangle (11.5,11.5);
+  \node[part=cVang, minimum size=17mm, align=center, font=\bfseries\fontsize{14}{15}\selectfont] (stk) at (0,1) {FC\\ESC};
+  \draw[-{Stealth[length=7pt,width=7pt]}, line width=1.8pt, white] (0,9.5) -- (0,15.5);
+  % mép trước: TFmini + camera
+  \node[part=cDo, minimum width=13mm, minimum height=7mm] (tf) at (-9,30.5) {LiDAR};
+  \draw[cDo, line width=1.6pt, dash pattern=on 4pt off 2.5pt, -{Stealth[length=8pt]}] (tf.north) -- (-9,60);
+  \fill[cTeal!55, opacity=0.5] (10,34) -- (1.5,50) -- (18.5,50) -- cycle;
+  \node[part=cTeal, minimum width=11mm, minimum height=7mm] (cam) at (10,30.5) {CAM};
+  % đuôi: bộ thu (2 anten vuông góc), GPS trên cột, tầng dưới ESP32 + UBEC
+  \node[part=cXanh, minimum width=15mm, minimum height=7mm] (rx) at (-10,-28) {RX};
+  \draw[line width=1.6pt, cXam!45] (-17.5,-28) -- (-26,-28);
+  \draw[line width=1.6pt, cXam!45] (-10,-31.5) -- (-10,-39.5);
+  \node[circle, draw=cLuc!70!black, fill=cLuc!25, line width=1pt, minimum size=11mm, inner sep=0pt,
+        font=\bfseries\fontsize{14}{14}\selectfont] (gps) at (11,-27) {GPS};
+  \draw[under=cTeal, fill=cTeal!8] (-21,-57) rectangle (21,-43);
+  \node[font=\sbf\fontsize{14}{14}\selectfont, text=cTeal!70!black] at (0,-50) {ESP32 · UBEC};
+  % số chú thích
+  \node[num] (n1) at (18,12) {1};
+  \node[num] (n2) at (-25,42) {2};
+  \node[num] (n3) at (26,42) {3};
+  \node[num] (n4) at (27,-15) {4};
+  \node[num] (n5) at (-27,-16) {5};
+  \node[num] (n6) at (28,-50) {6};
+  \node[num] (n7) at (-29,2) {7};
+  \draw[lead] (n1) -- (stk.east |- n1);
+  \draw[lead] (n2) -- (tf.west);
+  \draw[lead] (n3) -- (cam.east);
+  \draw[lead] (n4) -- (gps);
+  \draw[lead] (n5) -- (rx);
+  \draw[lead] (n6) -- (21,-50);
+  \draw[lead] (n7) -- (-19,2);
+  % mũi
+  \draw[-{Stealth[length=11pt,width=11pt]}, line width=3.4pt, cDo] (0,90) -- (0,108);
+  \node[font=\bfseries\fontsize{16}{16}\selectfont, text=cDo, anchor=west] at (3,101) {MŨI};
+\end{scope}
+
+% danh sách bên phải
+\node[anchor=west, text width=110mm, align=left, inner sep=0pt, font=\fontsize{14}{17.5}\selectfont, text=cMuc] at (192,110) {%
+\setlength{\parskip}{7pt}%
+\textcolor{cDo}{\bfseries 1}\enspace \textbf{Stack FC + ESC} ở tâm, trên bát chống rung 30,5 × 30,5~mm; mũi tên FC chỉ về mũi.\par
+\textcolor{cDo}{\bfseries 2}\enspace \textbf{TFmini Plus} ở mép trước tấm trên, ngẩng 2 đến 3°, nhìn thẳng phía trước, dùng dải 0,1 đến 6~m.\par
+\textcolor{cDo}{\bfseries 3}\enspace \textbf{Camera ESP32-S3} ở mép trước, gần đường tâm, chĩa xuống khoảng 30°.\par
+\textcolor{cDo}{\bfseries 4}\enspace \textbf{GPS M10} trên cột ở đuôi, cao 8 đến 10~cm, xa dây nguồn để la bàn không nhiễu.\par
+\textcolor{cDo}{\bfseries 5}\enspace \textbf{Bộ thu iA6B} ở đuôi, 2 anten vuông góc, cách dây nguồn từ 5~cm.\par
+\textcolor{cDo}{\bfseries 6}\enspace \textbf{ESP32 DroneBridge, UBEC, bảng chia} ở tầng dưới phía sau; anten PCB ló ra ngoài.\par
+\textcolor{cDo}{\bfseries 7}\enspace \textbf{Pin 4S} dưới tấm đế, velcro và dây đai, cân trọng tâm.\par
+\vspace{4pt}\textcolor{cXam}{Nét đứt: tầng dưới hoặc dưới bụng. Motor đánh số theo chân ra trên ESC; đường chéo motor tới motor 480~mm.}\par
+\textcolor{cLuc!85!black}{\bfseries CW} thuận chiều kim đồng hồ\quad \textcolor{cXanh}{\bfseries CCW} ngược chiều};
+\end{tikzpicture}

@@ -1,0 +1,123 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+% F15 · S13 · rào ảo hình trụ: FENCE_RADIUS 100 m, FENCE_ALT_MAX 20 m, FENCE_MARGIN 2 m (chặn leo ở 18 m), RTL_ALT 15 m.
+% Nguồn: facts/02-firmware-cau-hinh.md mục 4.4 (02-avoid-tfmini.param dòng 81 đến 106, 01-base.param dòng 170 đến 174).
+% Khung slide 9,6 x 8,9 in. Tỉ lệ: ngang 100 m = 9,4 cm, đứng 20 m = 10 cm (trục đứng phóng đại 5 lần cho dễ nhìn).
+\newfontface\semib{BeVietnamPro-SemiBold}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf]%
+\begin{tikzpicture}[line join=round,line cap=round,
+  lb/.style={font=\fontsize{15}{18}\selectfont,inner sep=0pt},
+  dim/.style={line width=1.3pt,{Stealth[length=7pt]}-{Stealth[length=7pt]}}]
+\tdplotsetmaincoords{68}{125}
+\frenchspacing
+\useasboundingbox (-11.97,-9.20) rectangle (11.97,12.97);
+\pgfmathsetmacro\R{9.4}\pgfmathsetmacro\H{10}
+\pgfmathsetmacro\zA{\H*18/20}\pgfmathsetmacro\zR{\H*15/20}
+\pgfmathsetmacro\ph{125}\pgfmathsetmacro\st{sin(68)}\pgfmathsetmacro\ct{cos(68)}
+% ---------- mặt đất: lưới 20 m, mờ dần ra mép
+\begin{scope}[tdplot_main_coords]
+  \fill[cXam,opacity=.12,path fading=circle with fuzzy edge 20 percent] (0,0,0) circle ({1.24*\R});
+  \begin{scope}
+    \clip (0,0,0) circle ({1.17*\R});
+    \foreach \i in {-6,...,6}{
+      \draw[cXam!40,line width=0.6pt] ({\i*\R/5},{-1.3*\R},0) -- ({\i*\R/5},{1.3*\R},0);
+      \draw[cXam!40,line width=0.6pt] ({-1.3*\R},{\i*\R/5},0) -- ({1.3*\R},{\i*\R/5},0);}
+  \end{scope}
+  \draw[cXam!30,line width=0.8pt] (0,0,0) circle ({1.17*\R});
+  % vạch đáy phía sau (khuất)
+  \draw[cDoD,line width=1.4pt,dash pattern=on 5pt off 4pt,opacity=.55]
+    plot[domain=\ph:\ph+180,samples=60,variable=\a] ({\R*cos(\a)},{\R*sin(\a)},0);
+\end{scope}
+% ---------- bán kính 100 m trên mặt đất (vẽ trước thành trụ phía trước)
+\begin{scope}[tdplot_main_coords]
+  \draw[cDo,line width=2pt,-{Stealth[length=10pt]}] (0,0,0) -- ({0.985*\R*cos(78)},{0.985*\R*sin(78)},0);
+  \coordinate (rlab) at ({0.56*\R*cos(78)},{0.56*\R*sin(78)},0);
+  \coordinate (dr) at ({0.78*\R*cos(-14)},{0.78*\R*sin(-14)},{\H*10/20});
+  \coordinate (dr2) at ({0.78*\R*cos(-14)},{0.78*\R*sin(-14)},\zR);
+  \coordinate (hm2) at (0,0,\zR);
+  \coordinate (drg) at ({0.78*\R*cos(-14)},{0.78*\R*sin(-14)},0);
+\end{scope}
+% ---------- thân trụ trong suốt (vùng mặt bên nhìn thấy, toạ độ giấy)
+\shade[left color=cDo!75,right color=cDo!75,middle color=cDo!6,fill opacity=.20]
+  (-\R,0) -- (-\R,{\H*\st}) arc[start angle=180,end angle=360,x radius=\R,y radius={\R*\ct}]
+  -- (\R,0) arc[start angle=0,end angle=-180,x radius=\R,y radius={\R*\ct}] -- cycle;
+\begin{scope}[tdplot_main_coords]
+  % mặt RTL 15 m (xanh) và mặt chặn leo 18 m (hổ phách, nét đứt)
+  \fill[cXanh,opacity=.13] (0,0,\zR) circle (\R);
+  \draw[cXanh,line width=2pt] (0,0,\zR) circle (\R);
+  \draw[cVang,line width=2pt,dash pattern=on 8pt off 5pt] (0,0,\zA) circle (\R);
+  % nắp trần 20 m
+  \fill[cDo,opacity=.05] (0,0,\H) circle (\R);
+  \draw[cDoD,line width=2.2pt] (0,0,\H) circle (\R);
+  % vạch đáy phía trước
+  \draw[cDoD,line width=2.2pt] plot[domain=\ph-180:\ph,samples=60,variable=\a] ({\R*cos(\a)},{\R*sin(\a)},0);
+\end{scope}
+% hai đường sinh biên
+\draw[cDoD,line width=2.2pt] (-\R,0) -- (-\R,{\H*\st});
+\draw[cDoD,line width=2.2pt] (\R,0) -- (\R,{\H*\st});
+% ---------- drone + đường RTL
+\draw[cNavy!55,line width=1.1pt,dash pattern=on 2pt off 3pt] (drg) -- (dr);
+\fill[cNavy,opacity=.22] (drg) ellipse (0.55 and 0.22);
+\draw[cNavy,line width=2.8pt,rounded corners=16pt,-{Stealth[length=12pt,width=10pt]}]
+  (dr) -- (dr2) -- (hm2) -- ($(0,0)+(0,0.32)$);
+\begin{scope}[tdplot_main_coords,shift={(dr)}]
+  \foreach \a in {45,135,225,315}{
+    \draw[cMuc,line width=2.4pt] (0,0,0) -- ({0.66*cos(\a)},{0.66*sin(\a)},0);
+    \fill[cDo,opacity=.40] ({0.66*cos(\a)},{0.66*sin(\a)},0.06) circle (0.44);
+    \draw[cDo,line width=1.1pt] ({0.66*cos(\a)},{0.66*sin(\a)},0.06) circle (0.44);}
+  \fill[cNavy] (0,0,0) circle (0.26);
+\end{scope}
+% home
+\fill[cNavy] (0,0) circle (0.26);
+\fill[white] (0,0) circle (0.10);
+\node[lb,text=cNavy,font=\bfseries\fontsize{17}{17}\selectfont,anchor=north] at (0,-0.40) {home};
+\node[text=cDo,font=\bfseries\fontsize{18}{18}\selectfont,fill=white,fill opacity=.88,text opacity=1,
+      rounded corners=4pt,inner sep=3pt] at ($(rlab)+(0.2,-0.62)$) {100 m};
+\node[lb,text=cNavy,font=\bfseries\fontsize{17}{17}\selectfont,fill=white,fill opacity=.88,text opacity=1,
+      rounded corners=4pt,inner sep=3pt] at ($(dr2)!0.45!(hm2)+(0,0.62)$) {RTL};
+% ---------- kích thước bên phải: 20 m, lề 2 m; nhãn mặt bên trái
+\pgfmathsetmacro\yT{\H*\st}\pgfmathsetmacro\yA{\zA*\st}\pgfmathsetmacro\yR{\zR*\st}
+\draw[cXam,line width=0.8pt] (\R+0.25,0) -- (\R+1.05,0);
+\draw[cXam,line width=0.8pt] (\R+0.25,\yT) -- (\R+1.05,\yT);
+\draw[cXam,line width=0.8pt] (\R+0.25,\yA) -- (\R+1.05,\yA);
+\draw[dim,cDoD] (\R+0.75,0) -- (\R+0.75,\yA);
+\draw[dim,cVang] (\R+0.75,\yA) -- (\R+0.75,\yT);
+\node[lb,text=cDoD,font=\bfseries\fontsize{21}{21}\selectfont,anchor=west] at (\R+0.95,{\yA*0.5}) {20 m};
+\node[lb,text=cVang,font=\semib\fontsize{15}{15}\selectfont,anchor=west] at (\R+1.0,{(\yA+\yT)/2}) {lề 2 m};
+\node[lb,text=cXanh,font=\semib\fontsize{15}{15}\selectfont,anchor=east] at (-\R-0.3,\yR) {RTL 15 m};
+\node[lb,text=cVang,font=\semib\fontsize{15}{15}\selectfont,anchor=east] at (-\R-0.3,\yA) {18 m};
+
+% ---------- chú giải góc trái dưới
+\begin{scope}[shift={(-11.85,-5.80)}]
+
+  \fill[cDo,opacity=.22] (0,-0.25) rectangle (0.9,0.25); \draw[cDoD,line width=1.8pt] (0,-0.25) rectangle (0.9,0.25);
+  \node[lb,anchor=west,text=cMuc] at (1.2,0) {rào ảo: bán kính {\bfseries 100 m}, trần {\bfseries 20 m}};
+  \draw[cVang,line width=2pt,dash pattern=on 8pt off 5pt] (0,-1.0) -- (0.9,-1.0);
+  \node[lb,anchor=west,text=cMuc] at (1.2,-1.0) {lái tay bị chặn leo ở {\bfseries 18 m} (lề 2 m)};
+  \fill[cXanh,opacity=.25] (0,-2.25) rectangle (0.9,-1.75); \draw[cXanh,line width=1.8pt] (0,-2.25) rectangle (0.9,-1.75);
+  \node[lb,anchor=west,text=cMuc] at (1.2,-2.0) {RTL leo hoặc giữ {\bfseries 15 m} rồi bay về home};
+  \node[lb,anchor=west,text=cXam,font=\fontsize{14}{14}\selectfont] at (0,-3.0) {trục đứng vẽ phóng đại 5 lần};
+\end{scope}
+\end{tikzpicture}
+
+\end{document}

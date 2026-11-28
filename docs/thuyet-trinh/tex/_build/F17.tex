@@ -1,0 +1,132 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.16, shadow xshift=1.3pt, shadow yshift=-2pt}},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 45,05 x 14,31 cm = the 17,9 x 5,8 in box of part_b (S15) minus the 6 pt border (scale 1 on the slide)
+\def\W{45.05}\def\H{14.31}
+\def\bw{8.13}\def\gap{1.1}
+\def\boxtop{14.2}\def\boxbot{4.95}
+% ---------------- icons (drawn at origin, about 4 x 4 cm) ----------------
+\tikzset{
+ pics/icube/.style={code={
+   \begin{scope}[line join=round, draw=cXanh!80!black, line width=1.3pt]
+   \filldraw[fill=cXanh!22] (0,1.0) -- (1.15,1.62) -- (0,2.25) -- (-1.15,1.62) -- cycle;
+   \filldraw[fill=cXanh!48] (-1.15,1.62) -- (0,1.0) -- (0,-0.35) -- (-1.15,0.27) -- cycle;
+   \filldraw[fill=cXanh!75] (1.15,1.62) -- (0,1.0) -- (0,-0.35) -- (1.15,0.27) -- cycle;
+   \end{scope}
+   \node[white, font=\bfseries\fontsize{15}{15}\selectfont] at (-0.58,0.66) {2};
+   \node[white, font=\bfseries\fontsize{15}{15}\selectfont] at (0.58,0.66) {3};
+   \node[cXanh!80!black, font=\bfseries\fontsize{15}{15}\selectfont] at (0,1.62) {1};
+   \draw[cNavy, line width=1.8pt, -{Stealth[length=7pt,width=7pt]}] (1.55,1.95) arc (60:-40:1.25);
+   \draw[cNavy, line width=1.8pt, -{Stealth[length=7pt,width=7pt]}] (-1.55,-0.15) arc (240:140:1.25);
+   \draw[cDo, line width=2pt, -{Stealth[length=8pt,width=8pt]}] (0,-0.6) -- (0,-1.45);
+   \node[cDo, font=\bfseries\itshape\fontsize{15}{15}\selectfont, right] at (0.08,-1.05) {g};
+ }},
+ pics/ilevel/.style={code={
+   \fill[cXam!35] (-2.0,-1.15) -- (2.0,-1.15) -- (1.55,-0.75) -- (-2.45,-0.75) -- cycle;
+   \draw[cXam, line width=1.2pt] (-2.0,-1.15) -- (2.0,-1.15) -- (1.55,-0.75) -- (-2.45,-0.75) -- cycle;
+   \filldraw[fill=cXanh!12, draw=cXanh!80!black, line width=1.4pt, rounded corners=4pt] (-1.75,-0.62) rectangle (1.35,0.42);
+   \filldraw[fill=cLuc!18, draw=cXanh!70!black, line width=1.2pt, rounded corners=9pt] (-1.45,-0.38) rectangle (1.05,0.18);
+   \fill[white, draw=cXanh!80!black, line width=1pt] (-0.2,-0.1) ellipse (0.36 and 0.19);
+   \draw[cDo, line width=1.6pt] (-0.68,-0.45) -- (-0.68,0.25) (0.28,-0.45) -- (0.28,0.25);
+   \draw[cNavy, line width=1.4pt, densely dashed] (-2.3,1.25) -- (1.9,1.25);
+   \node[cNavy, font=\bfseries\fontsize{15}{15}\selectfont] at (-0.2,1.72) {0°};
+   \draw[cNavy, line width=1.4pt, -{Stealth[length=6pt]}] (-0.2,1.15) -- (-0.2,0.55);
+ }},
+ pics/icompass/.style={code={
+   \filldraw[fill=white, draw=cLuc, line width=2.2pt] (0,0) circle (1.75);
+   \filldraw[fill=cLuc!10, draw=cLuc!60, line width=0.8pt] (0,0) circle (1.4);
+   \foreach \a in {0,30,...,330} \draw[cLuc!80!black, line width=1.1pt] (\a:1.4) -- (\a:1.2);
+   \foreach \a/\t in {90/B,270/N,0/Đ,180/T} \node[cLuc!70!black, font=\bfseries\fontsize{15}{15}\selectfont] at (\a:0.9) {\t};
+   \fill[cDo] (0,0) -- (60:0.2) -- (150:1.25) -- (240:0.2) -- cycle;
+   \fill[cXam!60] (0,0) -- (60:0.2) -- (-30:1.25) -- (240:0.2) -- cycle;
+   \filldraw[fill=white, draw=cMuc, line width=1pt] (0,0) circle (0.13);
+ }},
+ pics/iradio/.style={code={
+   \draw[cVang!85!black, line width=3pt, line cap=round] (0,1.2) -- (0,1.95);
+   \filldraw[fill=cVang!85!black] (0,1.95) circle (0.1);
+   \foreach \x in {-1.45,1.45} {\draw[cMuc, line width=2.2pt, line cap=round] (\x,1.15) -- (\x+0.15*\x/1.45,1.6);
+                               \fill[white, draw=cMuc, line width=0.8pt] (\x+0.15*\x/1.45,1.6) circle (0.09);}
+   \filldraw[fill=cVang!20, draw=cVang!85!black, line width=1.5pt, rounded corners=12pt] (-2.05,-1.45) rectangle (2.05,1.2);
+   \filldraw[fill=cLuc!25, draw=cVang!85!black, line width=1pt, rounded corners=2pt] (-0.5,-1.2) rectangle (0.5,-0.62);
+   \foreach \x in {-1.12,1.12}{
+     \filldraw[fill=white, draw=cVang!85!black, line width=1.3pt] (\x,0.05) circle (0.72);
+     \draw[cVang!55, line width=0.8pt] (\x-0.55,0.05) -- (\x+0.55,0.05) (\x,-0.5) -- (\x,0.6);
+   }
+   \draw[cNavy, line width=1.8pt] (-1.12,0.05) -- (-1.12,0.52);
+   \fill[cNavy] (-1.12,0.52) circle (0.17);
+   \draw[cNavy, line width=1.8pt] (1.12,0.05) -- (1.59,0.05);
+   \fill[cNavy] (1.59,0.05) circle (0.17);
+   \foreach \r in {0,90,180,270} \fill[cDo, shift={(1.12,0.05)}, rotate=\r] (0.86,0) -- (0.74,0.1) -- (0.74,-0.1) -- cycle;
+ }},
+ pics/imotor/.style={code={
+   \filldraw[fill=cDo!12, draw=cDo, line width=2pt] (0,0) circle (1.25);
+   \filldraw[fill=white, draw=cDo!80!black, line width=1.2pt] (0,0) circle (0.78);
+   \foreach \a in {90,210,330} \fill[cDo!80!black] (\a-14:0.35) -- (\a-6:0.78) -- (\a+6:0.78) -- (\a+14:0.35) -- cycle;
+   \filldraw[fill=cNavy, draw=cNavy] (0,0) circle (0.3);
+   \fill[white] (0,0) circle (0.09);
+   \draw[cNavy, line width=2.2pt, -{Stealth[length=8pt,width=9pt]}] (100:1.75) arc (100:-10:1.75);
+   \draw[cNavy, line width=2.2pt, -{Stealth[length=8pt,width=9pt]}] (280:1.75) arc (280:170:1.75);
+ }},
+}
+% ---------------- one stage column ----------------
+% #1 index (1..5)  #2 colour  #3 name  #4 method  #5 caps label  #6 big number  #7 sub lines  #8 icon pic
+\newcommand\stage[8]{%
+  \pgfmathsetmacro\xl{(#1-1)*(\bw+\gap)}
+  \pgfmathsetmacro\xc{\xl+\bw/2}
+  \pgfmathsetmacro\xr{\xl+\bw}
+  \filldraw[shad, fill=#2!6, draw=#2!45, line width=1.3pt, rounded corners=12pt] (\xl,\boxbot) rectangle (\xr,\boxtop);
+  \begin{scope}
+    \clip[rounded corners=12pt] (\xl,\boxbot) rectangle (\xr,\boxtop);
+    \fill[#2] (\xl,\boxtop-1.65) rectangle (\xr,\boxtop);
+  \end{scope}
+  \filldraw[fill=white, draw=white] (\xl+0.95,\boxtop-0.83) circle (0.52);
+  \node[#2, font=\bfseries\fontsize{19}{19}\selectfont] at (\xl+0.95,\boxtop-0.83) {#1};
+  \node[white, anchor=west, font=\bfseries\fontsize{20}{23}\selectfont] at (\xl+1.68,\boxtop-0.83) {#3};
+  \pic[scale=1.3] at (\xc,9.6) {#8};
+  \node[cMuc, align=center, text width=\bw cm - 0.5cm] at (\xc,5.9) {#4};
+  \node[cDo, font=\bfseries\fontsize{15.5}{18}\selectfont] at (\xc,4.08) {#5};
+  \node[cMuc, font=\bfseries\fontsize{25}{28}\selectfont] at (\xc,2.88) {#6};
+  \node[cXam, align=center, anchor=north] at (\xc,1.95) {#7};
+}
+\stage{1}{cXanh}{Accel 6 mặt}{đặt drone 6 tư thế}{LỆCH SCALE}{≤ 0,35\,\%}{scale X, Y, Z\\1,0013 · 1,0035 · 1,0002}{icube}
+\stage{2}{cXanh}{Level}{đặt trên mặt phẳng}{NẰM YÊN ĐỌC}{−0,11° · +0,12°}{pitch · roll}{ilevel}
+\stage{3}{cLuc}{La bàn ngoài trời}{xoay đủ mọi hướng}{KHỚP MÔ HÌNH WMM}{0,5\,\%}{offset 67, chặn > 1\,800\\{\mono COMPASS\_SCALE} 1,005}{icompass}
+\stage{4}{cVang}{Radio}{gạt hết các cần}{{\mono\fontsize{16}{17}\selectfont RC3\_MIN}}{1\,006}{> ngưỡng failsafe + 10\\(975 + 10 = 985)}{iradio}
+\stage{5}{cDo}{ESC OX32}{cấu hình motor KV thấp}{41 LẦN KHỞI ĐỘNG}{0 lần khựng}{vòng quay 4 motor\\lệch nhau ≤ 2,8\,\%}{imotor}
+% ---------------- arrows between stages ----------------
+\foreach \i in {1,...,4}{
+  \pgfmathsetmacro\xa{\i*\bw+(\i-0.5)*\gap}
+  \filldraw[shad, fill=white, draw=cVien, line width=1pt] (\xa,9.6) circle (0.56);
+  \draw[cXam, line width=2.6pt, line cap=round, line join=round] (\xa-0.13,9.84) -- (\xa+0.12,9.6) -- (\xa-0.13,9.36);
+}
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}
+
+\end{document}

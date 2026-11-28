@@ -1,0 +1,98 @@
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.16, shadow xshift=1.3pt, shadow yshift=-2pt}},
+  flow/.style={cNavy, line width=2.8pt, -{Stealth[length=11pt,width=11pt]}},
+  caps/.style={text=cDo, font=\bfseries\fontsize{15.5}{18}\selectfont},
+  num/.style={text=cMuc},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 45,05 x 9,49 cm = the 17,9 x 3,9 in box of part_c (S26) minus the 6 pt border (scale 1 on the slide)
+\def\W{45.05}\def\H{9.49}
+\def\yt{8.55}\def\yb{4.45}\def\ym{6.3}
+% ---------------- dotted AI-thread frame ----------------
+\draw[cNavy!70, line width=1.6pt, dash pattern=on 1.5pt off 3.5pt, line cap=round, rounded corners=12pt] (6.75,2.72) rectangle (34.0,9.42);
+\node[anchor=north west, fill=white, text=cNavy, font=\bfseries\fontsize{15}{18}\selectfont, inner xsep=6pt, inner ysep=2pt]
+  at (7.1,9.47) {thread AI riêng · ONNX Runtime GPU · chậm thì bỏ khung cũ};
+% ---------------- input (dashed) ----------------
+\filldraw[fill=cVangT, draw=cVang, line width=1.8pt, dash pattern=on 7pt off 4pt, rounded corners=12pt] (0.1,\yb) rectangle (6.0,\yt);
+\node[text=cVang, font=\bfseries\fontsize{15}{18}\selectfont] at (3.05,\yt-0.45) {ĐẦU VÀO};
+\begin{scope}[shift={(3.05,6.8)}, cVang]
+  \filldraw[fill=white, line width=1.8pt, rounded corners=4pt] (-0.85,-0.55) rectangle (0.85,0.5);
+  \filldraw[fill=white, line width=1.6pt, rounded corners=2pt] (-0.35,0.5) rectangle (0.15,0.72);
+  \filldraw[fill=cVang!30, line width=1.8pt] (0,-0.03) circle (0.33);
+  \fill (0,-0.03) circle (0.12);
+  \fill (0.6,0.3) circle (0.07);
+\end{scope}
+\node[align=center, text=cMuc, font=\bfseries\fontsize{15.5}{18.5}\selectfont] at (3.05,5.25) {Khung JPEG\\mới nhất};
+% ---------------- stages ----------------
+% #1 x  #2 width  #3 colour  #4 pastel  #5 header
+\newcommand\stg[5]{%
+  \filldraw[shad, fill=#4, draw=#3, line width=1.6pt, rounded corners=11pt] (#1,\yb) rectangle ++(#2,\yt-\yb);
+  \fill[#3, rounded corners=11pt] (#1,\yt-0.85) rectangle ++(#2,0.85);
+  \fill[#3] (#1,\yt-0.85) rectangle ++(#2,0.4);
+  \node[text=white, font=\bfseries\fontsize{16}{19}\selectfont] at (#1+#2/2,\yt-0.43) {#5};
+}
+% decode (plain)
+\filldraw[shad, fill=cXamT, draw=cXam, line width=1.6pt, rounded corners=11pt] (7.25,\yb) rectangle (10.85,\yt);
+\begin{scope}[shift={(9.05,6.95)}, cXam]
+  \filldraw[fill=white, line width=1.7pt, rounded corners=3pt] (-0.8,-0.6) rectangle (0.8,0.6);
+  \fill[cXam!60] (-0.62,-0.42) -- (-0.18,0.12) -- (0.12,-0.16) -- (0.32,0.04) -- (0.62,-0.42) -- cycle;
+  \fill[cVang] (0.38,0.3) circle (0.13);
+\end{scope}
+\node[align=center, text=cMuc, font=\bfseries\fontsize{16}{19}\selectfont] at (9.05,5.45) {Giải mã};
+\stg{11.75}{6.75}{cDo}{cDoT}{TẦNG 1}
+\stg{19.4}{7.25}{cXanh}{cXanhT}{TẦNG 2}
+\stg{27.55}{6.2}{cLuc}{cLucT}{TẦNG 3}
+% stage icons
+\begin{scope}[shift={(15.125,6.9)}, cDo]
+  \draw[line width=1.8pt, dash pattern=on 3pt off 2pt] (-0.55,-0.68) rectangle (0.55,0.68);
+  \fill (0,0.3) circle (0.2);
+  \fill[rounded corners=3pt] (-0.3,-0.55) rectangle (0.3,0.05);
+\end{scope}
+\begin{scope}[shift={(23.025,6.9)}, cXanh]
+  \draw[line width=2.2pt] (-0.12,0.1) circle (0.5);
+  \draw[line width=3.2pt, line cap=round] (0.24,-0.26) -- (0.62,-0.64);
+  \draw[cLuc, line width=2pt, line cap=round, line join=round] (-0.36,0.1) -- (-0.18,-0.08) -- (0.14,0.3);
+\end{scope}
+\begin{scope}[shift={(30.65,6.9)}, cLuc]
+  \draw[line width=1.6pt, dash pattern=on 3pt off 2.5pt] (-1.05,-0.35) .. controls (-0.4,0.45) and (0.4,-0.45) .. (1.05,0.35);
+  \foreach \p/\s in {-1.05/-0.35, 0/0, 1.05/0.35}
+    \filldraw[fill=white, line width=1.7pt, rounded corners=1.5pt] (\p-0.24,\s-0.3) rectangle (\p+0.24,\s+0.3);
+  \fill (1.05,0.35) circle (0.09);
+\end{scope}
+% stage names
+\node[align=center, text=cMuc] at (15.125,5.2) {{\bfseries\fontsize{17}{20}\selectfont YOLO11s}\\{\color{cXam}nhận diện người}};
+\node[align=center, text=cMuc] at (23.025,5.2) {{\bfseries\fontsize{17}{20}\selectfont EfficientNet-B0}\\{\color{cXam}xác minh từng hộp}};
+\node[align=center, text=cMuc] at (30.65,5.2) {{\bfseries\fontsize{17}{20}\selectfont lọc track}\\{\color{cXam}ghép qua các khung}};
+% labels under each stage
+\node[caps] at (15.125,3.83) {NGƯỠNG 0,0767};
+\node[num]  at (15.125,3.17) {ảnh vào 1\,280 px};
+\node[caps] at (23.025,3.83) {GIỮ KHI ≥ 0,35};
+\node[num]  at (23.025,3.17) {vùng cắt 96×96};
+\node[caps] at (30.65,3.83) {IoU 0,3};
+\node[num]  at (30.65,3.17) {cooldown theo track};
+% flow arrows
+\draw[flow] (6.0,\ym) -- (7.25,\ym);
+\draw[flow] (10.85,\ym) -- (11.75,\ym);
+\draw[flow] (18.5,\ym) -- (19.4,\ym);
+\draw[flow] (26.65,\ym) -- (27.55,\ym);
+% ---------------- outputs ----------------
+\node[shad, fill=cNavy!8, draw=cNavy, line width=1.5pt, rounded corners=10pt, align=left, text=cMuc, anchor=north east,
+      minimum width=9.6cm, minimum height=1.75cm, text width=9.6cm-20pt, inner xsep=10pt] (o1) at (44.95,\yt)
+  {\textbf{hộp người}\\$\rightarrow$ WebSocket {\mono detection}};
+\node[shad, fill=cTimT, draw=cTim, line width=1.5pt, rounded corners=10pt, align=left, text=cMuc, anchor=south east,
+      minimum width=9.6cm, minimum height=1.75cm, text width=9.6cm-20pt, inner xsep=10pt] (o2) at (44.95,\yb)
+  {\textbf{sự kiện} {\mono vision.person\_detected}\\$\rightarrow$ nhật ký};
+\draw[cLuc, line width=2.6pt, rounded corners=8pt, -{Stealth[length=10pt,width=10pt]}] (33.75,\ym) -- (34.55,\ym) |- (o1.west);
+\draw[cLuc, line width=2.6pt, rounded corners=8pt, -{Stealth[length=10pt,width=10pt]}] (34.55,\ym) |- (o2.west);
+% ---------------- enhancer branch (not fed to detection) ----------------
+\draw[cVang, line width=2.4pt, dash pattern=on 7pt off 4pt, rounded corners=10pt, -{Stealth[length=10pt,width=10pt]}]
+  (3.05,\yb) -- (3.05,1.05) -- (7.25,1.05);
+\node[shad, fill=cVangT, draw=cVang, line width=1.6pt, dash pattern=on 7pt off 4pt, rounded corners=10pt, anchor=west,
+      minimum height=1.55cm, inner xsep=12pt, text=cMuc] (en) at (7.25,1.05)
+  {{\color{cVang}\bfseries\fontsize{16}{19}\selectfont Ảnh rõ (5 bước)}\enspace$\rightarrow$\enspace{\mono /api/video/stream}};
+\node[anchor=west, text=cVang!85!black, font=\bfseries\fontsize{15}{18}\selectfont] at ($(en.east)+(0.4,0)$) {không đưa vào nhận diện};
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}

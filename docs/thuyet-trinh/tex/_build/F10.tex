@@ -1,0 +1,85 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+% F10 · S10 · chuỗi nạp FC bằng 3 lệnh, 8 bước: nap_dfu.py (1 đến 6) → kiem_fc.py (7) → nap_param.py (8).
+% Nguồn: facts/02-firmware-cau-hinh.md mục 2 (docs/so-tay/14-hang-ve-nap-firmware.md mục 1, 2;
+% scripts/fc/nap_dfu.py, scripts/fc/nap_param.py docstring). Khung slide 11,6 x 5,2 in.
+\newfontfamily\monof{Consolas}%
+\newfontface\semib{BeVietnamPro-SemiBold}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf]%
+\begin{tikzpicture}[x=1in,y=1in,line join=round,line cap=round,
+  sh/.style={general shadow={fill=black,opacity=.06,shadow xshift=1pt,shadow yshift=-1.8pt},
+             general shadow={fill=black,opacity=.05,shadow xshift=2.4pt,shadow yshift=-4pt}},
+  it/.style={anchor=west,text=cMuc,font=\fontsize{15}{18}\selectfont,inner sep=0pt},
+  nb/.style={circle,inner sep=0pt,minimum size=0.30in,text=white,font=\fontsize{13}{13}\bfseries}]
+\frenchspacing
+\useasboundingbox (0,0) rectangle (11.43,5.03);
+\def\bw{3.45}\def\yt{4.92}\def\yb{0.62}\def\hd{0.72}
+% \blk{x}{màu}{nền}{tên script}{bước}
+\newcommand\blk[5]{%
+  \fill[#3,sh,rounded corners=10pt] (#1,\yb) rectangle (#1+\bw,\yt);
+  \begin{scope}\clip[rounded corners=10pt] (#1,\yb) rectangle (#1+\bw,\yt);
+    \fill[top color=#2!82!white,bottom color=#2] (#1,\yt-\hd) rectangle (#1+\bw,\yt);\end{scope}
+  \draw[#2!35,line width=0.8pt,rounded corners=10pt] (#1,\yb) rectangle (#1+\bw,\yt);
+  \node[anchor=west,text=white,font=\monof\bfseries\fontsize{20}{20}\selectfont,inner sep=0pt]
+    at (#1+0.2,\yt-\hd/2) {#4};
+  \node[anchor=east,text=white,font=\semib\fontsize{14}{14}\selectfont,inner sep=0pt]
+    at (#1+\bw-0.18,\yt-\hd/2) {#5};}
+% \stat{x}{màu}{số}{chú thích}
+\newcommand\stat[4]{%
+  \fill[white,rounded corners=8pt] (#1+0.2,\yb+0.2) rectangle (#1+\bw-0.2,\yb+1.55);
+  \draw[#2!40,line width=0.8pt,rounded corners=8pt] (#1+0.2,\yb+0.2) rectangle (#1+\bw-0.2,\yb+1.55);
+  \node[text=#2,font=\fontsize{40}{40}\bfseries,inner sep=0pt] at (#1+\bw/2,\yb+1.04) {#3};
+  \node[text=cXam,font=\fontsize{15}{15}\selectfont,inner sep=0pt] at (#1+\bw/2,\yb+0.47) {#4};}
+% ---------- 3 khối
+\blk{0}{cDo}{cDoT}{nap\_dfu.py}{bước 1 đến 6}
+\blk{3.99}{cXanh}{cXanhT}{kiem\_fc.py}{bước 7}
+\blk{7.98}{cLuc}{cLucT}{nap\_param.py}{bước 8}
+% khối 1: 6 bước có số
+\foreach \n/\t [count=\i] in {1/{Hỏi tên bo qua MSP},2/{Vào DFU, không bấm BOOT},
+    3/{Kiểm RDP {\monof 0xAA}},4/{Sao lưu 1 MB flash gốc},5/{Ghi rồi đọc lại so từng byte},
+    6/{Chạy firmware, đợi USB}}{
+  \node[nb,fill=cDo] at (0.35,\yt-\hd-0.36-0.565*\i+0.565) {\n};
+  \node[it] at (0.60,\yt-\hd-0.36-0.565*\i+0.565) {\t};}
+% khối 2, 3: 3 việc + ô số
+\foreach \t [count=\i] in {Đọc banner firmware,Đọc cảm biến,Hướng gyro đúng dấu}{
+  \fill[cXanh] (3.99+0.36,\yt-\hd-0.36-0.565*\i+0.565) circle (0.065);
+  \node[it] at (3.99+0.58,\yt-\hd-0.36-0.565*\i+0.565) {\t};}
+\foreach \t [count=\i] in {Nạp file {\monof .param},Reboot FC,Đọc lại từng dòng}{
+  \fill[cLuc] (7.98+0.36,\yt-\hd-0.36-0.565*\i+0.565) circle (0.065);
+  \node[it] at (7.98+0.58,\yt-\hd-0.36-0.565*\i+0.565) {\t};}
+\stat{3.99}{cXanh}{850}{tham số chụp lại}
+\stat{7.98}{cLuc}{34/34}{dòng đọc lại đúng}
+% ---------- mũi tên nối
+\foreach \x/\c in {3.45/cDo,7.44/cXanh}{
+  \fill[\c!85!black] (\x+0.07,2.97) -- (\x+0.30,2.97) -- (\x+0.30,3.11) -- (\x+0.48,2.80)
+     -- (\x+0.30,2.49) -- (\x+0.30,2.63) -- (\x+0.07,2.63) -- cycle;}
+% ---------- dòng dưới khối 1
+\node[anchor=west,text=cXam,font=\fontsize{14}{14}\selectfont,inner sep=0pt] at (0.05,0.27)
+  {chạy qua {\monof\bfseries STM32CubeProgrammer CLI}};
+\node[anchor=west,text=cXam,font=\fontsize{14}{14}\selectfont,inner sep=0pt] at (3.99+0.05,0.27)
+  {MAVLink qua USB, cổng {\monof\bfseries COM6}};
+\node[anchor=west,text=cXam,font=\fontsize{14}{14}\selectfont,inner sep=0pt] at (7.98+0.05,0.27)
+  {tối đa 3 lần reboot};
+\end{tikzpicture}
+
+\end{document}

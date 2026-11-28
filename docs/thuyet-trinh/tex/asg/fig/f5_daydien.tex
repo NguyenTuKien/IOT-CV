@@ -1,0 +1,191 @@
+% Sơ đồ nối dây drone (hình 5.6). Vẽ ở cỡ thật trên slide: 455 x 224 mm (17,9 x 8,8 in), đơn vị 1 mm.
+% Lưới: hàng pad cách nhau 9 mm, cao 7 mm; cột pad thiết bị trái x=77, FC trái x=136, FC phải x=220, thiết bị phải x=284.
+% Nguồn: TT/facts/01-phan-cung.md mục 1-3, TT/facts/02-firmware-cau-hinh.md bảng SERIAL.
+\begin{tikzpicture}[x=1mm,y=1mm,
+  fs/.style={font=\fontsize{14}{16.5}\selectfont},
+  pad/.style={draw=#1!78!black, fill=#1!16, line width=0.7pt, rounded corners=1.3mm, minimum height=7mm, inner sep=0pt,
+              font=\bfseries\fontsize{14}{14}\selectfont, text=cMuc},
+  pad/.default=cXam,
+  pL/.style={pad=#1, minimum width=22mm},
+  pF/.style={pad=#1, minimum width=16mm},
+  pR/.style={pad=#1, minimum width=32mm},
+  pC/.style={pad=#1, minimum width=9mm},
+  w/.style={line width=2.2pt, draw=#1, line cap=round},
+  wp/.style={line width=3.6pt, draw=#1, line cap=round, rounded corners=2mm},
+  w5/.style={line width=2.6pt, draw=#1, line cap=round, rounded corners=1.6mm},
+  ttl/.style={font=\bfseries\fontsize{16}{19}\selectfont, text=cNavy, align=center},
+  sub/.style={font=\fontsize{14}{16.5}\selectfont, text=cXam, align=center},
+  hdr/.style={font=\sbf\fontsize{14}{16}\selectfont, text=cNavy},
+  box/.style={draw=#1!75!black, fill=#1!9, line width=0.9pt, rounded corners=2.2mm, align=center,
+              font=\fontsize{14}{17}\selectfont, text=cMuc},
+  air/.style={draw=#1, line width=1.8pt, dash pattern=on 4.5pt off 3pt, -{Stealth[length=9pt,width=8pt]}},
+  air2/.style={draw=#1, line width=1.8pt, dash pattern=on 4.5pt off 3pt, {Stealth[length=9pt,width=8pt]}-{Stealth[length=9pt,width=8pt]}},
+  dot/.style={circle, fill=#1, inner sep=0pt, minimum size=2.6mm},
+]
+\useasboundingbox (0,0) rectangle (455,224);
+
+% ================================================================ FC
+\begin{scope}[on background layer]
+  \fill[cXamT, draw=cVien, line width=0.9pt, rounded corners=3mm] (124,89) rectangle (232,200);
+\end{scope}
+\node[ttl] at (178,217) {SpeedyBee F405 V5 · bộ điều khiển bay};
+\node[sub] at (178,208.5) {STM32F405 · IMU ICM-42688 · baro SPA06 · ArduPilot};
+\node[inner sep=0] (fc) at (178,164) {\includegraphics[width=56mm]{fc.png}};
+
+% pad FC bên trái
+\foreach \n/\t/\y/\c in {T4/T4/190/wRx, R4/R4/181/wTx, CL/CL/172/wI2c, DA/DA/163/wI2c, V4/4V5/154/w45, G4/G/145/wGnd,
+                        R6/R6/129/wIbus, V6/4V5/120/w45, G6/G/111/wGnd}
+  \node[pF=\c] (f\n) at (136,\y) {\t};
+% pad FC bên phải
+\foreach \n/\t/\y/\c in {T2/T2/190/wRx, R2/R2/181/wTx, G2/G/172/wGnd,
+                        R3/R3/156/wTx, T3/T3/147/wRx, V3/5V/138/w5, G3/G/129/wGnd,
+                        BP/B+/116/w5, BM/B−/107/wGnd}
+  \node[pF=\c] (f\n) at (220,\y) {\t};
+% hàng pad cáp stack (FC) và (ESC)
+\foreach \t/\c [count=\k from 0] in {V/wBat, G/wGnd, C/wSig, T/wTx, M1/wSig, M2/wSig, M3/wSig, M4/wSig}{
+  \node[pC=\c] (fe\k) at ({145.1+\k*9.4},96) {\t};
+  \node[pC=\c] (ee\k) at ({145.1+\k*9.4},84) {\t};
+  \draw[w=\c!85!black, line width=1.8pt] (fe\k.south) -- (ee\k.north);
+}
+\node[sub, text=cMuc, font=\sbf\fontsize{14}{16}\selectfont] at (178,127) {cáp stack sang ESC};
+\node[sub] at (178,119.5) {V: VBAT nuôi FC};
+\node[sub] at (178,112.5) {T: SERIAL5, telemetry};
+\node[sub] at (178,105.5) {M1 đến M4: lệnh motor};
+
+% ================================================================ ESC + motor
+\node[inner sep=0] (esc) at (178,56) {\includegraphics[width=44mm]{esc.png}};
+\node[ttl, text=cNavy] at (223,63.5) {ESC 4-in-1};
+\node[ttl, text=cNavy] at (223,57) {OX32 55A};
+\node[sub] at (223,50.5) {DShot300};
+\node[sub] at (133,60.5) {3 dây pha};
+\node[sub] at (133,53.5) {mỗi motor};
+\newcommand{\motor}[7]{% tên, x, y, anchor nhãn, x nhãn, dòng 1, dòng 2
+  \node[inner sep=0] (#1) at (#2,#3) {\includegraphics[width=15mm]{motor.png}};
+  \node[anchor=#4, inner sep=0, font=\bfseries\fontsize{14}{16}\selectfont, text=cMuc] at (#5,#3+3.4) {#6};
+  \node[anchor=#4, inner sep=0, font=\fontsize{14}{16}\selectfont, text=cXam] at (#5,#3-3.4) {#7};}
+\motor{m4}{103}{72}{east}{93}{M4 · CW}{trước trái}
+\motor{m3}{103}{42}{east}{93}{M3 · CCW}{sau trái}
+\motor{m2}{253}{72}{west}{263}{M2 · CCW}{trước phải}
+\motor{m1}{253}{42}{west}{263}{M1 · CW}{sau phải}
+\foreach \y in {72,42}{
+  \foreach \d/\s in {2.6/0, 0/18, -2.6/36}{
+    \draw[line width=1.8pt, draw=wPha!\the\numexpr100-\s\relax!black] (110.5,\y+\d) -- (156,\y+\d);
+    \draw[line width=1.8pt, draw=wPha!\the\numexpr100-\s\relax!black] (200,\y+\d) -- (245.5,\y+\d);
+  }
+}
+
+% ================================================================ NGUỒN
+\node[box=wBat, minimum width=70mm, minimum height=20mm] (bat) at (43,20)
+  {\bfseries LiPo 4S 5300 mAh\\14,8 V danh định · đầu XT60};
+\node[pad=wBat, minimum width=9mm] (ep) at (172.5,31) {+};
+\node[pad=wGnd, minimum width=9mm] (em) at (183.5,31) {−};
+\node[box=w45, minimum width=46mm, minimum height=20mm] (ubec) at (321,20) {\bfseries UBEC 5 V 3 A\\vào thẳng pin 4S};
+% thanh nguồn chính: pin -> ESC -> UBEC
+\draw[wp=wBat] (bat.east |- 0,25) -- (ubec.west |- 0,25);
+\draw[wp=wGnd] (bat.east |- 0,13) -- (ubec.west |- 0,13);
+\draw[wp=wBat, rounded corners=0] (ep.south) -- (172.5,25);
+\node[dot=wBat] at (172.5,25) {};
+\draw[wp=wGnd, rounded corners=0] (em.south) -- (183.5,27.4) arc[start angle=90, end angle=-90, radius=2.4] -- (183.5,13);
+\node[dot=wGnd] at (183.5,13) {};
+% tụ 1500 uF 35 V song song pad nguồn
+\draw[line width=1.6pt, draw=wBat] (128,25) -- (128,21.6);
+\draw[line width=2.2pt, draw=cMuc] (124.5,21.6) -- (131.5,21.6);
+\draw[line width=2.2pt, draw=cMuc] (124.5,18.3) to[bend left=22] (131.5,18.3);
+\draw[line width=1.6pt, draw=wGnd] (128,19.1) -- (128,13);
+\node[dot=wBat] at (128,25) {};
+\node[dot=wGnd] at (128,13) {};
+\node[fs, text=cMuc, anchor=west] at (134,19.3) {tụ 1500 µF 35 V};
+% bảng chia 5 V
+\node[box=w5, minimum width=66mm, minimum height=12mm] (chia) at (339,51) {bảng chia nguồn 5 V};
+\draw[w5=w5]  (316,30) -- (316,45);
+\draw[w5=wGnd] (326,30) -- (326,45);
+
+% ================================================================ GPS
+\node[inner sep=0] (gps) at (30,181) {\includegraphics[width=25mm]{gps_m10.png}};
+\node[ttl] at (30,157.5) {Holybro M10};
+\node[sub] at (30,150.5) {u-blox M10};
+\node[sub] at (30,144) {la bàn IST8310};
+\foreach \n/\t/\y/\c in {RX/RX/190/wRx, TX/TX/181/wTx, SC/SCL/172/wI2c, SD/SDA/163/wI2c, V/VCC/154/w45, G/GND/145/wGnd}
+  \node[pL=\c] (g\n) at (77,\y) {\t};
+\node[hdr, anchor=west] at (64,198) {SERIAL4 · GPS 230400};
+\foreach \a/\b/\c in {gRX/fT4/wRx, gTX/fR4/wTx, gSC/fCL/wI2c, gSD/fDA/wI2c, gV/fV4/w45, gG/fG4/wGnd}
+  \draw[w=\c] (\a.east) -- (\b.west);
+
+% ================================================================ RC
+\node[inner sep=0] (rx) at (32,120) {\includegraphics[width=36mm]{ia6b.png}};
+\node[ttl] at (32,103.5) {FlySky FS-iA6B};
+\node[sub] at (32,96.5) {bộ thu RC};
+\foreach \n/\t/\y/\c in {S/i-BUS/129/wIbus, V/VCC/120/w45, G/GND/111/wGnd}
+  \node[pL=\c] (r\n) at (77,\y) {\t};
+\node[hdr, anchor=west] at (64,137) {SERIAL6 · i-BUS};
+\foreach \a/\b/\c in {rS/fR6/wIbus, rV/fV6/w45, rG/fG6/wGnd}
+  \draw[w=\c] (\a.east) -- (\b.west);
+\node[inner sep=0] (tx) at (30,67) {\includegraphics[width=23mm]{fsi6x.png}};
+\node[ttl] at (30,46) {FS-i6X};
+\node[sub] at (30,39.5) {tay phát};
+\draw[air=cXanh] (30,82.5) -- (30,92);
+\node[fs, text=cMuc, anchor=west] at (34,87) {AFHDS 2A · 2,4 GHz};
+
+% ================================================================ ESP32 DroneBridge
+\node[inner sep=0] (esp) at (320,186) {\includegraphics[height=42mm]{esp32_devkitc.png}};
+\foreach \n/\t/\y/\c in {RX/GPIO16 RX/190/wRx, TX/GPIO17 TX/181/wTx, G/GND/172/wGnd}
+  \node[pR=\c] (e\n) at (284,\y) {\t};
+\node[hdr, anchor=west] at (236,198) {SERIAL2 · MAVLink2 115200};
+\foreach \a/\b/\c in {fT2/eRX/wRx, fR2/eTX/wTx, fG2/eG/wGnd}
+  \draw[w=\c] (\a.east) -- (\b.west);
+\node[pad=w5, minimum width=19mm] (eV) at (345,176) {VIN 5V};
+\node[pad=wGnd, minimum width=19mm] (eG2) at (345,167) {GND};
+\draw[w5=w5]  (eV.east) -- (368,176) -- (368,57);
+\draw[w5=wGnd] (eG2.east) -- (362,167) -- (362,57);
+\node[ttl, anchor=west] at (304,158) {ESP32 DevKit};
+\node[sub, anchor=west] at (304,151) {DroneBridge};
+
+% ================================================================ TFmini Plus
+\node[inner sep=0] (tf) at (318,133) {\includegraphics[width=21mm]{tfmini.png}};
+\foreach \n/\t/\y/\c in {TXD/TXD xanh/156/wTx, RXD/RXD trắng/147/wRx, V/+5V đỏ/138/w5, G/GND đen/129/wGnd}
+  \node[pR=\c] (t\n) at (284,\y) {\t};
+\node[hdr, anchor=west] at (236,164.5) {SERIAL3 · TFmini 115200};
+\foreach \a/\b/\c in {fR3/tTXD/wTx, fT3/tRXD/wRx, fV3/tV/w5, fG3/tG/wGnd}
+  \draw[w=\c] (\a.east) -- (\b.west);
+\node[ttl] at (318,114.5) {TFmini Plus};
+\node[sub] at (318,107.5) {LiDAR nhìn trước};
+
+% ================================================================ còi
+\node[draw=black, fill=cMuc, text=white, rounded corners=2mm, minimum width=14mm, minimum height=16mm,
+      font=\bfseries\fontsize{14}{14}\selectfont] (bz) at (245,111.5) {còi};
+\draw[w=w5]   (fBP.east) -- (bz.west |- fBP);
+\draw[w=wGnd] (fBM.east) -- (bz.west |- fBM);
+
+% ================================================================ Camera ESP32-S3
+\node[inner sep=0] (cam) at (428,79) {\includegraphics[width=52mm]{cam_s3.png}};
+\node[pad=w5, minimum width=15mm] (cV) at (390,88) {5V};
+\node[pad=wGnd, minimum width=15mm] (cG) at (390,70) {GND};
+\draw[w5=w5]  (chia.east |- 0,54) -- (376,54) -- (376,88) -- (cV.west);
+\draw[w5=wGnd] (chia.east |- 0,48) -- (380.5,48) -- (380.5,70) -- (cG.west);
+\node[ttl] at (427,57.5) {Camera ESP32-S3};
+\node[sub] at (427,50.5) {N16R8 + OV3660};
+\node[sub] at (427,44) {không nối FC};
+
+% ================================================================ Laptop
+\node[box=cNavy, minimum width=58mm, minimum height=44mm] (pc) at (425,187)
+  {\bfseries\fontsize{16}{19}\selectfont Laptop GCS\\[1pt]FastAPI\\AI ONNX GPU\\web React};
+\draw[air2=cXanh] (332,195) -- (pc.west |- 0,195);
+\node[fs, text=cMuc, align=center] at (364,205) {Wi-Fi · MAVLink2\\UDP 14550};
+\draw[air=cXanh] (cam.north -| 442,0) -- (pc.south -| 442,0);
+\node[fs, text=cMuc, align=right, anchor=east] at (438,128) {Wi-Fi\\MJPEG :81};
+
+% ================================================================ chú giải (tự dàn theo bề rộng chữ)
+\coordinate (lg) at (3,4.5);
+\foreach \c/\t/\st in {wBat/VBAT/s, w5/5 V/s, w45/{4,5 V từ FC}/s, wGnd/GND/s, wTx/{TX: thiết bị gửi}/s,
+                      wRx/{RX: thiết bị nhận}/s, wI2c/{I2C la bàn}/s, wIbus/i-BUS/s, wSig/{tín hiệu ESC}/s,
+                      wPha/{pha motor}/s, cXanh/{vô tuyến}/d}{
+  \if\st d
+    \draw[line width=1.8pt, draw=\c, dash pattern=on 4.5pt off 3pt] (lg) -- ++(8,0) coordinate (sw);
+  \else
+    \draw[line width=3pt, draw=\c, line cap=round] (lg) -- ++(8,0) coordinate (sw);
+  \fi
+  \node[fs, text=cMuc, anchor=west, inner sep=0] (lt) at ($(sw)+(2.5,0)$) {\t};
+  \coordinate (lg) at ($(lt.east)+(6.8,0)$);
+  \global\let\lgdummy\relax
+}
+\end{tikzpicture}

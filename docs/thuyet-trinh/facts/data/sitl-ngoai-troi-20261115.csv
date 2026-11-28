@@ -1,0 +1,9 @@
+bai,mo_ta,so_do,ket_qua
+S1,Mission đi–về 5 m (AUTO),"xa nhất 5,1 m; hạ đúng home",PASS
+S1B,"Mission đi–về 5 m, biến thể","xa nhất 4,3 m; RTL không leo",PASS
+S2,LOITER ga hết cỡ,"dừng ở 18,1 m (trần 20 m, lề 2 m)",PASS
+S3,STABILIZE vượt trần,"chạm trần lúc leo 7 m/s → RTL; hạ cách home 0,1 m",PASS
+S4,LOITER tiến hết cỡ,"tự dừng ở 98,1 m trước rào 100 m",PASS
+S5,ALT_HOLD bay ra rào,"chạm rào 99,6 m lúc 4,1 m/s → RTL; hạ đúng home",PASS
+S6,Mất sóng tay cầm,RTL sau ~1 s; hạ đúng home,PASS
+S7,Pin yếu,Battery Failsafe → RTL; hạ đúng home,PASS

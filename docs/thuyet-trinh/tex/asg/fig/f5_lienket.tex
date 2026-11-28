@@ -1,0 +1,63 @@
+% Sơ đồ liên kết thiết bị và giao thức. Cỡ thật trên slide 455 x 224 mm (17,9 x 8,8 in), đơn vị 1 mm.
+% Nguồn: TT/facts/01-phan-cung.md mục 2; TT/facts/02-firmware-cau-hinh.md bảng SERIAL; TT/facts/03-phan-mem.md mục 1.
+\begin{tikzpicture}[x=1mm,y=1mm,
+  fs/.style={font=\fontsize{14}{17}\selectfont, text=cMuc},
+  dev/.style={draw=#1!75!black, fill=#1!10, line width=1pt, rounded corners=2.5mm, align=center, inner sep=2.2mm,
+              font=\fontsize{14}{17}\selectfont, text=cMuc, minimum height=19mm},
+  zone/.style={draw=#1!70!black, fill=#1!4, line width=1.2pt, rounded corners=4mm, dash pattern=on 6pt off 3pt},
+  ztl/.style={font=\bfseries\fontsize{16}{19}\selectfont, text=#1!75!black, anchor=north west},
+  link/.style={line width=2.4pt, draw=#1},
+  air/.style={line width=2pt, draw=#1, dash pattern=on 5pt off 3pt, {Stealth[length=9pt,width=8pt]}-{Stealth[length=9pt,width=8pt]}},
+  air1/.style={line width=2pt, draw=#1, dash pattern=on 5pt off 3pt, -{Stealth[length=9pt,width=8pt]}},
+  arr/.style={line width=2.2pt, draw=#1, {Stealth[length=9pt,width=8pt]}-{Stealth[length=9pt,width=8pt]}},
+  arr1/.style={line width=2.2pt, draw=#1, -{Stealth[length=9pt,width=8pt]}},
+  lab/.style={font=\fontsize{14}{16.5}\selectfont, text=cMuc, fill=white, inner sep=1.2pt, align=center},
+  itf/.style={text=#1!80!black},
+]
+\useasboundingbox (0,0) rectangle (455,224);
+% vùng
+\draw[zone=cVang] (3,3) rectangle (236,196);
+\node[ztl=cVang] at (8,192) {TRÊN DRONE};
+\draw[zone=cXanh] (250,3) rectangle (372,196);
+\node[ztl=cXanh] at (255,192) {LAPTOP TRẠM MẶT ĐẤT};
+\draw[zone=cTim] (384,3) rectangle (452,196);
+\node[ztl=cTim] at (389,192) {NGƯỜI DÙNG};
+
+% ---------------------------------------------------------------- trên drone
+\node[dev=cDo, minimum width=72mm, minimum height=30mm, line width=1.6pt] (fc) at (122,105)
+  {\bfseries\fontsize{16}{19}\selectfont Bộ điều khiển bay\\SpeedyBee F405 V5\\ArduPilot};
+\node[dev=cLuc, minimum width=62mm] (gps) at (40,160) {\bfseries GPS M10 + la bàn\\\textcolor{cLuc!80!black}{SERIAL4 230400 · I2C}};
+\node[dev=cLuc, minimum width=58mm] (rx)  at (122,160) {\bfseries Bộ thu FS-iA6B\\\textcolor{cLuc!80!black}{SERIAL6 · i-BUS}};
+\node[dev=cLuc, minimum width=62mm] (tf)  at (40,105) {\bfseries LiDAR TFmini Plus\\\textcolor{cLuc!80!black}{SERIAL3 · 115200}};
+\node[dev=cXam, minimum width=62mm] (esc) at (40,45) {\bfseries ESC 4-in-1 + 4 motor\\\textcolor{cXam}{DShot300 · SERIAL5}};
+\node[dev=cTeal, minimum width=58mm] (esp) at (201,105) {\bfseries ESP32 DroneBridge\\\textcolor{cTeal!80!black}{SERIAL2 · MAVLink2}};
+\node[dev=cTeal, minimum width=58mm] (cam) at (201,45) {\bfseries Camera ESP32-S3\\\textcolor{cTeal!80!black}{OV3660 · không nối FC}};
+\draw[link=cLuc] (gps.south) |- (100,135) -- (100,120);
+\draw[link=cLuc] (rx.south) -- (rx.south |- fc.north);
+\draw[link=cLuc] (tf.east) -- (fc.west);
+\draw[link=cXam] (esc.east) -| ($(fc.south west)!0.22!(fc.south east)$);
+\draw[link=cTeal] (fc.east) -- (esp.west);
+% tay phát
+\node[dev=cXam, minimum width=58mm, minimum height=13mm, fill=cXamT] (tx) at (122,212) {\bfseries Tay phát FS-i6X};
+\draw[air1=cTim] (tx.south) -- (rx.north) node[pos=0.5, lab, right=2mm] {AFHDS 2A · 2,4 GHz};
+
+% ---------------------------------------------------------------- laptop
+\node[dev=cXam, minimum width=96mm, minimum height=15mm, fill=cXamT, dash pattern=on 4pt off 2.5pt] (sitl) at (311,165)
+  {\bfseries SITL drone ảo\\khi thử nghiệm};
+\node[dev=cXanh, minimum width=104mm, minimum height=30mm, line width=1.6pt] (be) at (311,105)
+  {\bfseries\fontsize{16}{19}\selectfont Backend FastAPI\\pymavlink · dead-man\\mission · lớp an toàn};
+\node[dev=cVang, minimum width=104mm, minimum height=22mm] (ai) at (311,45) {\bfseries AI ONNX GPU, thread riêng\\tìm người · ảnh rõ};
+\draw[arr=cXam] (sitl.south) -- (be.north) node[pos=0.5, lab, right=2mm] {TCP 5760};
+\draw[arr=cVang!85!black] (be.south) -- (ai.north) node[pos=0.5, lab, right=2mm] {khung, kết quả};
+\draw[air=cXanh] (esp.east) -- (be.west);
+\node[lab, anchor=south] at ($(esp.east)!0.5!(be.west)+(0,2)$) {Wi-Fi\\UDP 14550};
+\draw[air1=cTeal] (cam.east) -- (ai.west);
+\node[lab, anchor=south] at ($(cam.east)!0.5!(ai.west)+(0,2)$) {Wi-Fi\\MJPEG :81};
+
+% ---------------------------------------------------------------- người dùng
+\node[dev=cTim, minimum width=60mm, minimum height=30mm] (web) at (418,105) {\bfseries Trình duyệt\\Web GCS\\React};
+\draw[arr=cTim] (be.east) -- (web.west);
+\node[lab, anchor=south] at ($(be.east)!0.5!(web.west)+(0,2)$) {REST};
+\node[lab, anchor=north] at ($(be.east)!0.5!(web.west)+(0,-2)$) {WS 8 Hz};
+\draw[arr1=cTeal] (ai.east) -| (web.south) node[pos=0.3, lab, above=1.5mm] {video MJPEG};
+\end{tikzpicture}

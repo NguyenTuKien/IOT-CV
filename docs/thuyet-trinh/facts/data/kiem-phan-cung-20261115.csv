@@ -1,0 +1,13 @@
+hang_muc,ket_qua,so_do_chinh
+FC SpeedyBee F405 V5,Đạt,ArduCopter V4.7.1 (dbe79216); lỗi nội bộ 0; tải CPU ≤ 40 %; RAM trống 49–54 KB
+IMU,Đạt,"|a| 998 mG; ồn con quay 0,6–4,9 mrad/s; rung đứng yên 0,01–0,07 m/s²; clip 0"
+Baro,Đạt,"1010,2 hPa; ồn 0,2–0,3 Pa"
+La bàn IST8310,Đạt,"385–388 mG; dao động 0,5 mG"
+Tham số FC,Đạt,889 tham số; INS_ACC_ID và COMPASS_DEV_ID đủ
+4 ESC + 4 motor,Đạt,"41 lần khởi động không cánh, 0 lần khựng; bắt vòng 0,05–0,16 s; lệch vòng quay ≤ 2,8 %"
+Receiver iA6B + FS-i6X,Đạt,"4 cần 1000–2000 µs; SwA/SwB/SwC/SwD/VrB đúng chức năng; failsafe < 0,1 s"
+TFmini Plus,Đạt,bám vật 10–260 cm; giữ ~113 cm ±2 cm
+Pin 4S,Đạt,"15,20 V = 3,80 V/cell"
+ESP32 DroneBridge,Đạt,"MAVLink 2 chiều; AUTOPILOT_VERSION trả sau 0,21 s"
+Camera ESP32-S3 + OV3660,Đạt,"150/150 khung sạch; VGA 7,6 khung/s; RSSI −28 dBm; PSRAM trống 8,2 MB"
+Cơ khí,Đạt,"4 motor quay tay êm; khung, càng, dây pha, mối hàn, tụ 1500 µF lành"

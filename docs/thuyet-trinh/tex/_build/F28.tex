@@ -1,0 +1,91 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.15, shadow xshift=1.2pt, shadow yshift=-1.8pt}},
+  band/.style={shad, rounded corners=9pt, line width=1.4pt},
+  btxt/.style={anchor=west, align=left, text=cMuc, inner sep=0pt},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 45,05 x 6,44 cm = the 17,9 x 2,7 in box of part_c (S22) minus the 6 pt border (scale 1 on the slide)
+\def\W{45.05}\def\H{6.44}
+\def\xa{12.45}\def\xe{33.55}   % glyph region (shared time window)
+\def\tit#1#2{{\color{#1}\bfseries\fontsize{16}{19}\selectfont #2}}
+% ---------------- three source bands ----------------
+% #1 y bottom  #2 colour  #3 pastel
+\newcommand\band[3]{\filldraw[band, fill=#3, draw=#2] (0.1,#1) rectangle (\xe,#1+1.5);}
+\band{4.04}{cDo}{cDoT}
+\band{2.42}{cXanh}{cXanhT}
+\band{0.8}{cVang}{cVangT}
+\node[btxt] at (0.45,4.79) {\tit{cDo}{Log FC {\mono .bin}}\\GPS, độ cao, tư thế, pin, rung, TFmini};
+\node[btxt] at (0.45,3.17) {\tit{cXanh}{tlog backend}\\RSSI, mất gói};
+\node[btxt] at (0.45,1.55) {\tit{cVang}{Video MJPEG}\\khung/s, hình};
+% separators between label and glyph region
+\foreach \y/\c in {4.04/cDo,2.42/cXanh,0.8/cVang}
+  \draw[\c!45, line width=1pt] (\xa-0.2,\y+0.22) -- (\xa-0.2,\y+1.28);
+% glyphs: FC series (smooth curve), tlog packets (ticks with gaps), video frames
+\begin{scope}
+  \clip (\xa,4.04) rectangle (\xe-0.15,5.54);
+  \draw[cDo, line width=2pt, line join=round] plot[domain=\xa:\xe, samples=160, smooth]
+    (\x, {4.79 + 0.38*sin(\x*61)*cos(\x*17) + 0.1*sin(\x*190)});
+\end{scope}
+\foreach \i in {0,...,79}{
+  \pgfmathsetmacro\xx{\xa+0.25+\i*0.262}
+  \pgfmathtruncatemacro\skip{mod(\i*7+3,11)<2 ? 1 : 0}
+  \ifnum\skip=0 \draw[cXanh, line width=2.2pt, line cap=round] (\xx,2.78) -- (\xx,{3.56-0.25*mod(\i*5,3)/2}); \fi
+}
+\foreach \i in {0,...,24}{
+  \pgfmathsetmacro\xx{\xa+0.22+\i*0.84}
+  \filldraw[fill=white, draw=cVang, line width=1.4pt, rounded corners=1.5pt] (\xx,1.13) rectangle ++(0.6,0.84);
+  \fill[cVang!35] (\xx+0.1,1.25) rectangle ++(0.4,0.6);
+}
+% shared 0,5 s grid
+\foreach \k in {0,...,12}
+  \draw[cNavy!55, line width=1.1pt, dash pattern=on 4pt off 3pt] (\xa+0.55+\k*1.6,0.62) -- (\xa+0.55+\k*1.6,5.7);
+\draw[cNavy, line width=1.4pt, {Stealth[length=6pt]}-{Stealth[length=6pt]}] (\xa+0.55+5*1.6,5.98) -- (\xa+0.55+6*1.6,5.98);
+\node[anchor=east, text=cNavy, font=\bfseries\fontsize{15}{18}\selectfont, inner sep=3pt] at (\xa+0.55+5*1.6-0.1,6.0) {lưới 0,5 s};
+% ---------------- GPS time axis ----------------
+\draw[cNavy, line width=2.8pt, -{Stealth[length=12pt,width=11pt]}] (\xa,0.3) -- (\xe+0.3,0.3);
+\foreach \k in {0,...,12} \draw[cNavy, line width=1.6pt] (\xa+0.55+\k*1.6,0.3) -- ++(0,0.22);
+\node[anchor=east, text=cNavy, font=\bfseries\fontsize{16}{19}\selectfont] at (\xa-0.25,0.3) {giờ GPS};
+% ---------------- merge into the /flights page ----------------
+\coordinate (m) at (35.2,3.17);
+\foreach \y/\c in {4.79/cDo,3.17/cXanh,1.55/cVang}
+  \draw[\c, line width=2.4pt, line cap=round, rounded corners=8pt] (\xe,\y) -- (34.4,\y) -- (m);
+\draw[cNavy, line width=2.8pt, -{Stealth[length=12pt,width=11pt]}] (m) -- (36.45,3.17);
+\node[shad, fill=cLuc, draw=cLuc, rounded corners=12pt, minimum width=8.4cm, minimum height=4.6cm, anchor=west] (pg) at (36.55,3.17) {};
+\begin{scope}[shift={($(pg.west)+(1.35,0)$)}]
+  \filldraw[fill=white, draw=white, rounded corners=3pt] (-0.82,-0.72) rectangle (0.82,0.78);
+  \fill[cLuc!72!black, rounded corners=3pt] (-0.82,0.5) rectangle (0.82,0.78);
+  \foreach \i in {0,1,2} \fill[white] (-0.64+\i*0.2,0.64) circle (0.055);
+  \draw[cLuc, line width=1.6pt] (-0.6,-0.42) -- (-0.25,-0.02) -- (0.08,-0.28) -- (0.6,0.22);
+\end{scope}
+\node[anchor=west, align=left, text=white, inner sep=0pt] at ($(pg.west)+(2.55,0)$)
+  {{\bfseries\fontsize{17}{20}\selectfont trang {\mono /flights}}\\[3pt]{\fontsize{16}{19}\selectfont Alt+L}};
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}
+
+\end{document}

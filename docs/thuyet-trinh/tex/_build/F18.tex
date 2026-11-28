@@ -1,0 +1,114 @@
+\documentclass[12pt,border=6pt]{standalone}
+\usepackage{fontspec}
+\setmainfont{BeVietnamPro}[Path=D:/IOT_Tools/downloads/fonts/,Extension=.ttf,UprightFont=*-Regular,BoldFont=*-Bold]
+\usepackage{amsmath}
+\usepackage{unicode-math}\setmathfont{Cambria Math}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,shapes.misc,calc,fit,backgrounds,decorations.pathreplacing,shadows,3d,perspective}
+\usepackage{tikz-3dplot}
+\usepackage{pgfplots}\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots,fillbetween}
+\definecolor{cDo}{HTML}{BB2025}\definecolor{cDoD}{HTML}{8E1418}\definecolor{cDoT}{HTML}{FCEBEC}
+\definecolor{cXanh}{HTML}{326CE5}\definecolor{cXanhT}{HTML}{EAF0FC}
+\definecolor{cLuc}{HTML}{15803D}\definecolor{cLucT}{HTML}{E6F4EA}
+\definecolor{cVang}{HTML}{B45309}\definecolor{cVangT}{HTML}{FDF2E1}
+\definecolor{cNavy}{HTML}{1E293B}\definecolor{cMuc}{HTML}{1F2937}\definecolor{cXam}{HTML}{4B5563}
+\definecolor{cXamT}{HTML}{F3F4F6}\definecolor{cVien}{HTML}{DDE1E6}\definecolor{cTim}{HTML}{6D28D9}\definecolor{cTimT}{HTML}{F1EBFD}
+\pgfplotsset{slide/.style={tick label style={font=\small}, label style={font=\small}, scaled ticks=false,
+  /pgf/number format/fixed, /pgf/number format/use comma, /pgf/number format/1000 sep={\,},
+  legend style={font=\small,draw=none,fill=none}, axis line style={cXam}, major tick style={cXam},
+  grid style={cVien}}}
+\pgfkeys{/pgf/number format/assume math mode=true}
+\begin{document}
+\begin{tikzpicture}[
+  font=\fontsize{15}{18}\selectfont,
+  shad/.style={drop shadow={opacity=0.16, shadow xshift=1.3pt, shadow yshift=-2pt}},
+  blk/.style={shad, rounded corners=10pt, align=center, minimum height=3.1cm, inner sep=6pt, line width=1.3pt},
+  tag/.style={shad, rounded corners=7pt, minimum height=0.95cm, text width=5.95cm, anchor=west, line width=1.2pt,
+    align=left, inner xsep=8pt},
+  flow/.style={line width=2.6pt, -{Stealth[length=11pt,width=11pt]}},
+]
+\frenchspacing
+\newfontfamily\mono{Consolas}
+% canvas 45,05 x 8,98 cm = the 17,9 x 3,7 in box of part_b (S16) minus the 6 pt border (scale 1 on the slide)
+\def\W{45.05}\def\H{8.98}
+\def\yc{4.45}
+% ---------------- FC and ESP32 ----------------
+\node[blk, fill=cNavy, draw=cNavy, text=white, minimum width=5.0cm] (fc) at (2.6,\yc)
+  {{\bfseries\fontsize{24}{26}\selectfont FC}\\[4pt]ArduCopter};
+\node[blk, fill=cXanh, draw=cXanh, text=white, minimum width=5.0cm] (esp) at (13.35,\yc)
+  {{\bfseries\fontsize{20}{24}\selectfont ESP32}\\[4pt]DroneBridge};
+\draw[flow, cNavy] (fc.east) -- (esp.west)
+  node[midway, above=3pt, cNavy, font=\bfseries\fontsize{15}{18}\selectfont] {UART2}
+  node[midway, below=3pt, cXam, align=center] {MAVLink2\\115\,200 baud};
+% ---------------- backend frame ----------------
+\filldraw[shad, fill=cXamT, draw=cNavy, line width=1.4pt, rounded corners=12pt] (19.9,1.55) rectangle (38.75,7.55);
+\node[anchor=west, text=cXam] at (20.2,6.93) {{\color{cNavy}\bfseries\fontsize{17.5}{20}\selectfont backend}\quad cổng 14550 nhận HEARTBEAT từ 3 nguồn};
+% wifi link
+\draw[flow, cXanh] (esp.east) -- (19.9,\yc)
+  node[midway, below=3pt, cXam, align=center] {UDP\\14550};
+\begin{scope}[shift={(17.87,5.5)}, cXanh, line width=2pt, line cap=round]
+  \fill (0,0) circle (0.12);
+  \draw (45:0.38) arc (45:135:0.38);
+  \draw (45:0.68) arc (45:135:0.68);
+  \draw (45:0.98) arc (45:135:0.98);
+\end{scope}
+% three HEARTBEAT sources
+\node[tag, fill=cLucT, draw=cLuc] (h1) at (20.15,5.72) {\textbf{(1,1)} FC};
+\node[tag, fill=white, draw=cXam!60, text=cXam] (h2) at (20.15,4.5) {\textbf{(1,68)} DroneBridge};
+\node[tag, fill=white, draw=cXam!60, text=cXam] (h3) at (20.15,3.28) {\textbf{(255,…)} GCS};
+% badges: tick / cross
+\begin{scope}[shift={($(h1.east)+(-0.38,0)$)}]
+  \fill[cLuc] (0,0) circle (0.27);
+  \draw[white, line width=2.2pt, line cap=round, line join=round] (-0.14,0.0) -- (-0.03,-0.12) -- (0.15,0.12);
+\end{scope}
+\foreach \h in {h2,h3}{
+  \begin{scope}[shift={($(\h.east)+(-0.38,0)$)}]
+    \fill[cXam!70] (0,0) circle (0.27);
+    \draw[white, line width=2.2pt, line cap=round] (-0.12,-0.12) -- (0.12,0.12) (-0.12,0.12) -- (0.12,-0.12);
+  \end{scope}
+}
+\node[anchor=north west, text=cXam] at (20.2,2.73) {{\mono autopilot = INVALID}: bỏ};
+% funnel
+\filldraw[shad, fill=cDo, draw=cDoD, line width=1.2pt, rounded corners=3pt]
+  (27.35,6.3) -- (29.25,4.95) -- (30.05,4.95) -- (30.05,3.95) -- (29.25,3.95) -- (27.35,2.6) -- cycle;
+\node[white, font=\bfseries\fontsize{15}{15}\selectfont] at (28.35,4.45) {lọc};
+\draw[line width=2.2pt, cLuc, -{Stealth[length=8pt]}] (h1.east) -- (27.45,5.72) ;
+\foreach \h in {h2,h3}{
+  \draw[line width=1.8pt, cXam!60, dashed] (\h.east) -- (26.95,0 |- \h.east);
+  \draw[line width=2.6pt, cXam!80] ($(27.0,0 |- \h.east)+(0,0.32)$) -- ++(0,-0.6);
+}
+% telemetry + websocket
+\node[blk, fill=cDoT, draw=cDo, minimum width=3.4cm, minimum height=2.4cm] (tel) at (32.75,\yc)
+  {\textbf{telemetry}\\[2pt]{\color{cDo}\bfseries 8 Hz}};
+\node[blk, fill=white, draw=cNavy, minimum width=3.0cm, minimum height=2.4cm] (ws) at (36.75,\yc)
+  {\textbf{WebSocket}\\[2pt]{\mono\color{cDoD} /ws}};
+\draw[flow, cLuc] (30.05,\yc) -- (tel.west);
+\draw[flow, cNavy, line width=2.2pt] (tel.east) -- (ws.west);
+% browser
+\node[blk, fill=cLuc, draw=cLuc, text=white, minimum width=5.0cm] (web) at (42.5,\yc) {};
+\begin{scope}[shift={(42.5,\yc)}]
+  \filldraw[fill=white, draw=white, rounded corners=3pt] (-1.25,-0.15) rectangle (1.25,1.3);
+  \fill[cLuc!75!black, rounded corners=3pt] (-1.25,1.0) rectangle (1.25,1.3);
+  \foreach \i in {0,1,2} \fill[white] (-1.05+\i*0.22,1.15) circle (0.06);
+  \draw[cLuc, line width=1.6pt] (-0.95,0.2) -- (-0.4,0.6) -- (0.1,0.35) -- (0.9,0.8);
+  \node[white, font=\bfseries\fontsize{15}{18}\selectfont] at (0,-0.85) {trình duyệt};
+\end{scope}
+\draw[flow, cNavy] (ws.east) -- (web.west);
+% ---------------- return paths ----------------
+% commands, web -> FC (amber, bottom lane)
+\draw[line width=2.6pt, cVang, rounded corners=14pt, -{Stealth[length=11pt,width=11pt]}]
+  (web.south) -- (42.5,0.58) -- (2.6,0.58) -- (fc.south);
+\node[fill=white, inner xsep=8pt, text=cVang, font=\bfseries\fontsize{15}{18}\selectfont] at (31.0,0.58)
+  {lệnh {\mono COMMAND\_LONG} + chờ ACK 3 s};
+% stream rates request, backend -> FC (thin, top lane)
+\draw[line width=1.5pt, cXam, rounded corners=12pt, -{Stealth[length=9pt,width=9pt]}]
+  (32.75,7.55) -- (32.75,8.35) -- (2.6,8.35) -- (fc.north);
+\node[fill=white, inner xsep=8pt, text=cXam] at (17.4,8.35)
+  {{\mono\color{cMuc} SET\_MESSAGE\_INTERVAL} sau mỗi lần nối lại: xin 10 loại gói, 1 đến 10 Hz};
+\pgfresetboundingbox
+\useasboundingbox (0,0) rectangle (\W,\H);
+\end{tikzpicture}
+
+\end{document}
